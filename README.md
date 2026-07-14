@@ -1,6 +1,6 @@
 # 🤖 WAGENT — WhatsApp AI Agent Platform
 
-**Open-source, self-hosted, multi-AI WhatsApp agent untuk bisnis apapun.**
+**Open-source, self-hosted, multi-AI WhatsApp agent untuk siapapun.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Bun](https://img.shields.io/badge/Bun-%3E%3D1.0-f5e0ac)](https://bun.sh)
@@ -11,14 +11,12 @@
 
 ## 🎯 Apa itu WAGENT?
 
-WAGENT bukan cuma chatbot CS. Ini adalah **platform WhatsApp AI Agent** yang bisa:
+WAGENT adalah **platform WhatsApp AI Agent** yang bisa dipakai siapa saja — personal, profesional, bisnis, developer.
 
-- 💬 **Jawab pertanyaan** — FAQ, produk, harga, stok
-- 🛒 **Terima pesanan** — dari chat langsung ke sistem
-- 🚚 **Hitung ongkir** — integrasi 17+ shipping provider
-- 💰 **Proses pembayaran** — Midtrans, Xendit, transfer, COD
-- 🔌 **Konek ke sistem existing** — POS, Shopee, Tokopedia via MCP
-- 🧠 **Belajar** — adaptif dengan gaya bicara customer
+- 💬 **Personal AI Assistant** — AI yang jawab WhatsApp kamu
+- 🛒 **Toko Online** — Otomasi CS, order, pembayaran
+- 🏢 **Bisnis** — Service, booking, konsultasi
+- 🧑‍💻 **Developer** — Build AI agent custom dengan skills
 
 ---
 
@@ -98,6 +96,41 @@ Scan QR code WhatsApp. Selesai!
 ---
 
 ## 💡 Use Cases
+
+### 🧑 Personal AI Assistant
+```bash
+# AI yang jaga WhatsApp kamu 24/7
+# Jawab pertanyaan, ingatkan jadwal, cari info
+
+# Setup cepat
+./bin/wagent init
+# Set system prompt: "Kamu adalah asisten pribadi yang membantu"
+./bin/wagent start
+
+# Sekarang AI menjalankan WhatsApp kamu!
+```
+
+### 👨‍💻 Developer / Freelancer
+```bash
+# Build AI agent untuk klien
+# Custom skills untuk kebutuhan spesifik
+
+# Buat skill untuk integrasi API klien
+cat > skills/client-api.js << 'EOF'
+export default () => ({
+  manifest: { name: 'client-api', version: '1.0.0', description: 'Client API integration' },
+  tools: [{
+    name: 'get_client_data',
+    description: 'Ambil data dari API klien',
+    parameters: { type: 'object', properties: { id: { type: 'string' } } },
+    handler: async (args) => {
+      const res = await fetch(`https://api.client.com/data/${args.id}`);
+      return res.json();
+    },
+  }],
+});
+EOF
+```
 
 ### 🏪 Toko Online / E-Commerce
 ```bash
@@ -304,5 +337,5 @@ WAGENT dirilis di bawah lisensi **MIT**.
 ---
 
 <div align="center">
-  <sub>Dibuat dengan ❤️ untuk bisnis Indonesia yang lebih cerdas</sub>
+  <sub>Dibuat dengan ❤️ untuk siapapun yang ingin AI assistant di WhatsApp</sub>
 </div>
