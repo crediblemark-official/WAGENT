@@ -1,0 +1,25 @@
+# ── .lycheeignore ──────────────────────────────────────────────
+# Links that lychee should skip when checking for broken links.
+# Supports regex patterns.
+#
+# Syntax:
+#   https://example.com/skip-this-link
+#   https://*.example.com/*    (regex supported)
+
+# ── Local files that don't exist yet ──────────────────────────
+# These are referenced in docs but are placeholders/future files
+https://github.com/yourusername/opencs
+https://github.com/yourusername/opencs/issues
+file:///home
+
+# ── Social / Authentication pages (often blocked by crawlers) ─
+# BotFather and Telegram links may rate-limit crawlers
+https://t.me/
+# WhatsApp links
+https://wa.me/
+
+# ── Platform links that block automated checks ────────────────
+https://platform.openai.com
+https://ai.google.dev
+https://anthropic.com
+https://www.anthropic.com

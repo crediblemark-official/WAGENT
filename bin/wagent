@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+
+exec bun run "$PROJECT_DIR/packages/cli/dist/index.js" "$@"

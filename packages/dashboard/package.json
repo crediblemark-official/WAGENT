@@ -1,0 +1,40 @@
+{
+  "name": "@wagent/dashboard",
+  "version": "0.1.0",
+  "description": "WAGENT Dashboard - Web Panel",
+  "type": "module",
+  "main": "./dist/server.js",
+  "types": "./dist/server.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/server.d.ts",
+      "import": "./dist/server.js"
+    }
+  },
+  "scripts": {
+    "build": "bun run build:client && bun run build:server",
+    "build:server": "tsc",
+    "build:client": "vite build",
+    "dev:server": "tsc --watch",
+    "dev": "vite"
+  },
+  "dependencies": {
+    "@wagent/core": "*",
+    "express": "^5.1.0",
+    "ws": "^8.18.0",
+    "pino": "^9.6.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "@types/express": "^5.0.0",
+    "@types/ws": "^8.5.0",
+    "@types/node": "^22.0.0",
+    "vite": "^6.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.0",
+    "react-router-dom": "^7.0.0",
+    "lucide-react": "^0.400.0",
+    "recharts": "^2.15.0"
+  }
+}

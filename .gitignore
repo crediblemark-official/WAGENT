@@ -1,0 +1,26 @@
+node_modules/
+dist/
+.env
+.env.backup
+*.sqlite
+*.sqlite-journal
+.whatsapp-session*/
+.whatsapp-store*/
+coverage/
+.turbo/
+*.tsbuildinfo
+data/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo

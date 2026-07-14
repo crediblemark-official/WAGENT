@@ -1,0 +1,36 @@
+{
+  "name": "wagent",
+  "version": "0.1.0",
+  "description": "WAGENT - WhatsApp AI Agent",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "cd packages/core && bun run build && cd ../dashboard && bun run build && cd ../tui && bun run build && cd ../whatsapp && bun run build && cd ../cli && bun run build",
+    "start": "./bin/wagent start",
+    "dev": "./bin/wagent start --no-dashboard",
+    "test": "cd packages/core && bun run test",
+    "lint": "eslint packages/*/src --ext .ts",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf packages/*/dist node_modules"
+  },
+  "bin": {
+    "wagent": "packages/cli/dist/index.js"
+  },
+  "keywords": [
+    "whatsapp",
+    "ai",
+    "chatbot",
+    "customer-service",
+    "baileys"
+  ],
+  "license": "MIT",
+  "engines": {
+    "bun": ">=1.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3"
+  }
+}
