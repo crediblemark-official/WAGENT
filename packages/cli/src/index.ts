@@ -32,27 +32,11 @@ program
 
 program
   .command('init')
-  .description('Buat config.jsonc baru')
+  .description('Setup wizard untuk konfigurasi WAGENT')
   .action(async () => {
-    const { createDefaultConfig } = await import('@wagent/core');
+    const { setupConfigWizard } = await import('@wagent/tui');
     
-    console.log('');
-    console.log(color.bold(color.cyan('╔══════════════════════════════════════╗')));
-    console.log(color.bold(color.cyan('║      🤖 WAGENT Setup                 ║')));
-    console.log(color.bold(color.cyan('╚══════════════════════════════════════╝')));
-    console.log('');
-    
-    createDefaultConfig();
-    
-    console.log(color.green('✓ config.jsonc created'));
-    console.log('');
-    console.log(color.bold('Edit config.jsonc:'));
-    console.log(color.dim('  1. Set your model ID (e.g., "openai/gpt-4o")'));
-    console.log(color.dim('  2. Add your API key in providers section'));
-    console.log('');
-    console.log(color.bold('Then run:'));
-    console.log(color.green('  wagent start'));
-    console.log('');
+    await setupConfigWizard();
   });
 
 // ── start ───────────────────────────────────────────────────────
