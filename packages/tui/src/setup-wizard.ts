@@ -5,12 +5,12 @@
  * No manual file editing needed.
  */
 
-import { writeFileSync, existsSync, readFileSync } from 'fs';
+import { writeFileSync } from 'fs';
 import { join } from 'path';
-import { intro, outro, text, select, confirm, isCancel, cancel, spinner } from '@clack/prompts';
+import { intro, outro, text, confirm, isCancel, cancel, spinner } from '@clack/prompts';
 import color from 'picocolors';
 import { getLogger } from '@wagent/core';
-import { resolveModel, refreshModelCatalog } from '@wagent/core';
+import { resolveModel } from '@wagent/core';
 
 // ── Types ───────────────────────────────────────────────────────
 
@@ -19,7 +19,7 @@ interface WizardConfig {
   model: string;
   apiKey: string;
   provider: string;
-  modelId: string;
+  baseUrl?: string;
   agent: {
     welcomeMessage: string;
   };
@@ -40,7 +40,6 @@ export async function setupWizard(): Promise<void> {
     model: '',
     apiKey: '',
     provider: '',
-    modelId: '',
     agent: {
       welcomeMessage: 'Halo! 👋 Ada yang bisa saya bantu hari ini?',
     },
@@ -50,86 +49,73 @@ export async function setupWizard(): Promise<void> {
     },
   };
 
-  // ── Step 1: Select Provider ─────────────────────────────────────
-  const provider = await select({
-    message: 'Pilih AI Provider:',
-    options: [
-      { value: 'openai', label: 'OpenAI', hint: 'GPT-4o, GPT-4o Mini' },
-      { value: 'anthropic', label: 'Anthropic', hint: 'Claude Sonnet, Haiku' },
-      { value: 'google', label: 'Google Gemini', hint: 'Gemini 2.0 Flash' },
-      { value: 'groq', label: 'Groq', hint: 'Llama, Mixtral (fast)' },
-      { value: 'deepseek', label: 'DeepSeek', hint: 'DeepSeek Chat' },
-      { value: 'mistral', label: 'Mistral', hint: 'Mistral Large' },
-      { value: 'xai', label: 'xAI', hint: 'Grok 3' },
-      { value: 'ollama', label: 'Ollama (Local)', hint: 'LLaMA, Mistral (free)' },
-    ],
-  }) as string;
+  // ── Step 1: AI Model ID ─────────────────────────────────────────
+  const modelIdInput = await text({
+    message: 'Masukkan Model ID dari models.dev (contoh: google/gemini-2.0-flash, openai/gpt-4o, deepseek/deepseek-chat, ollama/llama3):',
+    placeholder: 'google/gemini-2.0-flash',
+    defaultValue: 'google/gemini-2.0-flash',
+    validate: (v) => {
+      if (!v) return 'Model ID tidak boleh kosong';
+      if (!v.includes('/')) {
+        return 'Format model ID tidak valid (harus provider/model)';
+      }
+      return undefined;
+    }
+  });
 
-  if (isCancel(provider)) {
+  if (isCancel(modelIdInput)) {
     cancel('Setup dibatalkan.');
     process.exit(0);
   }
 
-  config.provider = provider;
+  // Resolve model ID
+  intro(color.cyan('🔍 Menghubungkan ke models.dev & memverifikasi model...'));
+  const resolved = await resolveModel(modelIdInput as string);
 
-  // ── Step 2: Get API Key ─────────────────────────────────────────
-  if (provider !== 'ollama') {
-    const apiKey = await text({
-      message: `Masukkan API Key untuk ${provider}:`,
-      placeholder: getApiKeyPlaceholder(provider),
-      validate: (value) => {
-        if (!value) return 'API Key harus diisi';
-        return undefined;
-      },
+  config.provider = resolved.provider;
+  config.model = resolved.input;
+
+  // ── Step 2: Credentials ─────────────────────────────────────────
+  if (resolved.provider === 'ollama') {
+    const baseUrl = await text({
+      message: 'Ollama base URL:',
+      placeholder: 'http://localhost:11434/api',
+      defaultValue: resolved.baseUrl || 'http://localhost:11434/api',
     });
-
-    if (isCancel(apiKey)) {
-      cancel('Setup dibatalkan.');
-      process.exit(0);
-    }
-
+    if (isCancel(baseUrl)) process.exit(0);
+    config.baseUrl = baseUrl as string;
+  } else {
+    const envKey = resolved.envKey || `${resolved.provider.toUpperCase()}_API_KEY`;
+    const apiKey = await text({
+      message: `Masukkan API Key untuk ${resolved.name || resolved.provider} (${envKey}):`,
+      placeholder: '...',
+      validate: (v) => !v ? 'API Key tidak boleh kosong' : undefined,
+    });
+    if (isCancel(apiKey)) process.exit(0);
     config.apiKey = apiKey as string;
   }
 
-  // ── Step 3: Select Model ────────────────────────────────────────
-  const models = getModelsForProvider(provider);
-  
-  const modelId = await select({
-    message: 'Pilih model:',
-    options: models,
-  }) as string;
-
-  if (isCancel(modelId)) {
-    cancel('Setup dibatalkan.');
-    process.exit(0);
-  }
-
-  config.modelId = modelId;
-  config.model = `${provider}/${modelId}`;
-
-  // ── Step 4: Session Name ────────────────────────────────────────
+  // ── Step 3: Session Name ────────────────────────────────────────
   const session = await text({
     message: 'Nama session WhatsApp:',
     placeholder: 'wagent-session',
     defaultValue: 'wagent-session',
   });
 
-  if (!isCancel(session)) {
-    config.session = session as string;
-  }
+  if (isCancel(session)) process.exit(0);
+  config.session = session as string;
 
-  // ── Step 5: Welcome Message ─────────────────────────────────────
+  // ── Step 4: Welcome Message ─────────────────────────────────────
   const welcomeMessage = await text({
     message: 'Welcome message untuk chat baru:',
     placeholder: 'Halo! Ada yang bisa saya bantu?',
     defaultValue: 'Halo! 👋 Ada yang bisa saya bantu hari ini?',
   });
 
-  if (!isCancel(welcomeMessage)) {
-    config.agent.welcomeMessage = welcomeMessage as string;
-  }
+  if (isCancel(welcomeMessage)) process.exit(0);
+  config.agent.welcomeMessage = welcomeMessage as string;
 
-  // ── Step 6: Dashboard ───────────────────────────────────────────
+  // ── Step 5: Dashboard ───────────────────────────────────────────
   const enableDashboard = await confirm({
     message: 'Aktifkan web dashboard?',
     initialValue: true,
@@ -142,9 +128,8 @@ export async function setupWizard(): Promise<void> {
       defaultValue: '3030',
     });
 
-    if (!isCancel(port)) {
-      config.dashboard.port = Number(port);
-    }
+    if (isCancel(port)) process.exit(0);
+    config.dashboard.port = Number(port);
   } else {
     config.dashboard.enabled = false;
   }
@@ -182,64 +167,6 @@ export async function setupWizard(): Promise<void> {
 
 // ── Helper Functions ────────────────────────────────────────────
 
-function getApiKeyPlaceholder(provider: string): string {
-  const placeholders: { [key: string]: string } = {
-    openai: 'sk-...',
-    anthropic: 'sk-ant-...',
-    google: 'AIza...',
-    groq: 'gsk_...',
-    deepseek: 'sk-...',
-    mistral: '',
-    xai: '',
-  };
-  return placeholders[provider] || '';
-}
-
-function getModelsForProvider(provider: string): Array<{ value: string; label: string; hint?: string }> {
-  const models: { [key: string]: Array<{ value: string; label: string; hint?: string }> } = {
-    openai: [
-      { value: 'gpt-4o', label: 'GPT-4o', hint: 'Best overall' },
-      { value: 'gpt-4o-mini', label: 'GPT-4o Mini', hint: 'Fast & cheap' },
-      { value: 'gpt-4-turbo', label: 'GPT-4 Turbo', hint: 'Previous gen' },
-    ],
-    anthropic: [
-      { value: 'claude-sonnet-4-20250514', label: 'Claude Sonnet 4', hint: 'Best for CS' },
-      { value: 'claude-3-5-haiku-20241022', label: 'Claude 3.5 Haiku', hint: 'Fast & cheap' },
-      { value: 'claude-3-opus-20240229', label: 'Claude 3 Opus', hint: 'Most capable' },
-    ],
-    google: [
-      { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash', hint: 'Fast & capable' },
-      { value: 'gemini-2.0-flash-lite', label: 'Gemini 2.0 Flash Lite', hint: 'Cheapest' },
-      { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro', hint: 'Most capable' },
-    ],
-    groq: [
-      { value: 'llama-3.1-70b-versatile', label: 'Llama 3.1 70B', hint: 'Best open source' },
-      { value: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B', hint: 'Fastest' },
-      { value: 'mixtral-8x7b-32768', label: 'Mixtral 8x7B', hint: 'Good balance' },
-    ],
-    deepseek: [
-      { value: 'deepseek-chat', label: 'DeepSeek Chat', hint: 'Best for chat' },
-      { value: 'deepseek-coder', label: 'DeepSeek Coder', hint: 'Best for code' },
-    ],
-    mistral: [
-      { value: 'mistral-large-latest', label: 'Mistral Large', hint: 'Most capable' },
-      { value: 'mistral-small-latest', label: 'Mistral Small', hint: 'Fast & cheap' },
-    ],
-    xai: [
-      { value: 'grok-3', label: 'Grok 3', hint: 'Latest' },
-      { value: 'grok-2', label: 'Grok 2', hint: 'Previous gen' },
-    ],
-    ollama: [
-      { value: 'llama3', label: 'LLaMA 3', hint: 'Latest LLaMA' },
-      { value: 'llama3.1:8b', label: 'LLaMA 3.1 8B', hint: 'Fast' },
-      { value: 'mistral', label: 'Mistral', hint: 'Good balance' },
-      { value: 'phi3', label: 'Phi-3', hint: 'Small & fast' },
-    ],
-  };
-  
-  return models[provider] || [];
-}
-
 function generateJsonConfig(config: WizardConfig): string {
   const lines: string[] = [];
   
@@ -258,11 +185,13 @@ function generateJsonConfig(config: WizardConfig): string {
   lines.push('');
   
   // Provider
-  lines.push('  // API Key');
+  lines.push('  // API Keys / Base URLs');
   lines.push('  "providers": {');
   lines.push(`    "${config.provider}": {`);
   if (config.apiKey) {
     lines.push(`      "apiKey": "${config.apiKey}"`);
+  } else if (config.baseUrl) {
+    lines.push(`      "baseUrl": "${config.baseUrl}"`);
   }
   lines.push('    }');
   lines.push('  },');
