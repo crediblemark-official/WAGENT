@@ -256,7 +256,7 @@ function generateJsonConfig(config: WizardConfig): string {
   const lines: string[] = [];
   
   lines.push('{');
-  lines.push('  "$schema": "https://wagent.ai/config.json",');
+  lines.push('  "$schema": "https://raw.githubusercontent.com/crediblemark-official/WAGENT/main/schemas/config.json",');
   lines.push('');
   
   // Session

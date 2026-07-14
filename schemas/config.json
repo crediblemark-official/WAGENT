@@ -1,0 +1,243 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/crediblemark-official/WAGENT/schemas/config.json",
+  "title": "WAGENT Configuration",
+  "description": "Configuration file for WAGENT WhatsApp AI Agent",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema reference"
+    },
+    "session": {
+      "type": "string",
+      "default": "wagent-session",
+      "description": "WhatsApp session name"
+    },
+    "model": {
+      "type": "string",
+      "default": "openai/gpt-4o",
+      "description": "AI Model ID (format: provider/model-name)",
+      "examples": [
+        "openai/gpt-4o",
+        "openai/gpt-4o-mini",
+        "anthropic/claude-sonnet-4-20250514",
+        "anthropic/claude-3-5-haiku-20241022",
+        "google/gemini-2.0-flash",
+        "google/gemini-2.0-flash-lite",
+        "groq/llama-3.1-70b-versatile",
+        "deepseek/deepseek-chat",
+        "mistral/mistral-large-latest",
+        "xai/grok-3",
+        "ollama/llama3"
+      ]
+    },
+    "providers": {
+      "type": "object",
+      "description": "Provider configurations",
+      "properties": {
+        "openai": {
+          "type": "object",
+          "properties": {
+            "apiKey": { "type": "string", "description": "OpenAI API Key" }
+          }
+        },
+        "anthropic": {
+          "type": "object",
+          "properties": {
+            "apiKey": { "type": "string", "description": "Anthropic API Key" }
+          }
+        },
+        "google": {
+          "type": "object",
+          "properties": {
+            "apiKey": { "type": "string", "description": "Google Gemini API Key" }
+          }
+        },
+        "groq": {
+          "type": "object",
+          "properties": {
+            "apiKey": { "type": "string", "description": "Groq API Key" }
+          }
+        },
+        "deepseek": {
+          "type": "object",
+          "properties": {
+            "apiKey": { "type": "string", "description": "DeepSeek API Key" }
+          }
+        },
+        "mistral": {
+          "type": "object",
+          "properties": {
+            "apiKey": { "type": "string", "description": "Mistral API Key" }
+          }
+        },
+        "xai": {
+          "type": "object",
+          "properties": {
+            "apiKey": { "type": "string", "description": "xAI API Key" }
+          }
+        },
+        "ollama": {
+          "type": "object",
+          "properties": {
+            "baseUrl": {
+              "type": "string",
+              "default": "http://localhost:11434",
+              "description": "Ollama server URL"
+            }
+          }
+        }
+      }
+    },
+    "agent": {
+      "type": "object",
+      "description": "Agent settings",
+      "properties": {
+        "systemPrompt": {
+          "type": "string",
+          "description": "System prompt for AI agent"
+        },
+        "welcomeMessage": {
+          "type": "string",
+          "description": "Welcome message for new chats"
+        },
+        "conversationTimeoutHours": {
+          "type": "number",
+          "default": 24,
+          "description": "Hours before conversation history is cleaned"
+        }
+      }
+    },
+    "rateLimit": {
+      "type": "object",
+      "description": "Rate limiting settings",
+      "properties": {
+        "max": {
+          "type": "number",
+          "default": 10,
+          "description": "Max messages per window"
+        },
+        "windowSeconds": {
+          "type": "number",
+          "default": 10,
+          "description": "Rate limit window in seconds"
+        },
+        "message": {
+          "type": "string",
+          "description": "Message when rate limited"
+        }
+      }
+    },
+    "workingHours": {
+      "type": "object",
+      "description": "Working hours settings",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable working hours"
+        },
+        "start": {
+          "type": "string",
+          "default": "08:00",
+          "description": "Work start time (HH:mm)"
+        },
+        "end": {
+          "type": "string",
+          "default": "17:00",
+          "description": "Work end time (HH:mm)"
+        },
+        "timezone": {
+          "type": "string",
+          "default": "Asia/Jakarta",
+          "description": "Timezone"
+        },
+        "offlineMessage": {
+          "type": "string",
+          "description": "Message when outside working hours"
+        }
+      }
+    },
+    "escalation": {
+      "type": "object",
+      "description": "Escalation to human agent via Telegram",
+      "properties": {
+        "telegramBotToken": {
+          "type": "string",
+          "description": "Telegram Bot Token"
+        },
+        "telegramChatId": {
+          "type": "string",
+          "description": "Telegram Chat ID"
+        }
+      }
+    },
+    "humanTakeover": {
+      "type": "object",
+      "description": "Human takeover settings",
+      "properties": {
+        "cooldownMinutes": {
+          "type": "number",
+          "default": 30,
+          "description": "Cooldown after human reply"
+        }
+      }
+    },
+    "groupChat": {
+      "type": "object",
+      "description": "Group chat settings",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable group chat"
+        },
+        "replyIfMentioned": {
+          "type": "boolean",
+          "default": true,
+          "description": "Only reply when @mentioned"
+        }
+      }
+    },
+    "dashboard": {
+      "type": "object",
+      "description": "Dashboard settings",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable web dashboard"
+        },
+        "port": {
+          "type": "number",
+          "default": 3030,
+          "description": "Dashboard port"
+        },
+        "host": {
+          "type": "string",
+          "default": "localhost",
+          "description": "Dashboard host"
+        }
+      }
+    },
+    "database": {
+      "type": "object",
+      "description": "Database settings",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["sqlite", "postgres"],
+          "default": "sqlite",
+          "description": "Database type"
+        },
+        "url": {
+          "type": "string",
+          "default": "./data/wagent.db",
+          "description": "Database URL"
+        }
+      }
+    }
+  },
+  "required": ["model"]
+}

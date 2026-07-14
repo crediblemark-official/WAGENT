@@ -1,5 +1,5 @@
 {
-  "$schema": "https://wagent.ai/config.json",
+  "$schema": "https://raw.githubusercontent.com/crediblemark-official/WAGENT/main/schemas/config.json",
   
   // WhatsApp Session
   "session": "wagent-session",
