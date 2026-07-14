@@ -21,7 +21,6 @@ interface WizardConfig {
   provider: string;
   modelId: string;
   agent: {
-    systemPrompt: string;
     welcomeMessage: string;
   };
   dashboard: {
@@ -43,7 +42,6 @@ export async function setupWizard(): Promise<void> {
     provider: '',
     modelId: '',
     agent: {
-      systemPrompt: 'Kamu adalah customer service AI yang ramah dan profesional.',
       welcomeMessage: 'Halo! 👋 Ada yang bisa saya bantu hari ini?',
     },
     dashboard: {
@@ -120,21 +118,11 @@ export async function setupWizard(): Promise<void> {
     config.session = session as string;
   }
 
-  // ── Step 5: Agent Settings ──────────────────────────────────────
-  const systemPrompt = await text({
-    message: 'System prompt untuk AI agent:',
-    placeholder: 'Kamu adalah customer service yang ramah...',
-    defaultValue: config.agent.systemPrompt,
-  });
-
-  if (!isCancel(systemPrompt)) {
-    config.agent.systemPrompt = systemPrompt as string;
-  }
-
+  // ── Step 5: Welcome Message ─────────────────────────────────────
   const welcomeMessage = await text({
     message: 'Welcome message untuk chat baru:',
     placeholder: 'Halo! Ada yang bisa saya bantu?',
-    defaultValue: config.agent.welcomeMessage,
+    defaultValue: 'Halo! 👋 Ada yang bisa saya bantu hari ini?',
   });
 
   if (!isCancel(welcomeMessage)) {
@@ -283,7 +271,8 @@ function generateJsonConfig(config: WizardConfig): string {
   // Agent
   lines.push('  // Agent Settings');
   lines.push('  "agent": {');
-  lines.push(`    "systemPrompt": "${escapeJson(config.agent.systemPrompt)}",`);
+  lines.push('    // System prompt loaded from file (edit prompts/system.md to change AI behavior)');
+  lines.push('    "systemPromptFile": "prompts/system.md",');
   lines.push(`    "welcomeMessage": "${escapeJson(config.agent.welcomeMessage)}"`);
   lines.push('  },');
   lines.push('');

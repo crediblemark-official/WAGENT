@@ -96,7 +96,12 @@
       "properties": {
         "systemPrompt": {
           "type": "string",
-          "description": "System prompt for AI agent"
+          "description": "System prompt for AI agent (inline, optional if using systemPromptFile)"
+        },
+        "systemPromptFile": {
+          "type": "string",
+          "default": "prompts/system.md",
+          "description": "Path to system prompt file (relative to project root). Edit this file to change AI behavior without redeploying."
         },
         "welcomeMessage": {
           "type": "string",

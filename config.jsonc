@@ -44,7 +44,9 @@
   
   // Agent Settings
   "agent": {
-    "systemPrompt": "Kamu adalah customer service AI yang ramah dan profesional.",
+    // System prompt loaded from file (relative to project root)
+    // Edit prompts/system.md to change the AI behavior
+    "systemPromptFile": "prompts/system.md",
     "welcomeMessage": "Halo! 👋 Ada yang bisa saya bantu hari ini?",
     "conversationTimeoutHours": 24
   },

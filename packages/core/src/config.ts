@@ -51,6 +51,7 @@ export interface WAgentJsonConfig {
   };
   agent?: {
     systemPrompt?: string;
+    systemPromptFile?: string;
     welcomeMessage?: string;
     conversationTimeoutHours?: number;
   };
@@ -213,6 +214,22 @@ function getEnvKeyForProvider(provider: string): string | null {
  * Build WAgentConfig from JSON config
  */
 function buildConfig(jsonConfig: WAgentJsonConfig, resolved: ResolvedModel): WAgentConfig {
+  // Load system prompt from file
+  let systemPrompt = DEFAULT_SYSTEM_PROMPT;
+  
+  if (jsonConfig.agent?.systemPromptFile) {
+    const promptPath = join(process.cwd(), jsonConfig.agent.systemPromptFile);
+    if (existsSync(promptPath)) {
+      systemPrompt = readFileSync(promptPath, 'utf-8').trim();
+      getLogger().info(`Loaded system prompt from ${promptPath}`);
+    } else {
+      getLogger().warn(`System prompt file not found: ${promptPath}, using default`);
+    }
+  } else if (jsonConfig.agent?.systemPrompt) {
+    // Fallback to inline prompt
+    systemPrompt = jsonConfig.agent.systemPrompt;
+  }
+  
   return {
     // WhatsApp
     whatsappSessionName: jsonConfig.session || 'wagent-session',
@@ -220,7 +237,7 @@ function buildConfig(jsonConfig: WAgentJsonConfig, resolved: ResolvedModel): WAg
     
     // AI Provider (auto-detected)
     aiProvider: resolved.provider as WAgentConfig['aiProvider'],
-    systemPrompt: jsonConfig.agent?.systemPrompt || DEFAULT_SYSTEM_PROMPT,
+    systemPrompt,
     
     // Provider configs
     openai: resolved.provider === 'openai' ? {
