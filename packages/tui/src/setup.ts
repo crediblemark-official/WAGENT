@@ -2,7 +2,7 @@ import { writeFileSync } from 'fs';
 import { intro, outro, text, select, confirm, isCancel, cancel } from '@clack/prompts';
 import color from 'picocolors';
 import qrcode from 'qrcode-terminal';
-import { WAgentConfig, AIProviderType } from '@wagent/core';
+import { WAgentConfig, AIProviderType, resolveModel } from '@wagent/core';
 import { getLogger } from '@wagent/core';
 
 export async function setupWizard(): Promise<Partial<WAgentConfig>> {
@@ -11,25 +11,62 @@ export async function setupWizard(): Promise<Partial<WAgentConfig>> {
 
   const config: Partial<WAgentConfig> = {};
 
-  // ── AI Provider ───────────────────────────────────────────────
-  const aiProvider = await select({
-    message: 'Pilih AI Provider:',
-    options: [
-      { value: 'openai', label: 'OpenAI', hint: 'GPT-4o (recommended)' },
-      { value: 'gemini', label: 'Google Gemini', hint: 'Gemini 2.0 Flash' },
-      { value: 'claude', label: 'Anthropic Claude', hint: 'Claude Sonnet' },
-      { value: 'ollama', label: 'Ollama (Local)', hint: 'LLaMA, Mistral, dll' },
-    ],
-  }) as AIProviderType;
+  // ── AI Model ID ───────────────────────────────────────────────
+  const modelIdInput = await text({
+    message: 'Masukkan Model ID dari models.dev (contoh: google/gemini-2.0-flash, openai/gpt-4o, deepseek/deepseek-chat, ollama/llama3):',
+    placeholder: 'google/gemini-2.0-flash',
+    defaultValue: 'google/gemini-2.0-flash',
+    validate: (v) => {
+      if (!v) return 'Model ID tidak boleh kosong';
+      if (!v.includes('/') && !['openai', 'gemini', 'claude', 'ollama'].includes(v)) {
+        return 'Format model ID tidak valid (harus provider/model)';
+      }
+      return undefined;
+    }
+  });
 
-  if (isCancel(aiProvider)) {
+  if (isCancel(modelIdInput)) {
     cancel('Setup dibatalkan.');
     process.exit(0);
   }
 
-  config.aiProvider = aiProvider;
+  // Resolve model ID
+  intro(color.cyan('🔍 Menghubungkan ke models.dev & memverifikasi model...'));
+  const resolved = await resolveModel(modelIdInput as string);
 
-  // ── API Keys ──────────────────────────────────────────────────
+  config.resolvedModel = resolved;
+  config.aiProvider = resolved.provider as any;
+
+  // ── Credentials ───────────────────────────────────────────────
+  if (resolved.provider === 'ollama') {
+    const baseUrl = await text({
+      message: 'Ollama base URL:',
+      placeholder: 'http://localhost:11434/api',
+      defaultValue: resolved.baseUrl || 'http://localhost:11434/api',
+    });
+    if (isCancel(baseUrl)) process.exit(0);
+    config.resolvedModel.baseUrl = baseUrl as string;
+    config.ollama = { baseUrl: baseUrl as string, model: resolved.model };
+  } else {
+    const envKey = resolved.envKey || `${resolved.provider.toUpperCase()}_API_KEY`;
+    const apiKey = await text({
+      message: `Masukkan API Key untuk ${resolved.name || resolved.provider} (${envKey}):`,
+      placeholder: '...',
+    });
+    if (isCancel(apiKey)) process.exit(0);
+    config.resolvedModel.apiKey = apiKey as string;
+
+    // Untuk kompatibilitas ke belakang
+    if (resolved.provider === 'openai') {
+      config.openai = { apiKey: apiKey as string, model: resolved.model };
+    } else if (resolved.provider === 'google') {
+      config.gemini = { apiKey: apiKey as string, model: resolved.model };
+    } else if (resolved.provider === 'anthropic') {
+      config.anthropic = { apiKey: apiKey as string, model: resolved.model };
+    }
+  }
+
+  // ── System Prompt ──────────────────────────────────────────────
   const systemPrompt = await text({
     message: 'System prompt untuk AI agent:',
     placeholder: 'Kamu adalah customer service yang ramah dan membantu...',
@@ -38,90 +75,6 @@ export async function setupWizard(): Promise<Partial<WAgentConfig>> {
 
   if (!isCancel(systemPrompt)) {
     config.systemPrompt = systemPrompt as string;
-  }
-
-  switch (aiProvider) {
-    case 'openai': {
-      const apiKey = await text({
-        message: 'OpenAI API Key:',
-        placeholder: 'sk-...',
-        validate: (v) => !v.startsWith('sk-') ? 'API Key tidak valid' : undefined,
-      });
-      if (isCancel(apiKey)) process.exit(0);
-
-      const model = await select({
-        message: 'Pilih model OpenAI:',
-        options: [
-          { value: 'gpt-4o', label: 'GPT-4o', hint: 'Best overall' },
-          { value: 'gpt-4o-mini', label: 'GPT-4o Mini', hint: 'Fast & cheap' },
-          { value: 'o3-mini', label: 'o3-mini', hint: 'Reasoning model' },
-        ],
-      });
-      if (isCancel(model)) process.exit(0);
-
-      config.openai = { apiKey: apiKey as string, model: model as string };
-      break;
-    }
-
-    case 'gemini': {
-      const apiKey = await text({
-        message: 'Google Gemini API Key:',
-        placeholder: 'AIza...',
-      });
-      if (isCancel(apiKey)) process.exit(0);
-
-      const model = await select({
-        message: 'Pilih model Gemini:',
-        options: [
-          { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash', hint: 'Fast & free' },
-          { value: 'gemini-2.0-flash-lite', label: 'Gemini 2.0 Flash Lite', hint: 'Cheapest' },
-          { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro', hint: 'Most capable' },
-        ],
-      });
-      if (isCancel(model)) process.exit(0);
-
-      config.gemini = { apiKey: apiKey as string, model: model as string };
-      break;
-    }
-
-    case 'claude': {
-      const apiKey = await text({
-        message: 'Anthropic API Key:',
-        placeholder: 'sk-ant-...',
-      });
-      if (isCancel(apiKey)) process.exit(0);
-
-      const model = await select({
-        message: 'Pilih model Claude:',
-        options: [
-          { value: 'claude-sonnet-4-20250514', label: 'Claude Sonnet 4', hint: 'Best for CS' },
-          { value: 'claude-haiku-3-5-20241022', label: 'Claude Haiku 3.5', hint: 'Fast & cheap' },
-        ],
-      });
-      if (isCancel(model)) process.exit(0);
-
-      config.anthropic = { apiKey: apiKey as string, model: model as string };
-      break;
-    }
-
-    case 'ollama': {
-      const baseUrl = await text({
-        message: 'Ollama base URL:',
-        placeholder: 'http://localhost:11434',
-        defaultValue: 'http://localhost:11434',
-      });
-      if (isCancel(baseUrl)) process.exit(0);
-
-      const model = await text({
-        message: 'Nama model Ollama:',
-        placeholder: 'llama3',
-        defaultValue: 'llama3',
-      });
-      if (isCancel(model)) process.exit(0);
-
-      config.ollama = { baseUrl: baseUrl as string, model: model as string };
-      break;
-    }
   }
 
   // ── Dashboard ─────────────────────────────────────────────────
@@ -226,6 +179,8 @@ export async function setupWizard(): Promise<Partial<WAgentConfig>> {
 }
 
 export function saveConfigToEnv(config: Partial<WAgentConfig>, envPath: string): void {
+  const modelId = config.resolvedModel ? config.resolvedModel.input : (config.aiProvider === 'openai' ? 'openai/' + (config.openai?.model || 'gpt-4o') : (config.aiProvider === 'gemini' ? 'google/' + (config.gemini?.model || 'gemini-2.0-flash') : (config.aiProvider === 'claude' ? 'anthropic/' + (config.anthropic?.model || 'claude-sonnet-4-20250514') : 'ollama/' + (config.ollama?.model || 'llama3'))));
+
   const envVars: string[] = [
     '# WAGENT Configuration',
     `# Generated at ${new Date().toISOString()}`,
@@ -235,6 +190,7 @@ export function saveConfigToEnv(config: Partial<WAgentConfig>, envPath: string):
     '',
     '# AI Provider',
     `AI_PROVIDER=${config.aiProvider}`,
+    `MODEL=${modelId}`,
     `AGENT_SYSTEM_PROMPT="${config.systemPrompt || 'Kamu adalah customer service yang ramah dan membantu.'}"`,
     '',
   ];
@@ -261,6 +217,15 @@ export function saveConfigToEnv(config: Partial<WAgentConfig>, envPath: string):
     envVars.push('# Ollama');
     envVars.push(`OLLAMA_BASE_URL=${config.ollama.baseUrl}`);
     envVars.push(`OLLAMA_MODEL=${config.ollama.model}`);
+    envVars.push('');
+  }
+
+  if (config.resolvedModel && !['openai', 'gemini', 'claude', 'ollama', 'google', 'anthropic'].includes(config.resolvedModel.provider)) {
+    const resolved = config.resolvedModel;
+    envVars.push(`# ${resolved.name || resolved.provider}`);
+    const envKey = resolved.envKey || `${resolved.provider.toUpperCase()}_API_KEY`;
+    envVars.push(`${envKey}=${resolved.apiKey || ''}`);
+    envVars.push('');
   }
 
   if (config.dashboardPort) {

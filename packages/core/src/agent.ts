@@ -32,10 +32,11 @@ interface AIProvider {
 class OpenAIProvider implements AIProvider {
   name = 'OpenAI';
 
-  constructor(private config: NonNullable<WAgentConfig['openai']>) {}
+  constructor(private config: NonNullable<WAgentConfig['openai']>, private baseUrl = 'https://api.openai.com/v1') {}
 
   async chat(messages: AIMessage[], tools: ToolDefinition[]): Promise<AIResponse> {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const cleanUrl = this.baseUrl.endsWith('/chat/completions') ? this.baseUrl : `${this.baseUrl.replace(/\/$/, '')}/chat/completions`;
+    const response = await fetch(cleanUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -354,16 +355,35 @@ export class Agent {
   }
 
   private createProvider(config: WAgentConfig): AIProvider {
+    // Dynamically handle non-hardcoded models from models.dev using OpenAI-compatible interface
+    if (config.resolvedModel && !['openai', 'gemini', 'claude', 'ollama', 'google', 'anthropic'].includes(config.resolvedModel.provider)) {
+      const resolved = config.resolvedModel;
+      const providerName = resolved.name || resolved.provider;
+      const baseUrl = resolved.baseUrl || 'https://api.openai.com/v1';
+      const apiKey = resolved.apiKey || '';
+      
+      const provider = new OpenAIProvider({
+        apiKey,
+        model: resolved.model
+      }, baseUrl);
+      provider.name = providerName;
+      return provider;
+    }
+
     switch (config.aiProvider) {
       case 'openai':
         if (!config.openai) throw new Error('OpenAI API key not configured');
         return new OpenAIProvider(config.openai);
       case 'gemini':
-        if (!config.gemini) throw new Error('Gemini API key not configured');
-        return new GeminiProvider(config.gemini);
+      case 'google' as any:
+        const geminiConfig = config.gemini || (config.resolvedModel?.provider === 'google' ? { apiKey: config.resolvedModel.apiKey || '', model: config.resolvedModel.model } : undefined);
+        if (!geminiConfig) throw new Error('Gemini API key not configured');
+        return new GeminiProvider(geminiConfig);
       case 'claude':
-        if (!config.anthropic) throw new Error('Anthropic API key not configured');
-        return new ClaudeProvider(config.anthropic);
+      case 'anthropic' as any:
+        const anthropicConfig = config.anthropic || (config.resolvedModel?.provider === 'anthropic' ? { apiKey: config.resolvedModel.apiKey || '', model: config.resolvedModel.model } : undefined);
+        if (!anthropicConfig) throw new Error('Anthropic API key not configured');
+        return new ClaudeProvider(anthropicConfig);
       case 'ollama':
         if (!config.ollama) throw new Error('Ollama base URL not configured');
         return new OllamaProvider(config.ollama);

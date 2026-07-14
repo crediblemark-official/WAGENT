@@ -168,8 +168,8 @@ export async function loadConfig(): Promise<WAgentConfig> {
  * Resolve model from config
  */
 async function resolveModelFromConfig(config: WAgentJsonConfig): Promise<ResolvedModel> {
-  // Get model ID from config
-  const modelId = config.model || 'openai/gpt-4o';
+  // Get model ID from env or config
+  const modelId = process.env.MODEL || process.env.AI_MODEL || config.model || 'openai/gpt-4o';
   
   // Get provider config
   const providerConfig = config.providers?.[modelId.split('/')[0]] || {};
