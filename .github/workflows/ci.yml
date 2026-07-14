@@ -39,39 +39,13 @@ jobs:
       - name: 🏗️ Build all packages
         run: bun run build
 
-      # ── Tests + Coverage ──────────────────────────────────
-      - name: 🧪 Run all tests with coverage (including E2E)
+      # ── Tests ─────────────────────────────────────────────
+      - name: 🧪 Run all tests (including E2E)
         id: tests
         working-directory: packages/core
-        run: |
-          set -o pipefail
-          bun --bun x vitest run --coverage \
-            --reporter=verbose \
-            --coverage.reporter=text \
-            --coverage.reporter=lcov \
-            --coverage.reporter=clover 2>&1 | tee /tmp/vitest-output.txt
+        run: bun --bun x vitest run --reporter=verbose
         env:
           NODE_ENV: test
-
-      # ── Upload Coverage ───────────────────────────────────
-      - name: ☁️ Upload coverage artifact
-        if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-bun
-          path: packages/core/coverage/
-          retention-days: 7
-          if-no-files-found: warn
-
-      # ── Coverage Summary (PR comment) ─────────────────────
-      - name: 📋 Generate coverage summary
-        if: ${{ !cancelled() }}
-        run: |
-          echo "## 📊 Test Coverage" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          grep -A 30 'Coverage report' /tmp/vitest-output.txt >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
 
   # ── Quick Check (fast feedback for PRs) ──────────────────────
   quick-check:
