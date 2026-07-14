@@ -93,6 +93,15 @@ export async function setupWizard(): Promise<void> {
     return a.label.localeCompare(b.label);
   });
 
+  // Opsi skip di paling atas — hanya tampil jika sudah ada config sebelumnya
+  const currentModelLabel = config.model
+    ? color.dim(`(saat ini: ${config.model})`)
+    : '';
+  providerOptions.unshift({
+    value: '__skip__',
+    label: `⏭  Lewati — lanjutkan tanpa ubah AI ${currentModelLabel}`,
+  });
+
   const provider = await select({
     message: 'Pilih AI Provider:',
     options: providerOptions,
@@ -103,11 +112,15 @@ export async function setupWizard(): Promise<void> {
     process.exit(0);
   }
 
-  config.provider = provider;
-  const providerInfo = providersMap[provider];
+  // Jika skip, pertahankan konfigurasi provider & model yang sudah ada
+  let skipAI = provider === '__skip__';
+  config.provider = skipAI ? (existingConfig?.model?.split('/')[0] || '') : provider;
+  const providerInfo = skipAI ? undefined : providersMap[provider];
 
   // ── Step 2: Credentials ─────────────────────────────────────────
-  if (provider === 'ollama') {
+  if (skipAI) {
+    // Lewati langkah kredensial dan pemilihan model
+  } else if (provider === 'ollama') {
     const oldBaseUrl = existingProviders[provider]?.baseUrl || providerInfo?.api || 'http://localhost:11434/api';
     const baseUrl = await text({
       message: 'Ollama base URL:',
@@ -130,40 +143,44 @@ export async function setupWizard(): Promise<void> {
   }
 
   // ── Step 3: Pilih Model (Dinamis dari Catalog) ──────────────────
-  intro(color.cyan(`🔍 Mengambil daftar model untuk ${providerInfo?.name || provider}...`));
-  const modelsList = await getModelsForProviderCatalog(provider);
+  if (!skipAI) {
+    intro(color.cyan(`🔍 Mengambil daftar model untuk ${providerInfo?.name || provider}...`));
+    const modelsList = await getModelsForProviderCatalog(provider);
 
-  let modelId: string;
-  if (modelsList.length > 0) {
-    modelsList.push({ value: 'custom', label: 'Tulis model kustom secara manual...' });
+    let modelId: string;
+    if (modelsList.length > 0) {
+      modelsList.push({ value: 'custom', label: 'Tulis model kustom secara manual...' });
 
-    const selectedModel = await select({
-      message: `Pilih model untuk ${providerInfo?.name || provider}:`,
-      options: modelsList,
-    }) as string;
+      const selectedModel = await select({
+        message: `Pilih model untuk ${providerInfo?.name || provider}:`,
+        options: modelsList,
+      }) as string;
 
-    if (isCancel(selectedModel)) process.exit(0);
+      if (isCancel(selectedModel)) process.exit(0);
 
-    if (selectedModel === 'custom') {
+      if (selectedModel === 'custom') {
+        const customModelInput = await text({
+          message: 'Masukkan nama model kustom (contoh: gpt-4o, gemini-2.0-flash):',
+          validate: (v) => !v ? 'Nama model tidak boleh kosong' : undefined,
+        });
+        if (isCancel(customModelInput)) process.exit(0);
+        modelId = customModelInput as string;
+      } else {
+        modelId = selectedModel;
+      }
+    } else {
       const customModelInput = await text({
-        message: 'Masukkan nama model kustom (contoh: gpt-4o, gemini-2.0-flash):',
+        message: `Masukkan nama model untuk ${providerInfo?.name || provider} (contoh: llama3):`,
         validate: (v) => !v ? 'Nama model tidak boleh kosong' : undefined,
       });
       if (isCancel(customModelInput)) process.exit(0);
       modelId = customModelInput as string;
-    } else {
-      modelId = selectedModel;
     }
-  } else {
-    const customModelInput = await text({
-      message: `Masukkan nama model untuk ${providerInfo?.name || provider} (contoh: llama3):`,
-      validate: (v) => !v ? 'Nama model tidak boleh kosong' : undefined,
-    });
-    if (isCancel(customModelInput)) process.exit(0);
-    modelId = customModelInput as string;
-  }
 
-  config.model = `${provider}/${modelId}`;
+    config.model = `${provider}/${modelId}`;
+  }
+  // Jika skip, config.model tetap menggunakan nilai dari existingConfig
+
 
   // ── Step 4: WhatsApp Session Name ───────────────────────────────
   // Koneksi WA sebenarnya dilakukan saat 'wagent start' via QR code scan.
