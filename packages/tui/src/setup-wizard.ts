@@ -227,36 +227,21 @@ export async function setupWizard(): Promise<void> {
     });
 
     if (isCancel(botToken)) process.exit(0);
+    const token = botToken as string;
 
-    // Tampilkan panduan cara dapat Chat ID
-    console.log('');
-    console.log(color.bold('  📋 Cara mendapatkan Telegram Chat ID:'));
-    console.log(color.dim('  ─'.repeat(28)));
-    console.log(color.dim('  1. Tambahkan bot ke grup/channel Telegram kamu'));
-    console.log(color.dim('  2. Kirim pesan apa saja di grup tersebut'));
-    console.log(color.dim('  3. Buka URL ini di browser:'));
-    console.log(`  ${color.cyan(`https://api.telegram.org/bot${(botToken as string).substring(0, 20)}…/getUpdates`)}`);
-    console.log(color.dim('  4. Cari "chat":{"id": -100xxxxxxxxx} di JSON response'));
-    console.log(color.dim('  5. Salin angkanya (biasanya diawali -100...)'));
-    console.log('');
-
-    const chatId = await text({
-      message: 'Masukkan Telegram Chat ID (grup/channel untuk notifikasi eskalasi):',
-      placeholder: '-100123456789',
-      defaultValue: config.escalation.telegramChatId,
-      validate: (v) => !v ? 'Chat ID tidak boleh kosong' : undefined,
-    });
-
-    if (isCancel(chatId)) process.exit(0);
+    // Auto-fetch Chat ID dari Telegram getUpdates
+    let chatId = config.escalation.telegramChatId;
+    chatId = await fetchTelegramChatId(token, chatId);
 
     config.escalation = {
-      telegramBotToken: botToken as string,
-      telegramChatId: chatId as string,
+      telegramBotToken: token,
+      telegramChatId: chatId,
     };
   } else if (!hasTelegramConfig) {
     // Tidak dikonfigurasi
     config.escalation = { telegramBotToken: '', telegramChatId: '' };
   }
+
 
   // ── Step 7: Dashboard ───────────────────────────────────────────
   const enableDashboard = await confirm({
@@ -397,4 +382,93 @@ function escapeJson(str: string): string {
     .replace(/\n/g, '\\n')
     .replace(/\r/g, '\\r')
     .replace(/\t/g, '\\t');
+}
+
+// ── Telegram Chat ID Auto-Fetcher ───────────────────────────────
+
+/**
+ * Fetch daftar chat dari Telegram getUpdates API.
+ * User diminta kirim pesan ke grup, lalu wizard auto-scan dan tampilkan pilihan.
+ * Ada opsi retry dan fallback input manual.
+ */
+async function fetchTelegramChatId(token: string, defaultChatId: string): Promise<string> {
+  const POLL_URL = `https://api.telegram.org/bot${token}/getUpdates`;
+
+  while (true) {
+    const s = spinner();
+    s.start('Menghubungi Telegram API...');
+
+    let chats: Array<{ id: string; label: string }> = [];
+    let apiError = '';
+
+    try {
+      const res = await fetch(POLL_URL);
+      const json = await res.json() as any;
+
+      if (!json.ok) {
+        apiError = json.description || 'Token tidak valid';
+      } else {
+        // Kumpulkan chat unik dari semua update
+        const seen = new Set<string>();
+        for (const update of json.result || []) {
+          const chat = update.message?.chat || update.channel_post?.chat;
+          if (!chat) continue;
+          const id = String(chat.id);
+          if (seen.has(id)) continue;
+          seen.add(id);
+          const typeLabel = chat.type === 'private' ? '👤 Pribadi' :
+                            chat.type === 'group' || chat.type === 'supergroup' ? '👥 Grup' : '📢 Channel';
+          const name = chat.title || chat.first_name || id;
+          chats.push({ id, label: `${typeLabel} — ${name} ${color.dim(`(${id})`)}` });
+        }
+      }
+    } catch (err: any) {
+      apiError = err.message || 'Gagal terhubung ke Telegram';
+    }
+
+    s.stop('Selesai.');
+
+    if (apiError) {
+      console.log(color.red(`\n  ✖ Telegram API error: ${apiError}`));
+      console.log(color.dim('  Pastikan Bot Token sudah benar.\n'));
+      const retry = await confirm({ message: 'Coba lagi?', initialValue: false }) as boolean;
+      if (!retry || isCancel(retry)) break;
+      continue;
+    }
+
+    if (chats.length === 0) {
+      console.log('');
+      console.log(color.yellow('  ⚠ Belum ada pesan ditemukan di bot ini.'));
+      console.log(color.dim('  Langkah: tambahkan bot ke grup, lalu kirim sembarang pesan di grup tersebut.'));
+      console.log('');
+      const retry = await confirm({ message: 'Sudah kirim pesan? Coba scan ulang?', initialValue: true }) as boolean;
+      if (!retry || isCancel(retry)) break;
+      continue;
+    }
+
+    // Tampilkan pilihan chat yang ditemukan
+    chats.push({ id: '__manual__', label: 'Tulis Chat ID secara manual...' });
+
+    const chosen = await select({
+      message: `Pilih chat tujuan notifikasi eskalasi (${chats.length - 1} ditemukan):`,
+      options: chats.map(c => ({ value: c.id, label: c.label })),
+    }) as string;
+
+    if (isCancel(chosen)) break;
+
+    if (chosen === '__manual__') break; // lanjut ke fallback manual
+
+    return chosen;
+  }
+
+  // Fallback: input manual
+  const manual = await text({
+    message: 'Masukkan Chat ID secara manual:',
+    placeholder: '-100123456789',
+    defaultValue: defaultChatId,
+    validate: (v) => !v ? 'Chat ID tidak boleh kosong' : undefined,
+  });
+
+  if (isCancel(manual)) process.exit(0);
+  return manual as string;
 }
