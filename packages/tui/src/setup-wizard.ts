@@ -408,17 +408,20 @@ async function fetchTelegramChatId(token: string, defaultChatId: string): Promis
       if (!json.ok) {
         apiError = json.description || 'Token tidak valid';
       } else {
-        // Kumpulkan chat unik dari semua update
+        // Kumpulkan chat unik dari semua update — hanya grup & channel
         const seen = new Set<string>();
         for (const update of json.result || []) {
           const chat = update.message?.chat || update.channel_post?.chat;
           if (!chat) continue;
+          // Abaikan private chat — eskalasi harus ke grup/channel
+          if (chat.type === 'private') continue;
           const id = String(chat.id);
           if (seen.has(id)) continue;
           seen.add(id);
-          const typeLabel = chat.type === 'private' ? '👤 Pribadi' :
-                            chat.type === 'group' || chat.type === 'supergroup' ? '👥 Grup' : '📢 Channel';
-          const name = chat.title || chat.first_name || id;
+          const typeLabel = chat.type === 'supergroup' || chat.type === 'group'
+            ? '👥 Grup'
+            : '📢 Channel';
+          const name = chat.title || id;
           chats.push({ id, label: `${typeLabel} — ${name} ${color.dim(`(${id})`)}` });
         }
       }
@@ -438,8 +441,12 @@ async function fetchTelegramChatId(token: string, defaultChatId: string): Promis
 
     if (chats.length === 0) {
       console.log('');
-      console.log(color.yellow('  ⚠ Belum ada pesan ditemukan di bot ini.'));
-      console.log(color.dim('  Langkah: tambahkan bot ke grup, lalu kirim sembarang pesan di grup tersebut.'));
+      console.log(color.yellow('  ⚠ Belum ada grup atau channel ditemukan.'));
+      console.log(color.dim('  Langkah yang harus dilakukan:'));
+      console.log(color.dim('  1. Buat grup/channel di Telegram'));
+      console.log(color.dim('  2. Tambahkan bot kamu sebagai anggota/admin'));
+      console.log(color.dim('  3. Kirim sembarang pesan di grup tersebut'));
+      console.log(color.dim('  (Chat pribadi tidak bisa dipakai untuk eskalasi)'));
       console.log('');
       const retry = await confirm({ message: 'Sudah kirim pesan? Coba scan ulang?', initialValue: true }) as boolean;
       if (!retry || isCancel(retry)) break;
