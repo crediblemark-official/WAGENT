@@ -26,3 +26,9 @@ npm-debug.log*
 *.swo
 tmp/
 packages/core/tmp/
+
+# Temporary & Session dirs
+.sessions/
+**/memory/
+packages/core/vitest.temp.ts
+
