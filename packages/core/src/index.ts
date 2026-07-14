@@ -24,7 +24,7 @@ export { FileProcessor } from './file-processor.js';
 export { KnowledgeStore } from './knowledge-store.js';
 export type { FileChunk, ProcessedFile, FileProcessorConfig } from './file-processor.js';
 export type { KbUploadResult, KbSearchResult, KbFileInfo } from './knowledge-store.js';
-export { loadConfig, ensureDirectories, loadAndDecryptEnv } from './config.js';
+export { loadConfig, ensureDirectories, createDefaultConfig } from './config.js';
 export { createLogger, getLogger } from './logger.js';
 export {
   encrypt,

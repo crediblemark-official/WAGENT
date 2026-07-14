@@ -32,35 +32,27 @@ program
 
 program
   .command('init')
-  .description('Jalankan setup wizard untuk konfigurasi awal')
-  .option('--encrypt', 'Enkripsi semua data setelah setup')
-  .action(async (options) => {
-    const config = await setupWizard();
-    const envPath = join(process.cwd(), '.env');
-    saveConfigToEnv(config, envPath);
-
-    if (options.encrypt) {
-      // Generate encryption key
-      const key = generateEncryptionKey();
-      const keyBuf = Buffer.from(key, 'hex');
-
-      // Encrypt .env file
-      console.log(color.cyan('\n🔐 Mengenkripsi data...'));
-      encryptEnvFile(envPath, keyBuf);
-      console.log(color.green('  ✓ .env terenkripsi'));
-
-      console.log('');
-      console.log(color.bold(color.yellow('⚠️  SIMPAN KEY INI — TIDAK BISA DIPULIHKAN!')));
-      console.log(color.white('  ┌─────────────────────────────────────────────────────────┐'));
-      console.log(color.white(`  │ ${key} │`));
-      console.log(color.white('  └─────────────────────────────────────────────────────────┘'));
-      console.log('');
-      console.log(color.cyan('  Export key sebelum menjalankan opencs:'));
-      console.log(color.dim(`  export OPENCE_ENCRYPTION_KEY=${key}`));
-      console.log('');
-    }
-
-    console.log(color.green('\n✓ Setup selesai! Jalankan "wagent start" untuk memulai.\n'));
+  .description('Buat config.jsonc baru')
+  .action(async () => {
+    const { createDefaultConfig } = await import('@wagent/core');
+    
+    console.log('');
+    console.log(color.bold(color.cyan('╔══════════════════════════════════════╗')));
+    console.log(color.bold(color.cyan('║      🤖 WAGENT Setup                 ║')));
+    console.log(color.bold(color.cyan('╚══════════════════════════════════════╝')));
+    console.log('');
+    
+    createDefaultConfig();
+    
+    console.log(color.green('✓ config.jsonc created'));
+    console.log('');
+    console.log(color.bold('Edit config.jsonc:'));
+    console.log(color.dim('  1. Set your model ID (e.g., "openai/gpt-4o")'));
+    console.log(color.dim('  2. Add your API key in providers section'));
+    console.log('');
+    console.log(color.bold('Then run:'));
+    console.log(color.green('  wagent start'));
+    console.log('');
   });
 
 // ── start ───────────────────────────────────────────────────────

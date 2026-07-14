@@ -1,10 +1,18 @@
-import { existsSync, readFileSync, mkdirSync } from 'fs';
+/**
+ * Config Loader - Loads configuration from config.jsonc
+ * 
+ * Supports:
+ * - config.jsonc (project root)
+ * - ~/.wagent/config.jsonc (global)
+ * 
+ * Auto-detects model from config or environment.
+ */
+
+import { existsSync, readFileSync, mkdirSync, writeFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import dotenv from 'dotenv';
-import { WAgentConfig } from './types.js';
 import { getLogger } from './logger.js';
-import { isEncryptionAvailable, getEncryptionKey, decryptEnvFile, decryptString } from './crypto.js';
+import { WAgentConfig } from './types.js';
 import { resolveModel, ResolvedModel } from './model-catalog.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -23,18 +31,75 @@ function loadDefaultSystemPrompt(): string {
       return readFileSync(candidate, 'utf-8').trim();
     }
   }
-  // Fallback if file not found
   return 'Kamu adalah customer service yang ramah dan membantu.';
 }
 
 const DEFAULT_SYSTEM_PROMPT = loadDefaultSystemPrompt();
 
-function findEnvFile(): string {
+// ── Config Interface ────────────────────────────────────────────
+
+export interface WAgentJsonConfig {
+  $schema?: string;
+  session?: string;
+  model?: string;
+  providers?: {
+    [provider: string]: {
+      apiKey?: string;
+      baseUrl?: string;
+      model?: string;
+    };
+  };
+  agent?: {
+    systemPrompt?: string;
+    welcomeMessage?: string;
+    conversationTimeoutHours?: number;
+  };
+  rateLimit?: {
+    max?: number;
+    windowSeconds?: number;
+    message?: string;
+  };
+  workingHours?: {
+    enabled?: boolean;
+    start?: string;
+    end?: string;
+    timezone?: string;
+    offlineMessage?: string;
+  };
+  escalation?: {
+    telegramBotToken?: string;
+    telegramChatId?: string;
+  };
+  humanTakeover?: {
+    cooldownMinutes?: number;
+  };
+  groupChat?: {
+    enabled?: boolean;
+    replyIfMentioned?: boolean;
+  };
+  dashboard?: {
+    port?: number;
+    host?: string;
+  };
+  database?: {
+    type?: 'sqlite' | 'postgres';
+    url?: string;
+  };
+}
+
+// ── Config Finder ───────────────────────────────────────────────
+
+function findConfigFile(): string | null {
   const candidates = [
-    join(process.cwd(), '.env'),
-    join(process.cwd(), '.env.local'),
-    join(__dirname, '../../../.env'),
-    join(__dirname, '../../../.env.local'),
+    // Project root
+    join(process.cwd(), 'config.jsonc'),
+    join(process.cwd(), 'config.json'),
+    // .opencode directory
+    join(process.cwd(), '.opencode', 'config.jsonc'),
+    join(process.cwd(), '.opencode', 'config.json'),
+    // Global config
+    join(process.env.HOME || '~', '.wagent', 'config.jsonc'),
+    join(process.env.HOME || '~', '.wagent', 'config.json'),
   ];
 
   for (const candidate of candidates) {
@@ -42,181 +107,233 @@ function findEnvFile(): string {
       return candidate;
     }
   }
-  return join(process.cwd(), '.env');
+  
+  return null;
+}
+
+// ── JSONC Parser ────────────────────────────────────────────────
+
+function parseJsonc(content: string): WAgentJsonConfig {
+  // Remove single-line comments (// ...) but not inside strings
+  let cleaned = content.replace(/\/\/.*$/gm, (match) => {
+    // Check if the match is inside a string by counting quotes before it
+    const idx = content.indexOf(match);
+    const before = content.substring(0, idx);
+    const openQuotes = (before.match(/"/g) || []).length;
+    // If odd number of quotes, it's inside a string, don't remove
+    return openQuotes % 2 === 0 ? '' : match;
+  });
+  
+  // Remove multi-line comments (/* ... */)
+  cleaned = cleaned.replace(/\/\*[\s\S]*?\*\//g, '');
+  
+  // Remove trailing commas before } or ]
+  cleaned = cleaned.replace(/,\s*([}\]])/g, '$1');
+  
+  return JSON.parse(cleaned);
+}
+
+// ── Config Loader ───────────────────────────────────────────────
+
+/**
+ * Load configuration from config.jsonc
+ */
+export async function loadConfig(): Promise<WAgentConfig> {
+  const logger = getLogger();
+  
+  // Find config file
+  const configFile = findConfigFile();
+  
+  let jsonConfig: WAgentJsonConfig = {};
+  
+  if (configFile) {
+    logger.info(`Loading config from ${configFile}`);
+    const content = readFileSync(configFile, 'utf-8');
+    jsonConfig = parseJsonc(content);
+  } else {
+    logger.info('No config.jsonc found, using defaults');
+  }
+  
+  // Resolve model from config or auto-detect
+  const resolved = await resolveModelFromConfig(jsonConfig);
+  
+  logger.info(`Using model: ${resolved.provider}/${resolved.model}`);
+  
+  // Build WAgentConfig
+  return buildConfig(jsonConfig, resolved);
 }
 
 /**
- * Load config, auto-decrypting .env.encrypted if encryption key is available.
- * Automatically detects model from available API keys.
+ * Resolve model from config
  */
-export async function loadConfig(): Promise<WAgentConfig> {
-  const envPath = findEnvFile();
-
-  // Auto-decrypt .env.encrypted → .env if encryption key is set
-  if (!existsSync(envPath) && isEncryptionAvailable()) {
-    const logger = getLogger();
-    const keyHex = getEncryptionKey()!;
-    const key = Buffer.from(keyHex, 'hex');
-
-    const encPath = envPath + '.encrypted';
-    if (existsSync(encPath)) {
-      logger.info('Auto-decrypting: %s → %s', encPath, envPath);
-      decryptEnvFile(envPath, key);
+async function resolveModelFromConfig(config: WAgentJsonConfig): Promise<ResolvedModel> {
+  // Get model ID from config
+  const modelId = config.model || 'openai/gpt-4o';
+  
+  // Get provider config
+  const providerConfig = config.providers?.[modelId.split('/')[0]] || {};
+  
+  // If API key is in config, use it
+  if (providerConfig.apiKey) {
+    // Set environment variable for the provider
+    const provider = modelId.split('/')[0];
+    const envKey = getEnvKeyForProvider(provider);
+    if (envKey) {
+      process.env[envKey] = providerConfig.apiKey;
     }
   }
-
-  if (existsSync(envPath)) {
-    dotenv.config({ path: envPath });
-    getLogger().info(`Loaded config from ${envPath}`);
-  }
-
-  // Auto-detect model from available API keys
-  const resolved = await autoDetectModel();
   
-  getLogger().info(`Auto-detected model: ${resolved.provider}/${resolved.model}`);
+  // Resolve from catalog
+  return resolveModel(modelId);
+}
 
+/**
+ * Get environment key for provider
+ */
+function getEnvKeyForProvider(provider: string): string | null {
+  const mapping: { [key: string]: string } = {
+    openai: 'OPENAI_API_KEY',
+    anthropic: 'ANTHROPIC_API_KEY',
+    google: 'GOOGLE_API_KEY',
+    gemini: 'GEMINI_API_KEY',
+    groq: 'GROQ_API_KEY',
+    deepseek: 'DEEPSEEK_API_KEY',
+    mistral: 'MISTRAL_API_KEY',
+    xai: 'XAI_API_KEY',
+    cohere: 'COHERE_API_KEY',
+    fireworks: 'FIREWORKS_API_KEY',
+    together: 'TOGETHER_API_KEY',
+    perplexity: 'PERPLEXITY_API_KEY',
+  };
+  
+  return mapping[provider] || null;
+}
+
+/**
+ * Build WAgentConfig from JSON config
+ */
+function buildConfig(jsonConfig: WAgentJsonConfig, resolved: ResolvedModel): WAgentConfig {
   return {
-    whatsappSessionName: process.env.WHATSAPP_SESSION_NAME || 'wagent-session',
-    whatsappSessionDir: process.env.WHATSAPP_SESSION_DIR || join(process.cwd(), '.sessions'),
-
+    // WhatsApp
+    whatsappSessionName: jsonConfig.session || 'wagent-session',
+    whatsappSessionDir: join(process.cwd(), '.sessions'),
+    
+    // AI Provider (auto-detected)
     aiProvider: resolved.provider as WAgentConfig['aiProvider'],
-    systemPrompt: process.env.AGENT_SYSTEM_PROMPT || DEFAULT_SYSTEM_PROMPT,
-    welcomeMessage: process.env.WELCOME_MESSAGE || DEFAULT_WELCOME_MESSAGE,
-    welcomeMessageEnabled: process.env.WELCOME_MESSAGE_ENABLED !== 'false',
-    conversationTimeoutHours: parseInt(process.env.CONVERSATION_TIMEOUT_HOURS || '24', 10),
-
-    // Rate Limiting
-    rateLimitMax: parseInt(process.env.RATE_LIMIT_MAX || '10', 10),
-    rateLimitWindowSeconds: parseInt(process.env.RATE_LIMIT_WINDOW_SECONDS || '10', 10),
-    rateLimitMessage: process.env.RATE_LIMIT_MESSAGE || 'Mohon tunggu sebentar ya, Anda terlalu cepat mengirim pesan. 😊 Saya akan proses satu per satu.',
-
-    // Working Hours
-    workingHoursEnabled: process.env.WORKING_HOURS_ENABLED === 'true',
-    workingHoursStart: process.env.WORKING_HOURS_START || '08:00',
-    workingHoursEnd: process.env.WORKING_HOURS_END || '17:00',
-    workingHoursTimezone: process.env.WORKING_HOURS_TIMEZONE || 'Asia/Jakarta',
-    offlineMessage: process.env.OFFLINE_MESSAGE || 'Mohon maaf, saat ini di luar jam operasional 🙏. Jam kerja kami Senin-Jumat pukul 08:00-17:00. Silakan tinggalkan pesan, nanti akan kami balas saat jam kerja. Terima kasih! 😊',
-
-    // Escalation
-    telegramBotToken: process.env.TELEGRAM_BOT_TOKEN || undefined,
-    telegramChatId: process.env.TELEGRAM_CHAT_ID || undefined,
-
-    // Human Takeover
-    humanTakeoverCooldownMinutes: parseInt(process.env.HUMAN_TAKEOVER_COOLDOWN_MINUTES || '30', 10),
-
-    // Group Chat
-    groupChatEnabled: process.env.GROUP_CHAT_ENABLED === 'true',
-    groupChatReplyIfMentioned: process.env.GROUP_CHAT_REPLY_IF_MENTIONED !== 'false',
-
-    // Auto-resolved provider config
+    systemPrompt: jsonConfig.agent?.systemPrompt || DEFAULT_SYSTEM_PROMPT,
+    
+    // Provider configs
     openai: resolved.provider === 'openai' ? {
       apiKey: resolved.apiKey || '',
       model: resolved.model,
     } : undefined,
-
+    
     gemini: resolved.provider === 'google' ? {
       apiKey: resolved.apiKey || '',
       model: resolved.model,
     } : undefined,
-
+    
     anthropic: resolved.provider === 'anthropic' ? {
       apiKey: resolved.apiKey || '',
       model: resolved.model,
     } : undefined,
-
+    
     ollama: resolved.provider === 'ollama' ? {
       baseUrl: resolved.baseUrl || 'http://localhost:11434/api',
       model: resolved.model,
     } : undefined,
-
-    // Store resolved model info for agent use
+    
+    // Store resolved model
     resolvedModel: resolved,
-
-    dashboardPort: parseInt(process.env.DASHBOARD_PORT || '3030', 10),
-    dashboardHost: process.env.DASHBOARD_HOST || 'localhost',
-
-    databaseType: (process.env.DATABASE_TYPE as WAgentConfig['databaseType']) || 'sqlite',
-    databaseUrl: process.env.DATABASE_URL || './data/wagent.db',
+    
+    // Welcome Message
+    welcomeMessage: jsonConfig.agent?.welcomeMessage || DEFAULT_WELCOME_MESSAGE,
+    welcomeMessageEnabled: true,
+    
+    // Conversation
+    conversationTimeoutHours: jsonConfig.agent?.conversationTimeoutHours || 24,
+    
+    // Rate Limiting
+    rateLimitMax: jsonConfig.rateLimit?.max || 10,
+    rateLimitWindowSeconds: jsonConfig.rateLimit?.windowSeconds || 10,
+    rateLimitMessage: jsonConfig.rateLimit?.message || 'Mohon tunggu sebentar ya.',
+    
+    // Working Hours
+    workingHoursEnabled: jsonConfig.workingHours?.enabled || false,
+    workingHoursStart: jsonConfig.workingHours?.start || '08:00',
+    workingHoursEnd: jsonConfig.workingHours?.end || '17:00',
+    workingHoursTimezone: jsonConfig.workingHours?.timezone || 'Asia/Jakarta',
+    offlineMessage: jsonConfig.workingHours?.offlineMessage || 'Di luar jam operasional.',
+    
+    // Escalation
+    telegramBotToken: jsonConfig.escalation?.telegramBotToken,
+    telegramChatId: jsonConfig.escalation?.telegramChatId,
+    
+    // Human Takeover
+    humanTakeoverCooldownMinutes: jsonConfig.humanTakeover?.cooldownMinutes || 30,
+    
+    // Group Chat
+    groupChatEnabled: jsonConfig.groupChat?.enabled || false,
+    groupChatReplyIfMentioned: jsonConfig.groupChat?.replyIfMentioned !== false,
+    
+    // Dashboard
+    dashboardPort: jsonConfig.dashboard?.port || 3030,
+    dashboardHost: jsonConfig.dashboard?.host || 'localhost',
+    
+    // Database
+    databaseType: jsonConfig.database?.type || 'sqlite',
+    databaseUrl: jsonConfig.database?.url || './data/wagent.db',
   };
 }
 
 /**
- * Auto-detect model based on available API keys
+ * Create default config file
  */
-async function autoDetectModel(): Promise<ResolvedModel> {
-  // Priority order for auto-detection
-  const detectionOrder = [
-    { provider: 'openai', envKey: 'OPENAI_API_KEY', model: 'gpt-4o' },
-    { provider: 'anthropic', envKey: 'ANTHROPIC_API_KEY', model: 'claude-sonnet-4-20250514' },
-    { provider: 'google', envKey: 'GEMINI_API_KEY', model: 'gemini-2.0-flash' },
-    { provider: 'google', envKey: 'GOOGLE_API_KEY', model: 'gemini-2.0-flash' },
-    { provider: 'groq', envKey: 'GROQ_API_KEY', model: 'llama-3.1-70b-versatile' },
-    { provider: 'deepseek', envKey: 'DEEPSEEK_API_KEY', model: 'deepseek-chat' },
-    { provider: 'mistral', envKey: 'MISTRAL_API_KEY', model: 'mistral-large-latest' },
-    { provider: 'xai', envKey: 'XAI_API_KEY', model: 'grok-3' },
-    { provider: 'cohere', envKey: 'COHERE_API_KEY', model: 'command-r-plus' },
-    { provider: 'fireworks', envKey: 'FIREWORKS_API_KEY', model: 'accounts/fireworks/models/llama-v3p1-70b-instruct' },
-    { provider: 'together', envKey: 'TOGETHER_API_KEY', model: 'meta-llama/Llama-3-70b-chat-hf' },
-    { provider: 'perplexity', envKey: 'PERPLEXITY_API_KEY', model: 'llama-3.1-sonar-large-128k-online' },
-    { provider: 'ollama', envKey: '', model: 'llama3' },
-  ];
-
-  // Find first available API key
-  for (const detection of detectionOrder) {
-    const apiKey = process.env[detection.envKey];
-    
-    // For Ollama, check if base URL is accessible
-    if (detection.provider === 'ollama') {
-      try {
-        const baseUrl = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
-        const response = await fetch(`${baseUrl}/api/tags`, { method: 'GET' });
-        if (response.ok) {
-          return {
-            input: `ollama/${detection.model}`,
-            provider: 'ollama',
-            model: detection.model,
-            baseUrl: `${baseUrl}/api`,
-          };
-        }
-      } catch {
-        // Ollama not available, continue
-      }
-      continue;
-    }
-    
-    // For other providers, check if API key exists
-    if (apiKey) {
-      return {
-        input: `${detection.provider}/${detection.model}`,
-        provider: detection.provider,
-        model: detection.model,
-        apiKey,
-        envKey: detection.envKey,
-      };
-    }
+export function createDefaultConfig(): void {
+  const configPath = join(process.cwd(), 'config.jsonc');
+  
+  if (existsSync(configPath)) {
+    getLogger().warn('config.jsonc already exists');
+    return;
   }
-
-  // Fallback to OpenAI with empty key (will fail at runtime)
-  getLogger().warn('No API keys found. Set OPENAI_API_KEY or other provider keys.');
-  return {
-    input: 'openai/gpt-4o',
-    provider: 'openai',
-    model: 'gpt-4o',
-    apiKey: '',
-  };
-}
-
-export function loadAndDecryptEnv(): void {
-  // For explicit crypto init — decrypts the .env.encrypted without loading full config
-  if (isEncryptionAvailable()) {
-    const keyHex = getEncryptionKey()!;
-    const key = Buffer.from(keyHex, 'hex');
-    const envPath = findEnvFile();
-    if (existsSync(envPath + '.encrypted')) {
-      decryptEnvFile(envPath, key);
-      getLogger().info('Decrypted %s.encrypted → %s', envPath, envPath);
+  
+  const defaultConfig = `{
+  "$schema": "https://wagent.ai/config.json",
+  
+  // WhatsApp Session
+  "session": "wagent-session",
+  
+  // AI Model - just set the model ID, everything else is auto-detected
+  // Examples:
+  //   "openai/gpt-4o"
+  //   "anthropic/claude-sonnet-4-20250514"
+  //   "google/gemini-2.0-flash"
+  //   "groq/llama-3.1-70b-versatile"
+  //   "deepseek/deepseek-chat"
+  //   "ollama/llama3"
+  "model": "openai/gpt-4o",
+  
+  // API Keys (set here or in environment)
+  "providers": {
+    "openai": {
+      "apiKey": ""
     }
+  },
+  
+  // Agent Settings
+  "agent": {
+    "systemPrompt": "Kamu adalah customer service AI yang ramah dan profesional.",
+    "welcomeMessage": "Halo! 👋 Ada yang bisa saya bantu hari ini?"
+  },
+  
+  // Dashboard
+  "dashboard": {
+    "port": 3030
   }
+}`;
+  
+  writeFileSync(configPath, defaultConfig);
+  getLogger().info(`Created default config at ${configPath}`);
 }
 
 export function ensureDirectories(config: WAgentConfig): void {

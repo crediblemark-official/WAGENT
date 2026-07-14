@@ -1,0 +1,79 @@
+{
+  "$schema": "https://wagent.ai/config.json",
+  
+  // WhatsApp Session
+  "session": "wagent-session",
+  
+  // AI Model - just set the model ID, everything else is auto-detected
+  // Examples:
+  //   "openai/gpt-4o"
+  //   "anthropic/claude-sonnet-4-20250514"
+  //   "google/gemini-2.0-flash"
+  //   "groq/llama-3.1-70b-versatile"
+  //   "deepseek/deepseek-chat"
+  //   "ollama/llama3"
+  "model": "openai/gpt-4o",
+  
+  // API Keys (set here or in environment)
+  "providers": {
+    "openai": {
+      "apiKey": ""
+    },
+    "anthropic": {
+      "apiKey": ""
+    },
+    "google": {
+      "apiKey": ""
+    },
+    "groq": {
+      "apiKey": ""
+    },
+    "deepseek": {
+      "apiKey": ""
+    },
+    "mistral": {
+      "apiKey": ""
+    },
+    "xai": {
+      "apiKey": ""
+    },
+    "ollama": {
+      "baseUrl": "http://localhost:11434"
+    }
+  },
+  
+  // Agent Settings
+  "agent": {
+    "systemPrompt": "Kamu adalah customer service AI yang ramah dan profesional.",
+    "welcomeMessage": "Halo! 👋 Ada yang bisa saya bantu hari ini?",
+    "conversationTimeoutHours": 24
+  },
+  
+  // Rate Limiting
+  "rateLimit": {
+    "max": 10,
+    "windowSeconds": 10,
+    "message": "Mohon tunggu sebentar ya, Anda terlalu cepat mengirim pesan."
+  },
+  
+  // Working Hours
+  "workingHours": {
+    "enabled": false,
+    "start": "08:00",
+    "end": "17:00",
+    "timezone": "Asia/Jakarta",
+    "offlineMessage": "Mohon maaf, saat ini di luar jam operasional."
+  },
+  
+  // Dashboard
+  "dashboard": {
+    "port": 3030,
+    "host": "localhost"
+  },
+  
+  // Database
+  "database": {
+    "type": "sqlite",
+    "url": "./data/wagent.db"
+  }
+}
