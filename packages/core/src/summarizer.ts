@@ -1,6 +1,7 @@
 import { Logger } from 'pino';
 import { WAgentConfig, MemoryEntry } from './types.js';
 import { getLogger } from './logger.js';
+import { promptLoader } from './prompt-loader.js';
 
 // ── Summarization Configuration ─────────────────────────────────
 
@@ -92,17 +93,7 @@ export class Summarizer {
 
     if (!conversationText.trim()) return null;
 
-    const systemPrompt = `You are a conversation summarizer. Generate a concise summary of the conversation below in Bahasa Indonesia.
-
-Format your summary as Markdown with these sections (omit sections with no content):
-
-- **Topik Utama:** What topics were discussed (2-3 bullet points)
-- **Keputusan:** Any decisions made
-- **Action Items:** Any follow-ups or action items
-- **Sentimen:** Overall tone/mood of the conversation (positive, neutral, or concerned)
-- **Key Facts:** Important information shared (names, dates, preferences, etc.)
-
-Keep the summary under ${Math.floor(maxLength / 2)} characters. Focus on information that will be useful for continuing the conversation later.`;
+    const systemPrompt = promptLoader.getSummarizerPrompt().replace('${maxLength}', String(Math.floor(maxLength / 2)));
 
     const prompt = `${systemPrompt}\n\nConversation:\n${conversationText}`;
 
@@ -151,7 +142,7 @@ Keep the summary under ${Math.floor(maxLength / 2)} characters. Focus on informa
         body: JSON.stringify({
           model: config.model,
           messages: [
-            { role: 'system', content: 'You are a helpful summarization assistant. Always respond in Bahasa Indonesia.' },
+            { role: 'system', content: promptLoader.getSummarizerProviderInstruction('openai') },
             { role: 'user', content: prompt },
           ],
           max_tokens: maxTokens,
@@ -192,7 +183,7 @@ Keep the summary under ${Math.floor(maxLength / 2)} characters. Focus on informa
               maxOutputTokens: maxTokens,
             },
             systemInstruction: {
-              parts: [{ text: 'You are a helpful summarization assistant. Always respond in Bahasa Indonesia.' }],
+              parts: [{ text: promptLoader.getSummarizerProviderInstruction('gemini') }],
             },
           }),
           signal: controller.signal,
@@ -229,7 +220,7 @@ Keep the summary under ${Math.floor(maxLength / 2)} characters. Focus on informa
         body: JSON.stringify({
           model: config.model,
           max_tokens: maxTokens,
-          system: 'You are a helpful summarization assistant. Always respond in Bahasa Indonesia.',
+          system: promptLoader.getSummarizerProviderInstruction('claude'),
           messages: [{ role: 'user', content: prompt }],
         }),
         signal: controller.signal,
@@ -261,7 +252,7 @@ Keep the summary under ${Math.floor(maxLength / 2)} characters. Focus on informa
         body: JSON.stringify({
           model: config.model,
           messages: [
-            { role: 'system', content: 'You are a helpful summarization assistant. Always respond in Bahasa Indonesia.' },
+            { role: 'system', content: promptLoader.getSummarizerProviderInstruction('ollama') },
             { role: 'user', content: prompt },
           ],
           options: { num_predict: maxTokens },

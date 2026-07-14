@@ -1,28 +1,56 @@
+import { promptLoader } from './prompt-loader.js';
+
 /**
  * Shared style descriptions for ContextBuilder and StyleRouter.
- * Extracted to avoid code duplication between the two classes.
+ * Now loaded from prompts/personality.toon
  */
 
-export const TONE_DESCRIPTIONS: Record<string, string> = {
-  casual: 'santai dan natural',
-  formal: 'formal dan sopan',
-  professional: 'profesional dan ramah',
-  friendly: 'ramah dan hangat',
-  mixed: 'adaptif mengikuti lawan bicara',
-};
+// Lazy-load from TOON file
+let _toneDescriptions: Record<string, string> | null = null;
+let _toneInstructions: Record<string, string> | null = null;
+let _emojiInstructions: Record<string, string> | null = null;
 
-export const TONE_INSTRUCTIONS: Record<string, string> = {
-  casual: 'Gunakan bahasa yang santai dan natural. Boleh pakai slang dan bahasa sehari-hari.',
-  formal: 'Gunakan bahasa yang formal dan sopan. Hindari slang dan singkatan.',
-  professional: 'Gunakan bahasa profesional namun tetap ramah. Seimbang antara formal dan santai.',
-  friendly: 'Gunakan bahasa yang ramah dan hangat. Gunakan emoji secukupnya.',
-  mixed: 'Sesuaikan gaya dengan konteks percakapan. Ikuti gaya dari lawan bicara.',
-};
+function getToneDescriptions(): Record<string, string> {
+  if (!_toneDescriptions) {
+    const personality = promptLoader.load('personality.toon');
+    if (personality?.tones) {
+      _toneDescriptions = {};
+      for (const [tone, data] of Object.entries(personality.tones) as any) {
+        _toneDescriptions[tone] = data.description;
+      }
+    } else {
+      _toneDescriptions = {
+        casual: 'santai dan natural',
+        formal: 'formal dan sopan',
+        professional: 'profesional dan ramah',
+        friendly: 'ramah dan hangat',
+        mixed: 'adaptif mengikuti lawan bicara',
+      };
+    }
+  }
+  return _toneDescriptions;
+}
 
-export const EMOJI_INSTRUCTIONS: Record<string, string> = {
-  rare: 'Hindari emoji.',
-  moderate: 'Gunakan emoji sesekali.',
-  frequent: 'Boleh sering menggunakan emoji.',
-};
+export const TONE_DESCRIPTIONS: Record<string, string> = new Proxy({} as Record<string, string>, {
+  get: (_, key: string) => getToneDescriptions()[key] || '',
+});
+
+export const TONE_INSTRUCTIONS: Record<string, string> = new Proxy({} as Record<string, string>, {
+  get: (_, key: string) => {
+    if (!_toneInstructions) {
+      _toneInstructions = promptLoader.getToneInstructions();
+    }
+    return _toneInstructions[key] || '';
+  },
+});
+
+export const EMOJI_INSTRUCTIONS: Record<string, string> = new Proxy({} as Record<string, string>, {
+  get: (_, key: string) => {
+    if (!_emojiInstructions) {
+      _emojiInstructions = promptLoader.getEmojiInstructions();
+    }
+    return _emojiInstructions[key] || '';
+  },
+});
 
 export const VALID_TONES = ['casual', 'formal', 'professional', 'friendly', 'mixed'];

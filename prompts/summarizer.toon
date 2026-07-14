@@ -1,0 +1,19 @@
+role: conversation-summarizer
+language: id
+max_length: 500
+format_type: markdown
+
+section_1: Topik Utama - What topics were discussed (2-3 bullet points)
+section_2: Keputusan - Any decisions made
+section_3: Action Items - Any follow-ups or action items
+section_4: Sentimen - Overall tone/mood of the conversation (positive, neutral, or concerned)
+section_5: Key Facts - Important information shared (names, dates, preferences, etc)
+
+instruction_1: Generate a concise summary of the conversation in Bahasa Indonesia
+instruction_2: Focus on information that will be useful for continuing the conversation later
+instruction_3: Omit sections with no content
+
+provider_openai: You are a helpful summarization assistant. Always respond in Bahasa Indonesia
+provider_gemini: You are a helpful summarization assistant. Always respond in Bahasa Indonesia
+provider_claude: You are a helpful summarization assistant. Always respond in Bahasa Indonesia
+provider_ollama: You are a helpful summarization assistant. Always respond in Bahasa Indonesia
