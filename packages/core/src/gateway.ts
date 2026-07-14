@@ -18,6 +18,7 @@ import { getLogger } from './logger.js';
 import { EscalationService, EscalationEvent } from './escalation.js';
 import { ApprovalQueue } from './approval-queue.js';
 import { ProactiveScheduler } from './proactive-scheduler.js';
+import { promptLoader } from './prompt-loader.js';
 import { ToolSandbox } from './tool-sandbox.js';
 import { TelegramBot, TelegramGatewayAdapter } from './telegram-bot.js';
 
@@ -391,10 +392,11 @@ export class Gateway {
   private async handleSelfChatCommand(msg: Message): Promise<void> {
     const text = msg.content.trim();
     this.logger.info({ text }, 'Self-chat command received');
+    const sc = promptLoader.getSelfChatConfig();
 
     // Only handle commands starting with /
     if (!text.startsWith('/')) {
-      await this.whatsapp.sendMessage(msg.from, 'Kirim /help untuk daftar command');
+      await this.whatsapp.sendMessage(msg.from, sc.help_hint);
       return;
     }
 
@@ -408,7 +410,7 @@ export class Gateway {
           const uptime = this._startTime ? Math.floor((Date.now() - this._startTime) / 1000) : 0;
           const mem = process.memoryUsage();
           const response = [
-            `📊 *WAGENT Status*`,
+            `📊 *${sc.status_header}*`,
             ``,
             `Status: ${status}`,
             `Uptime: ${Math.floor(uptime / 60)}m ${uptime % 60}s`,
@@ -422,13 +424,13 @@ export class Gateway {
 
         case '/pause': {
           this._paused = true;
-          await this.whatsapp.sendMessage(msg.from, '⏸️ Agent di-pause. Kirim /resume untuk melanjutkan.');
+          await this.whatsapp.sendMessage(msg.from, `⏸️ ${sc.pause_done}`);
           break;
         }
 
         case '/resume': {
           this._paused = false;
-          await this.whatsapp.sendMessage(msg.from, '▶️ Agent di-resume. Siap melayani customer.');
+          await this.whatsapp.sendMessage(msg.from, `▶️ ${sc.resume_done}`);
           break;
         }
 
@@ -447,35 +449,35 @@ export class Gateway {
         case '/contacts': {
           const contacts = this.db.getAllContacts().slice(0, 10);
           if (contacts.length === 0) {
-            await this.whatsapp.sendMessage(msg.from, 'Belum ada kontak.');
+            await this.whatsapp.sendMessage(msg.from, sc.contacts_empty);
           } else {
             const list = contacts.map((c, i) => `${i + 1}. ${c.name || c.number}`).join('\n');
-            await this.whatsapp.sendMessage(msg.from, `👥 *Kontak Terakhir*\n\n${list}`);
+            await this.whatsapp.sendMessage(msg.from, `👥 *${sc.contacts_header}*\n\n${list}`);
           }
           break;
         }
 
         case '/help': {
           const help = [
-            `📱 *WAGENT Self-Chat Commands*`,
+            `📱 *${sc.help_header}*`,
             ``,
-            `/status — Lihat status agent`,
-            `/pause — Pause auto-reply`,
-            `/resume — Resume auto-reply`,
-            `/stats — Statistik hari ini`,
-            `/contacts — Daftar kontak`,
-            `/help — Tampilkan bantuan ini`,
+            `/status — ${sc.help_status}`,
+            `/pause — ${sc.help_pause}`,
+            `/resume — ${sc.help_resume}`,
+            `/stats — ${sc.help_stats}`,
+            `/contacts — ${sc.help_contacts}`,
+            `/help — ${sc.help_help}`,
           ].join('\n');
           await this.whatsapp.sendMessage(msg.from, help);
           break;
         }
 
         default:
-          await this.whatsapp.sendMessage(msg.from, `Command tidak dikenal: ${cmd}\nKirim /help untuk daftar command`);
+          await this.whatsapp.sendMessage(msg.from, `${sc.command_unknown}: ${cmd}\n${sc.help_hint}`);
       }
     } catch (err: any) {
       this.logger.error({ error: err.message }, 'Self-chat command error');
-      await this.whatsapp.sendMessage(msg.from, `Error: ${err.message}`);
+      await this.whatsapp.sendMessage(msg.from, `${sc.command_error}: ${err.message}`);
     }
   }
 
@@ -522,7 +524,7 @@ export class Gateway {
     if (!this.checkRateLimit(msg.from)) {
       this.logger.warn({ from: msg.from }, 'Rate limited');
       try {
-        const rateMsg = this.config.rateLimitMessage || 'Mohon tunggu ya, Anda terlalu cepat 😊';
+        const rateMsg = this.config.rateLimitMessage || promptLoader.getRateLimitMessage();
         await this.whatsapp.sendMessage(msg.from, rateMsg);
       } catch { /* ignore send error */ }
       return;
@@ -532,7 +534,7 @@ export class Gateway {
     if (!this.isWithinWorkingHours()) {
       this.logger.info({ from: msg.from }, 'Outside working hours, sending offline message');
       try {
-        const offlineMsg = this.config.offlineMessage || 'Mohon maaf, di luar jam operasional 🙏';
+        const offlineMsg = this.config.offlineMessage || promptLoader.getOfflineMessage();
         await this.whatsapp.sendMessage(msg.from, offlineMsg);
       } catch { /* ignore send error */ }
       return;

@@ -3,6 +3,7 @@ import { ContextConfig, StyleDirective, AIMessage, MemoryEntry } from './types.j
 import { getLogger } from './logger.js';
 import { TONE_INSTRUCTIONS, EMOJI_INSTRUCTIONS } from './style-descriptions.js';
 import { Summarizer } from './summarizer.js';
+import { promptLoader } from './prompt-loader.js';
 
 /**
  * ContextBuilder composes the system prompt and full LLM context
@@ -33,41 +34,42 @@ export class ContextBuilder {
    */
   buildSystemPrompt(config: ContextConfig): string {
     const parts: string[] = [];
+    const cb = promptLoader.getContextBuilderConfig();
 
     // 1. Base system prompt (required)
     parts.push(config.baseSystemPrompt);
 
     // 2. Contact relationship context
     if (config.profile?.relationship) {
-      parts.push(`\n## Hubungan dengan Kontak Ini\nHubungan: ${config.profile.relationship}`);
+      parts.push(`\n## ${cb.section_relationship}\n${cb.label_relationship}: ${config.profile.relationship}`);
     }
 
     // 3. Style directive from StyleRouter
     if (config.profile) {
       const style = this.buildStyleInstructions(config.profile);
       if (style) {
-        parts.push(`\n## Gaya Komunikasi\n${style}`);
+        parts.push(`\n## ${cb.section_style}\n${style}`);
       }
     }
 
     // 4. Contact name for personalization
     if (config.contactName) {
-      parts.push(`\n## Informasi Kontak\nKontak saat ini: ${config.contactName}`);
+      parts.push(`\n## ${cb.section_contact}\n${cb.label_contact}: ${config.contactName}`);
     }
 
     // 5. New conversation context
     if (config.isNewConversation) {
-      parts.push(`\n## Konteks\nIni adalah awal percakapan dengan kontak ini. Sambut dengan hangat.`);
+      parts.push(`\n## ${cb.section_new_conversation}\n${cb.label_new_conversation}`);
     }
 
     // 6. Conversation summary (long-term context)
     if (config.conversationSummary) {
-      parts.push(`\n## Ringkasan Percakapan Sebelumnya\n${config.conversationSummary}`);
+      parts.push(`\n## ${cb.section_summary}\n${config.conversationSummary}`);
     }
 
     // 7. Skill/system prompt additions
     if (config.systemPromptAdditions && config.systemPromptAdditions.length > 0) {
-      parts.push(`\n## Panduan Tambahan\n${config.systemPromptAdditions.join('\n')}`);
+      parts.push(`\n## ${cb.section_additions}\n${config.systemPromptAdditions.join('\n')}`);
     }
 
     const prompt = parts.join('\n');
@@ -89,16 +91,17 @@ export class ContextBuilder {
    */
   private buildStyleInstructions(profile: NonNullable<ContextConfig['profile']>): string {
     const instructions: string[] = [];
+    const cb = promptLoader.getContextBuilderConfig();
 
     // Tone mapping
     instructions.push(TONE_INSTRUCTIONS[profile.tone] || TONE_INSTRUCTIONS.casual);
 
     if (profile.language) {
-      instructions.push(`Bahasa: ${profile.language}`);
+      instructions.push(`${cb.style_language}: ${profile.language}`);
     }
 
     if (profile.greetings && profile.greetings.length > 0) {
-      instructions.push(`Sapaan yang biasa digunakan: ${profile.greetings.join(', ')}`);
+      instructions.push(`${cb.style_greetings}: ${profile.greetings.join(', ')}`);
     }
 
     if (profile.emojiUsage && EMOJI_INSTRUCTIONS[profile.emojiUsage]) {
@@ -106,11 +109,11 @@ export class ContextBuilder {
     }
 
     if (profile.topics && profile.topics.length > 0) {
-      instructions.push(`Topik yang sering dibahas: ${profile.topics.join(', ')}`);
+      instructions.push(`${cb.style_topics}: ${profile.topics.join(', ')}`);
     }
 
     if (profile.exampleResponses && profile.exampleResponses.length > 0) {
-      instructions.push('\nContoh gaya respon:');
+      instructions.push(`\n${cb.style_examples}:`);
       for (const example of profile.exampleResponses.slice(0, 3)) {
         instructions.push(`> ${example}`);
       }

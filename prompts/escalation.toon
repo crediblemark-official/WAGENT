@@ -1,0 +1,17 @@
+title: ESCALATION - AI butuh bantuan manusia
+label_customer: Pelanggan
+label_phone: Nomor
+label_reason: Alasan
+label_detail: Detail
+label_message: Pesan customer
+label_history: Riwayat percakapan
+action_instruction: Balas customer ini melalui WhatsApp Web. AI akan berhenti otomatis.
+
+reason_ai_error: Error AI provider
+reason_ai_empty: AI tidak bisa memberikan jawaban
+reason_ai_escalation: AI meminta bantuan manusia
+reason_tool_failure: Gagal menjalankan tool
+
+escalation_pending: Tindakan membutuhkan persetujuan. Menunggu persetujuan...
+escalation_approved: Persetujuan diberikan.
+escalation_rejected: Persetujuan ditolak.

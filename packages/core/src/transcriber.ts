@@ -6,6 +6,7 @@ import {
   AudioMessageData,
 } from './types.js';
 import { getLogger } from './logger.js';
+import { promptLoader } from './prompt-loader.js';
 
 export class Transcriber {
   private logger: Logger;
@@ -97,7 +98,7 @@ export class Transcriber {
     const body = {
       contents: [{
         parts: [
-          { text: 'Transkripsikan pesan suara ini ke teks. Hanya balas dengan teks hasil transkripsi, tanpa komentar tambahan.' },
+          { text: promptLoader.getTranscriberInstruction('gemini') },
           {
             inlineData: {
               mimeType: audio.mimetype,

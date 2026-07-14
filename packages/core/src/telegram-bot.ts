@@ -2,6 +2,7 @@ import { Logger } from 'pino';
 import { getLogger } from './logger.js';
 import { WAgentConfig } from './types.js';
 import { ApprovalQueue } from './approval-queue.js';
+import { promptLoader } from './prompt-loader.js';
 import type { Agent } from './agent.js';
 import type { Database } from './storage.js';
 
@@ -317,26 +318,29 @@ export class TelegramBot {
   }
 
   private async handlePause(): Promise<string> {
+    const tg = promptLoader.getTelegramConfig();
     if (this.gateway.isPaused()) {
-      return '⚠️ Agent is already paused. Use <code>/resume</code> to resume.';
+      return `⚠️ ${tg.status_paused}`;
     }
 
     this.gateway.setPaused(true);
-    return '✅ <b>Agent PAUSED.</b>\n\nAI will not auto-reply to messages.\nUse <code>/resume</code> to enable again.';
+    return `✅ <b>${tg.status_paused_done}</b>`;
   }
 
   private async handleResume(): Promise<string> {
+    const tg = promptLoader.getTelegramConfig();
     if (!this.gateway.isPaused()) {
-      return '⚠️ Agent is already active. Use <code>/pause</code> to pause.';
+      return `⚠️ ${tg.status_active}`;
     }
 
     this.gateway.setPaused(false);
-    return '✅ <b>Agent RESUMED.</b>\n\nAI will now auto-reply to messages.';
+    return `✅ <b>${tg.status_active_done}</b>`;
   }
 
   private async handleApprove(args: string[]): Promise<string> {
+    const tg = promptLoader.getTelegramConfig();
     if (args.length === 0) {
-      return '⚠️ Usage: <code>/approve &lt;request_id&gt; [note]</code>\n\nUse <code>/pending</code> to see pending requests.';
+      return `⚠️ ${tg.approve_usage}`;
     }
 
     const id = args[0];
@@ -344,15 +348,16 @@ export class TelegramBot {
 
     const success = this.gateway.getApprovalQueue().approve(id, 'telegram', note);
     if (!success) {
-      return `❌ Could not approve <code>${this.escapeHtml(id)}</code>.\n\nRequest not found or already resolved. Use <code>/pending</code> to see active requests.`;
+      return `❌ ${tg.approve_not_found}`;
     }
 
-    return `✅ <b>Approved:</b> <code>${this.escapeHtml(id)}</code>${note ? `\nNote: ${this.escapeHtml(note)}` : ''}`;
+    return `✅ <b>${tg.approve_done}:</b> <code>${this.escapeHtml(id)}</code>${note ? `\nNote: ${this.escapeHtml(note)}` : ''}`;
   }
 
   private async handleReject(args: string[]): Promise<string> {
+    const tg = promptLoader.getTelegramConfig();
     if (args.length === 0) {
-      return '⚠️ Usage: <code>/reject &lt;request_id&gt; [reason]</code>\n\nUse <code>/pending</code> to see pending requests.';
+      return `⚠️ ${tg.reject_usage}`;
     }
 
     const id = args[0];
@@ -360,21 +365,22 @@ export class TelegramBot {
 
     const success = this.gateway.getApprovalQueue().reject(id, 'telegram', reason);
     if (!success) {
-      return `❌ Could not reject <code>${this.escapeHtml(id)}</code>.\n\nRequest not found or already resolved.`;
+      return `❌ ${tg.reject_not_found}`;
     }
 
-    return `❌ <b>Rejected:</b> <code>${this.escapeHtml(id)}</code>${reason ? `\nReason: ${this.escapeHtml(reason)}` : ''}`;
+    return `❌ <b>${tg.reject_done}:</b> <code>${this.escapeHtml(id)}</code>${reason ? `\nReason: ${this.escapeHtml(reason)}` : ''}`;
   }
 
   private async handlePending(): Promise<string> {
+    const tg = promptLoader.getTelegramConfig();
     const pending = this.gateway.getApprovalQueue().getPending();
 
     if (pending.length === 0) {
-      return '✅ No pending approval requests.';
+      return `✅ ${tg.pending_empty}`;
     }
 
     const lines: string[] = [
-      `<b>📋 Pending Approvals (${pending.length})</b>`,
+      `<b>📋 ${tg.pending_header} (${pending.length})</b>`,
       '',
     ];
 
@@ -398,15 +404,16 @@ export class TelegramBot {
   }
 
   private async handleContacts(args: string[]): Promise<string> {
+    const tg = promptLoader.getTelegramConfig();
     const limit = args.length > 0 ? Math.min(parseInt(args[0], 10) || 10, 20) : 10;
     const contacts = this.db.getAllContacts().slice(0, limit);
 
     if (contacts.length === 0) {
-      return '📭 No contacts yet.';
+      return `📭 ${tg.contacts_empty}`;
     }
 
     const lines: string[] = [
-      `<b>📇 Contacts (${this.db.getAllContacts().length} total)</b>`,
+      `<b>📇 ${tg.contacts_header} (${this.db.getAllContacts().length} total)</b>`,
       '',
     ];
 
@@ -421,17 +428,18 @@ export class TelegramBot {
   }
 
   private async handleLogs(args: string[]): Promise<string> {
+    const tg = promptLoader.getTelegramConfig();
     const count = args.length > 0 ? Math.min(parseInt(args[0], 10) || 5, 20) : 5;
 
     // Get recent chats/messages
     const chats = this.db.getAllChats().slice(0, count);
 
     if (chats.length === 0) {
-      return '📭 No recent activity.';
+      return `📭 ${tg.logs_empty}`;
     }
 
     const lines: string[] = [
-      `<b>📜 Recent Activity (${chats.length} chats)</b>`,
+      `<b>📜 ${tg.logs_header} (${chats.length} chats)</b>`,
       '',
     ];
 
@@ -453,6 +461,8 @@ export class TelegramBot {
   }
 
   private async handleHelp(args: string[]): Promise<string> {
+    const tg = promptLoader.getTelegramConfig();
+    
     // Help for specific command
     if (args.length > 0) {
       const cmdName = args[0].toLowerCase();
@@ -478,24 +488,24 @@ export class TelegramBot {
         return lines.join('\n');
       }
 
-      return `Unknown command: <code>/${this.escapeHtml(cmdName)}</code>`;
+      return `❌ ${tg.unknown_command}: <code>/${this.escapeHtml(cmdName)}</code>`;
     }
 
     // General help
     const lines: string[] = [
-      '<b>🤖 WAGENT Bot Commands</b>',
+      `<b>🤖 ${tg.help_header}</b>`,
       '',
-      '<b>Status & Control</b>',
+      `<b>${tg.help_status}</b>`,
       '  <code>/status</code> — Show agent status',
       '  <code>/pause</code> — Pause auto-reply',
       '  <code>/resume</code> — Resume auto-reply',
       '',
-      '<b>Approval</b>',
+      `<b>${tg.help_approval}</b>`,
       '  <code>/pending</code> — List pending approvals',
       '  <code>/approve &lt;id&gt;</code> — Approve action',
       '  <code>/reject &lt;id&gt;</code> — Reject action',
       '',
-      '<b>Information</b>',
+      `<b>${tg.help_information}</b>`,
       '  <code>/contacts</code> — List contacts',
       '  <code>/logs</code> — Recent activity',
       '  <code>/help [cmd]</code> — Show this help',
@@ -505,8 +515,9 @@ export class TelegramBot {
   }
 
   private async handleAddContact(args: string[]): Promise<string> {
+    const tg = promptLoader.getTelegramConfig();
     if (args.length < 2) {
-      return '⚠️ Usage: <code>/add_contact &lt;name&gt; &lt;relationship&gt;</code>\n\nExample: <code>/add_contact Budi Santoso Teman kuliah</code>';
+      return `⚠️ ${tg.add_contact_usage}\n\n${tg.add_contact_example}`;
     }
 
     const name = args[0];

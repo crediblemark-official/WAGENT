@@ -1,5 +1,6 @@
 import { WAgentConfig, Contact, Message } from './types.js';
 import { getLogger } from './logger.js';
+import { promptLoader } from './prompt-loader.js';
 
 // ── Telegram Bot API ───────────────────────────────────────────
 
@@ -90,27 +91,28 @@ export class EscalationService {
 
     const contactInfo = event.contactName || event.contactId;
     const phoneNumber = event.contactId.replace('@s.whatsapp.net', '').replace('@g.us', '');
+    const esc = promptLoader.getEscalationConfig();
 
     // Build escalation message
     const lines: string[] = [
-      '<b>🚨 ESCALATION — AI butuh bantuan manusia</b>',
+      `<b>🚨 ${esc.title}</b>`,
       '',
-      `<b>👤 Pelanggan:</b> ${this.escapeHtml(contactInfo)}`,
-      `<b>📱 Nomor:</b> ${phoneNumber}`,
-      `<b>⚠️ Alasan:</b> ${this.formatReason(event.reason)}`,
+      `<b>👤 ${esc.label_customer}:</b> ${this.escapeHtml(contactInfo)}`,
+      `<b>📱 ${esc.label_phone}:</b> ${phoneNumber}`,
+      `<b>⚠️ ${esc.label_reason}:</b> ${this.formatReason(event.reason)}`,
     ];
 
     if (event.details) {
-      lines.push(`<b>📋 Detail:</b> ${this.escapeHtml(event.details)}`);
+      lines.push(`<b>📋 ${esc.label_detail}:</b> ${this.escapeHtml(event.details)}`);
     }
 
     lines.push('');
-    lines.push('<b>💬 Pesan customer:</b>');
+    lines.push(`<b>💬 ${esc.label_message}:</b>`);
     lines.push(this.escapeHtml(event.customerMessage.substring(0, 500)));
 
     if (event.conversationHistory) {
       lines.push('');
-      lines.push('<b>📜 Riwayat percakapan:</b>');
+      lines.push(`<b>📜 ${esc.label_history}:</b>`);
       lines.push(this.escapeHtml(event.conversationHistory.substring(0, 1000)));
     }
 
@@ -122,7 +124,7 @@ export class EscalationService {
 
     // Add action instructions
     lines.push('');
-    lines.push('<i>⚠️ Balas customer ini melalui WhatsApp Web. AI akan berhenti otomatis.</i>');
+    lines.push(`<i>⚠️ ${esc.action_instruction}</i>`);
 
     const message = lines.join('\n');
 
@@ -142,21 +144,23 @@ export class EscalationService {
    * This is a simple version that just forwards the customer message.
    */
   async escalateSimple(contactId: string, contactName: string, message: string, note?: string): Promise<boolean> {
+    const esc = promptLoader.getEscalationConfig();
     return this.escalate({
       contactId,
       contactName,
       customerMessage: message,
       reason: 'ai_explicit_escalation',
-      details: note || 'AI meminta bantuan manusia secara eksplisit',
+      details: note || esc.reason_ai_escalation,
     });
   }
 
   private formatReason(reason: EscalationEvent['reason']): string {
+    const esc = promptLoader.getEscalationConfig();
     switch (reason) {
-      case 'ai_error': return 'Error AI provider 🔴';
-      case 'ai_empty_response': return 'AI tidak bisa memberikan jawaban ❓';
-      case 'ai_explicit_escalation': return 'AI meminta bantuan manusia 🙋';
-      case 'tool_failure': return 'Gagal menjalankan tool ⚙️';
+      case 'ai_error': return `${esc.reason_ai_error} 🔴`;
+      case 'ai_empty_response': return `${esc.reason_ai_empty} ❓`;
+      case 'ai_explicit_escalation': return `${esc.reason_ai_escalation} 🙋`;
+      case 'tool_failure': return `${esc.reason_tool_failure} ⚙️`;
     }
   }
 

@@ -15,12 +15,13 @@ import { getLogger } from './logger.js';
 import { WAgentConfig } from './types.js';
 import { resolveModel, ResolvedModel } from './model-catalog.js';
 import { decode } from '@toon-format/toon';
+import { promptLoader } from './prompt-loader.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // ── Default Prompts ─────────────────────────────────────────────
 
-const DEFAULT_WELCOME_MESSAGE = 'Halo! 👋 Ada yang bisa saya bantu hari ini?';
+const DEFAULT_WELCOME_MESSAGE = promptLoader.getWelcomeMessage();
 
 function loadDefaultSystemPrompt(): string {
   const candidates = [
@@ -291,14 +292,14 @@ function buildConfig(jsonConfig: WAgentJsonConfig, resolved: ResolvedModel): WAg
     // Rate Limiting
     rateLimitMax: jsonConfig.rateLimit?.max || 10,
     rateLimitWindowSeconds: jsonConfig.rateLimit?.windowSeconds || 10,
-    rateLimitMessage: jsonConfig.rateLimit?.message || 'Mohon tunggu sebentar ya.',
+    rateLimitMessage: jsonConfig.rateLimit?.message || promptLoader.getRateLimitMessage(),
     
     // Working Hours
     workingHoursEnabled: jsonConfig.workingHours?.enabled || false,
     workingHoursStart: jsonConfig.workingHours?.start || '08:00',
     workingHoursEnd: jsonConfig.workingHours?.end || '17:00',
     workingHoursTimezone: jsonConfig.workingHours?.timezone || 'Asia/Jakarta',
-    offlineMessage: jsonConfig.workingHours?.offlineMessage || 'Di luar jam operasional.',
+    offlineMessage: jsonConfig.workingHours?.offlineMessage || promptLoader.getOfflineMessage(),
     
     // Escalation
     telegramBotToken: jsonConfig.escalation?.telegramBotToken,
