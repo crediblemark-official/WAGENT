@@ -98,7 +98,7 @@ export class Transcriber {
     const body = {
       contents: [{
         parts: [
-          { text: promptLoader.getTranscriberInstruction(this.provider) },
+          { text: promptLoader.getTranscriberInstruction() },
           {
             inlineData: {
               mimeType: audio.mimetype,

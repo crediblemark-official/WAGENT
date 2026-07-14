@@ -242,24 +242,11 @@ Format your summary as Markdown with these sections:
   // ── Transcriber ─────────────────────────────────────────────────
 
   /**
-   * Get transcriber instruction - falls back to generic if provider not found
+   * Get transcriber instruction
    */
-  getTranscriberInstruction(provider: string): string {
+  getTranscriberInstruction(): string {
     const transcriber = this.load('transcriber.toon');
-    const key = `${provider}_instruction`;
-    
-    // Try provider-specific instruction first
-    if (transcriber?.[key]) {
-      return transcriber[key];
-    }
-    
-    // Fall back to generic instruction
-    if (transcriber?.generic_instruction) {
-      return transcriber.generic_instruction;
-    }
-    
-    // Ultimate fallback
-    return 'Transcribe this audio message to text. Reply only with the transcribed text.';
+    return transcriber?.instruction || 'Transkripsikan pesan suara ini ke teks. Hanya balas dengan teks hasil transkripsi.';
   }
 
   // ── Escalation ──────────────────────────────────────────────────
