@@ -64,6 +64,12 @@ WAGENT adalah **platform WhatsApp AI Agent** yang bisa dipakai siapa saja — pe
 
 ### Install
 
+**Opsi 1: Otomatis (Rekomendasi)**
+```bash
+curl -fsSL https://raw.githubusercontent.com/crediblemark-official/WAGENT/main/install.sh | bash
+```
+
+**Opsi 2: Manual (Kloning Repositori)**
 ```bash
 git clone https://github.com/crediblemark-official/WAGENT.git
 cd WAGENT
