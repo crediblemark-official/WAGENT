@@ -271,8 +271,6 @@ function generateJsonConfig(config: WizardConfig): string {
   // Agent
   lines.push('  // Agent Settings');
   lines.push('  "agent": {');
-  lines.push('    // System prompt loaded from file (edit prompts/system.md to change AI behavior)');
-  lines.push('    "systemPromptFile": "prompts/system.md",');
   lines.push(`    "welcomeMessage": "${escapeJson(config.agent.welcomeMessage)}"`);
   lines.push('  },');
   lines.push('');

@@ -50,8 +50,6 @@ export interface WAgentJsonConfig {
     };
   };
   agent?: {
-    systemPrompt?: string;
-    systemPromptFile?: string;
     welcomeMessage?: string;
     conversationTimeoutHours?: number;
   };
@@ -214,20 +212,21 @@ function getEnvKeyForProvider(provider: string): string | null {
  * Build WAgentConfig from JSON config
  */
 function buildConfig(jsonConfig: WAgentJsonConfig, resolved: ResolvedModel): WAgentConfig {
-  // Load system prompt from file
+  // Load system prompt from file (convention: prompts/system.md)
   let systemPrompt = DEFAULT_SYSTEM_PROMPT;
   
-  if (jsonConfig.agent?.systemPromptFile) {
-    const promptPath = join(process.cwd(), jsonConfig.agent.systemPromptFile);
+  const promptPaths = [
+    join(process.cwd(), 'prompts/system.md'),
+    join(__dirname, '../prompts/system.md'),
+    join(__dirname, '../../prompts/system.md'),
+  ];
+  
+  for (const promptPath of promptPaths) {
     if (existsSync(promptPath)) {
       systemPrompt = readFileSync(promptPath, 'utf-8').trim();
       getLogger().info(`Loaded system prompt from ${promptPath}`);
-    } else {
-      getLogger().warn(`System prompt file not found: ${promptPath}, using default`);
+      break;
     }
-  } else if (jsonConfig.agent?.systemPrompt) {
-    // Fallback to inline prompt
-    systemPrompt = jsonConfig.agent.systemPrompt;
   }
   
   return {
