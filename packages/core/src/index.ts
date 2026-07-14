@@ -47,8 +47,8 @@ export { MCPClient } from './mcp-client.js';
 export type { MCPServerConfig, MCPToolInfo } from './mcp-client.js';
 export { MCPServer } from './mcp-server.js';
 export type { MCPServerOptions } from './mcp-server.js';
-export { resolveModel, refreshModelCatalog, getAllModels } from './model-catalog.js';
+export { resolveModel, refreshModelCatalog, getCatalogProviders, getModelsForProviderCatalog } from './model-catalog.js';
 export { PromptLoader, promptLoader } from './prompt-loader.js';
-export type { ResolvedModel, ModelData } from './model-catalog.js';
+export type { ResolvedModel, ProviderData } from './model-catalog.js';
 
 export * from './types.js';

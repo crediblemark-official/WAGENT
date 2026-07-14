@@ -7,10 +7,9 @@
 
 import { writeFileSync } from 'fs';
 import { join } from 'path';
-import { intro, outro, text, confirm, isCancel, cancel, spinner } from '@clack/prompts';
+import { intro, outro, text, select, confirm, isCancel, cancel, spinner } from '@clack/prompts';
 import color from 'picocolors';
-import { getLogger } from '@wagent/core';
-import { resolveModel } from '@wagent/core';
+import { getLogger, getCatalogProviders, getModelsForProviderCatalog } from '@wagent/core';
 
 // ── Types ───────────────────────────────────────────────────────
 
@@ -49,45 +48,52 @@ export async function setupWizard(): Promise<void> {
     },
   };
 
-  // ── Step 1: AI Model ID ─────────────────────────────────────────
-  const modelIdInput = await text({
-    message: 'Masukkan Model ID dari models.dev (contoh: google/gemini-2.0-flash, openai/gpt-4o, deepseek/deepseek-chat, ollama/llama3):',
-    placeholder: 'google/gemini-2.0-flash',
-    defaultValue: 'google/gemini-2.0-flash',
-    validate: (v) => {
-      if (!v) return 'Model ID tidak boleh kosong';
-      if (!v.includes('/')) {
-        return 'Format model ID tidak valid (harus provider/model)';
-      }
-      return undefined;
-    }
+  // ── Step 1: Pilih AI Provider (Dinamis dari Catalog) ─────────────
+  intro(color.cyan('🔍 Mengambil daftar provider dari models.dev...'));
+  const providersMap = await getCatalogProviders();
+  
+  const providerOptions = Object.entries(providersMap).map(([id, p]) => ({
+    value: id,
+    label: p.name || id,
+  }));
+  
+  // Sort: provider populer berada di paling atas
+  const popularOrder = ['openai', 'google', 'gemini', 'anthropic', 'claude', 'deepseek', 'groq', 'ollama'];
+  providerOptions.sort((a, b) => {
+    const idxA = popularOrder.indexOf(a.value);
+    const idxB = popularOrder.indexOf(b.value);
+    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+    if (idxA !== -1) return -1;
+    if (idxB !== -1) return 1;
+    return a.label.localeCompare(b.label);
   });
 
-  if (isCancel(modelIdInput)) {
+  const provider = await select({
+    message: 'Pilih AI Provider:',
+    options: providerOptions,
+  }) as string;
+
+  if (isCancel(provider)) {
     cancel('Setup dibatalkan.');
     process.exit(0);
   }
 
-  // Resolve model ID
-  intro(color.cyan('🔍 Menghubungkan ke models.dev & memverifikasi model...'));
-  const resolved = await resolveModel(modelIdInput as string);
-
-  config.provider = resolved.provider;
-  config.model = resolved.input;
+  config.provider = provider;
+  const providerInfo = providersMap[provider];
 
   // ── Step 2: Credentials ─────────────────────────────────────────
-  if (resolved.provider === 'ollama') {
+  if (provider === 'ollama') {
     const baseUrl = await text({
       message: 'Ollama base URL:',
       placeholder: 'http://localhost:11434/api',
-      defaultValue: resolved.baseUrl || 'http://localhost:11434/api',
+      defaultValue: providerInfo?.api || 'http://localhost:11434/api',
     });
     if (isCancel(baseUrl)) process.exit(0);
     config.baseUrl = baseUrl as string;
   } else {
-    const envKey = resolved.envKey || `${resolved.provider.toUpperCase()}_API_KEY`;
+    const envKey = providerInfo?.env?.[0] || `${provider.toUpperCase()}_API_KEY`;
     const apiKey = await text({
-      message: `Masukkan API Key untuk ${resolved.name || resolved.provider} (${envKey}):`,
+      message: `Masukkan API Key untuk ${providerInfo?.name || provider} (${envKey}):`,
       placeholder: '...',
       validate: (v) => !v ? 'API Key tidak boleh kosong' : undefined,
     });
@@ -95,7 +101,43 @@ export async function setupWizard(): Promise<void> {
     config.apiKey = apiKey as string;
   }
 
-  // ── Step 3: Session Name ────────────────────────────────────────
+  // ── Step 3: Pilih Model (Dinamis dari Catalog) ──────────────────
+  intro(color.cyan(`🔍 Mengambil daftar model untuk ${providerInfo?.name || provider}...`));
+  const modelsList = await getModelsForProviderCatalog(provider);
+  
+  let modelId: string;
+  if (modelsList.length > 0) {
+    modelsList.push({ value: 'custom', label: 'Tulis model kustom secara manual...' });
+    
+    const selectedModel = await select({
+      message: `Pilih model untuk ${providerInfo?.name || provider}:`,
+      options: modelsList,
+    }) as string;
+    
+    if (isCancel(selectedModel)) process.exit(0);
+    
+    if (selectedModel === 'custom') {
+      const customModelInput = await text({
+        message: `Masukkan nama model kustom (contoh: gpt-4o, gemini-2.0-flash):`,
+        validate: (v) => !v ? 'Nama model tidak boleh kosong' : undefined,
+      });
+      if (isCancel(customModelInput)) process.exit(0);
+      modelId = customModelInput as string;
+    } else {
+      modelId = selectedModel;
+    }
+  } else {
+    const customModelInput = await text({
+      message: `Masukkan nama model untuk ${providerInfo?.name || provider} (contoh: llama3):`,
+      validate: (v) => !v ? 'Nama model tidak boleh kosong' : undefined,
+    });
+    if (isCancel(customModelInput)) process.exit(0);
+    modelId = customModelInput as string;
+  }
+
+  config.model = `${provider}/${modelId}`;
+
+  // ── Step 4: Session Name ────────────────────────────────────────
   const session = await text({
     message: 'Nama session WhatsApp:',
     placeholder: 'wagent-session',
@@ -105,7 +147,7 @@ export async function setupWizard(): Promise<void> {
   if (isCancel(session)) process.exit(0);
   config.session = session as string;
 
-  // ── Step 4: Welcome Message ─────────────────────────────────────
+  // ── Step 5: Welcome Message ─────────────────────────────────────
   const welcomeMessage = await text({
     message: 'Welcome message untuk chat baru:',
     placeholder: 'Halo! Ada yang bisa saya bantu?',
@@ -115,7 +157,7 @@ export async function setupWizard(): Promise<void> {
   if (isCancel(welcomeMessage)) process.exit(0);
   config.agent.welcomeMessage = welcomeMessage as string;
 
-  // ── Step 5: Dashboard ───────────────────────────────────────────
+  // ── Step 6: Dashboard ───────────────────────────────────────────
   const enableDashboard = await confirm({
     message: 'Aktifkan web dashboard?',
     initialValue: true,

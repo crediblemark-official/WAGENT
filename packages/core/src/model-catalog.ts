@@ -32,7 +32,7 @@ export interface ResolvedModel {
   name?: string;
 }
 
-interface ProviderData {
+export interface ProviderData {
   id: string;
   name: string;
   npm?: string;
@@ -299,3 +299,26 @@ export async function getAllModels(): Promise<{ id: string; name: string; provid
   
   return result;
 }
+
+/**
+ * Dapatkan semua provider yang ada di catalog
+ */
+export async function getCatalogProviders(): Promise<{ [id: string]: ProviderData }> {
+  const catalog = await loadCatalog();
+  return catalog.providers;
+}
+
+/**
+ * Dapatkan model yang tersedia untuk provider tertentu di catalog
+ */
+export async function getModelsForProviderCatalog(providerId: string): Promise<{ value: string; label: string }[]> {
+  const catalog = await loadCatalog();
+  const provider = catalog.providers[providerId];
+  if (!provider || !provider.models) return [];
+  
+  return Object.entries(provider.models).map(([id, model]) => ({
+    value: id,
+    label: model.name || id,
+  }));
+}
+
