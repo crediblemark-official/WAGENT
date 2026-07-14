@@ -1304,6 +1304,54 @@ modelCmd
     console.log('');
   });
 
+// ── update ───────────────────────────────────────────────────────
+
+program
+  .command('update')
+  .description('Update WAGENT ke versi terbaru dari GitHub')
+  .action(async () => {
+    const { execSync } = await import('child_process');
+    const { homedir } = await import('os');
+
+    const installDir = join(homedir(), '.wagent');
+    const updateScript = join(installDir, 'update.sh');
+
+    if (!existsSync(updateScript)) {
+      console.error(color.red(`❌ Script update tidak ditemukan: ${updateScript}`));
+      process.exit(1);
+    }
+
+    try {
+      execSync(`bash "${updateScript}"`, { stdio: 'inherit' });
+    } catch {
+      process.exit(1);
+    }
+  });
+
+// ── uninstall ────────────────────────────────────────────────────
+
+program
+  .command('uninstall')
+  .description('Hapus instalasi WAGENT dari sistem')
+  .action(async () => {
+    const { execSync } = await import('child_process');
+    const { homedir } = await import('os');
+
+    const installDir = join(homedir(), '.wagent');
+    const uninstallScript = join(installDir, 'uninstall.sh');
+
+    if (!existsSync(uninstallScript)) {
+      console.error(color.red(`❌ Script uninstall tidak ditemukan: ${uninstallScript}`));
+      process.exit(1);
+    }
+
+    try {
+      execSync(`bash "${uninstallScript}"`, { stdio: 'inherit' });
+    } catch {
+      process.exit(1);
+    }
+  });
+
 // ── Parse args ──────────────────────────────────────────────────
 
 program.parse(process.argv);
