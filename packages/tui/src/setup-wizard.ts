@@ -289,12 +289,15 @@ export async function setupWizard(): Promise<void> {
   if (config.apiKey) {
     console.log(`  API Key    : ${config.apiKey.substring(0, 8)}...`);
   }
-  console.log(`  Dashboard  : ${config.dashboard.enabled ? color.green('ON') : color.red('OFF')}`);
+  console.log(`  Dashboard  : ${config.dashboard.enabled ? color.green(`ON → http://localhost:${config.dashboard.port}`) : color.red('OFF')}`);
   console.log(`  Telegram   : ${config.escalation.telegramBotToken ? color.green('ON (Eskalasi Aktif)') : color.dim('OFF')}`);
   console.log('');
   console.log(color.bold('Next steps:'));
   console.log(color.dim('  1. Run: wagent start  → scan QR WhatsApp'));
-  console.log(color.dim('  2. Review config.jsonc jika perlu penyesuaian'));
+  if (config.dashboard.enabled) {
+    console.log(color.dim(`  2. Buka dashboard: `) + color.cyan(`http://localhost:${config.dashboard.port}`));
+  }
+  console.log(color.dim('  3. Review config.jsonc jika perlu penyesuaian'));
   console.log('');
 }
 
