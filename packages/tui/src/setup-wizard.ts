@@ -1,6 +1,6 @@
 /**
  * Setup Wizard - Creates config.jsonc via interactive CLI
- * 
+ *
  * Uses @clack/prompts for beautiful terminal UI.
  * No manual file editing needed.
  */
@@ -9,7 +9,7 @@ import { writeFileSync, existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { intro, outro, text, select, confirm, isCancel, cancel, spinner } from '@clack/prompts';
 import color from 'picocolors';
-import { getLogger, getCatalogProviders, getModelsForProviderCatalog } from '@wagent/core';
+import { getCatalogProviders, getModelsForProviderCatalog } from '@wagent/core';
 
 // ── Types ───────────────────────────────────────────────────────
 
@@ -25,6 +25,10 @@ interface WizardConfig {
   dashboard: {
     enabled: boolean;
     port: number;
+  };
+  escalation: {
+    telegramBotToken: string;
+    telegramChatId: string;
   };
 }
 
@@ -60,12 +64,16 @@ export async function setupWizard(): Promise<void> {
       enabled: existingConfig?.dashboard?.enabled !== false,
       port: existingConfig?.dashboard?.port || 3030,
     },
+    escalation: {
+      telegramBotToken: existingConfig?.escalation?.telegramBotToken || '',
+      telegramChatId: existingConfig?.escalation?.telegramChatId || '',
+    },
   };
 
   // ── Step 1: Pilih AI Provider (Dinamis dari Catalog) ─────────────
   intro(color.cyan('🔍 Mengambil daftar provider dari models.dev...'));
   const providersMap = await getCatalogProviders();
-  
+
   const providerOptions = Object.entries(providersMap).map(([id, p]) => {
     const hasConfig = !!(existingProviders[id]?.apiKey || existingProviders[id]?.baseUrl);
     return {
@@ -73,7 +81,7 @@ export async function setupWizard(): Promise<void> {
       label: hasConfig ? `${p.name || id} ${color.green('✔ (Terkonfigurasi)')}` : (p.name || id),
     };
   });
-  
+
   // Sort: provider populer berada di paling atas
   const popularOrder = ['openai', 'google', 'gemini', 'anthropic', 'claude', 'deepseek', 'groq', 'ollama'];
   providerOptions.sort((a, b) => {
@@ -124,21 +132,21 @@ export async function setupWizard(): Promise<void> {
   // ── Step 3: Pilih Model (Dinamis dari Catalog) ──────────────────
   intro(color.cyan(`🔍 Mengambil daftar model untuk ${providerInfo?.name || provider}...`));
   const modelsList = await getModelsForProviderCatalog(provider);
-  
+
   let modelId: string;
   if (modelsList.length > 0) {
     modelsList.push({ value: 'custom', label: 'Tulis model kustom secara manual...' });
-    
+
     const selectedModel = await select({
       message: `Pilih model untuk ${providerInfo?.name || provider}:`,
       options: modelsList,
     }) as string;
-    
+
     if (isCancel(selectedModel)) process.exit(0);
-    
+
     if (selectedModel === 'custom') {
       const customModelInput = await text({
-        message: `Masukkan nama model kustom (contoh: gpt-4o, gemini-2.0-flash):`,
+        message: 'Masukkan nama model kustom (contoh: gpt-4o, gemini-2.0-flash):',
         validate: (v) => !v ? 'Nama model tidak boleh kosong' : undefined,
       });
       if (isCancel(customModelInput)) process.exit(0);
@@ -157,9 +165,11 @@ export async function setupWizard(): Promise<void> {
 
   config.model = `${provider}/${modelId}`;
 
-  // ── Step 4: Session Name ────────────────────────────────────────
+  // ── Step 4: WhatsApp Session Name ───────────────────────────────
+  // Koneksi WA sebenarnya dilakukan saat 'wagent start' via QR code scan.
+  // Di sini kita hanya atur nama sesi-nya.
   const session = await text({
-    message: 'Nama session WhatsApp:',
+    message: 'Nama session WhatsApp (scan QR akan dilakukan saat wagent start):',
     placeholder: 'wagent-session',
     defaultValue: config.session,
   });
@@ -177,7 +187,44 @@ export async function setupWizard(): Promise<void> {
   if (isCancel(welcomeMessage)) process.exit(0);
   config.agent.welcomeMessage = welcomeMessage as string;
 
-  // ── Step 6: Dashboard ───────────────────────────────────────────
+  // ── Step 6: Telegram Escalation (Human Takeover) ────────────────
+  const hasTelegramConfig = !!(config.escalation.telegramBotToken && config.escalation.telegramChatId);
+  const enableEscalation = await confirm({
+    message: hasTelegramConfig
+      ? `Telegram sudah terkonfigurasi ${color.green('✔')}. Update konfigurasi eskalasi Telegram (Human Takeover)?`
+      : 'Aktifkan eskalasi ke Telegram untuk Human Takeover? (opsional)',
+    initialValue: hasTelegramConfig,
+  }) as boolean;
+
+  if (enableEscalation) {
+    const botToken = await text({
+      message: 'Masukkan Telegram Bot Token (dari @BotFather):',
+      placeholder: '123456789:ABCdef...',
+      defaultValue: config.escalation.telegramBotToken,
+      validate: (v) => !v ? 'Bot Token tidak boleh kosong' : undefined,
+    });
+
+    if (isCancel(botToken)) process.exit(0);
+
+    const chatId = await text({
+      message: 'Masukkan Telegram Chat ID (grup/channel untuk notifikasi eskalasi):',
+      placeholder: '-100123456789',
+      defaultValue: config.escalation.telegramChatId,
+      validate: (v) => !v ? 'Chat ID tidak boleh kosong' : undefined,
+    });
+
+    if (isCancel(chatId)) process.exit(0);
+
+    config.escalation = {
+      telegramBotToken: botToken as string,
+      telegramChatId: chatId as string,
+    };
+  } else if (!hasTelegramConfig) {
+    // Tidak dikonfigurasi
+    config.escalation = { telegramBotToken: '', telegramChatId: '' };
+  }
+
+  // ── Step 7: Dashboard ───────────────────────────────────────────
   const enableDashboard = await confirm({
     message: 'Aktifkan web dashboard?',
     initialValue: config.dashboard.enabled,
@@ -203,22 +250,17 @@ export async function setupWizard(): Promise<void> {
   // Merge new provider config with existing ones
   const mergedProviders = { ...existingProviders };
   mergedProviders[config.provider] = {};
-  if (config.apiKey) {
-    mergedProviders[config.provider].apiKey = config.apiKey;
-  }
-  if (config.baseUrl) {
-    mergedProviders[config.provider].baseUrl = config.baseUrl;
-  }
+  if (config.apiKey) mergedProviders[config.provider].apiKey = config.apiKey;
+  if (config.baseUrl) mergedProviders[config.provider].baseUrl = config.baseUrl;
 
   const jsonConfig = generateJsonConfig(config, mergedProviders);
-  
   writeFileSync(configPath, jsonConfig);
-  
+
   s.stop('Config created!');
 
   // ── Summary ─────────────────────────────────────────────────────
   outro(color.green('Setup selesai!'));
-  
+
   console.log('');
   console.log(color.bold('Configuration:'));
   console.log(color.dim('─'.repeat(40)));
@@ -229,10 +271,11 @@ export async function setupWizard(): Promise<void> {
     console.log(`  API Key    : ${config.apiKey.substring(0, 8)}...`);
   }
   console.log(`  Dashboard  : ${config.dashboard.enabled ? color.green('ON') : color.red('OFF')}`);
+  console.log(`  Telegram   : ${config.escalation.telegramBotToken ? color.green('ON (Eskalasi Aktif)') : color.dim('OFF')}`);
   console.log('');
   console.log(color.bold('Next steps:'));
-  console.log(color.dim('  1. Review config.jsonc if needed'));
-  console.log(color.dim('  2. Run: wagent start'));
+  console.log(color.dim('  1. Run: wagent start  → scan QR WhatsApp'));
+  console.log(color.dim('  2. Review config.jsonc jika perlu penyesuaian'));
   console.log('');
 }
 
@@ -256,56 +299,60 @@ function parseJsonc(content: string): any {
 
 function generateJsonConfig(config: WizardConfig, providers: any): string {
   const lines: string[] = [];
-  
+
   lines.push('{');
   lines.push('  "$schema": "https://raw.githubusercontent.com/crediblemark-official/WAGENT/main/schemas/config.json",');
   lines.push('');
-  
+
   // Session
-  lines.push('  // WhatsApp Session');
+  lines.push('  // WhatsApp Session (scan QR saat wagent start)');
   lines.push(`  "session": "${config.session}",`);
   lines.push('');
-  
+
   // Model
-  lines.push('  // AI Model - auto-detected from provider');
+  lines.push('  // AI Model — format: provider/model-id');
   lines.push(`  "model": "${config.model}",`);
   lines.push('');
-  
+
   // Providers
-  lines.push('  // API Keys / Base URLs');
+  lines.push('  // API Keys / Base URLs per provider');
   lines.push('  "providers": {');
   const providerEntries = Object.entries(providers);
   providerEntries.forEach(([pId, pConfig]: [string, any], index) => {
     lines.push(`    "${pId}": {`);
     const fields: string[] = [];
-    if (pConfig.apiKey) {
-      fields.push(`      "apiKey": "${pConfig.apiKey}"`);
-    }
-    if (pConfig.baseUrl) {
-      fields.push(`      "baseUrl": "${pConfig.baseUrl}"`);
-    }
-    lines.push(fields.join(',\n'));
+    if (pConfig.apiKey) fields.push(`      "apiKey": "${pConfig.apiKey}"`);
+    if (pConfig.baseUrl) fields.push(`      "baseUrl": "${pConfig.baseUrl}"`);
+    if (fields.length) lines.push(fields.join(',\n'));
     lines.push(index === providerEntries.length - 1 ? '    }' : '    },');
   });
   lines.push('  },');
   lines.push('');
-  
+
   // Agent
   lines.push('  // Agent Settings');
   lines.push('  "agent": {');
   lines.push(`    "welcomeMessage": "${escapeJson(config.agent.welcomeMessage)}"`);
   lines.push('  },');
   lines.push('');
-  
+
+  // Escalation
+  lines.push('  // Eskalasi ke Telegram (Human Takeover) — kosongkan jika tidak dipakai');
+  lines.push('  "escalation": {');
+  lines.push(`    "telegramBotToken": "${config.escalation.telegramBotToken}",`);
+  lines.push(`    "telegramChatId": "${config.escalation.telegramChatId}"`);
+  lines.push('  },');
+  lines.push('');
+
   // Dashboard
-  lines.push('  // Dashboard');
+  lines.push('  // Web Dashboard');
   lines.push('  "dashboard": {');
   lines.push(`    "enabled": ${config.dashboard.enabled},`);
   lines.push(`    "port": ${config.dashboard.port}`);
   lines.push('  }');
-  
+
   lines.push('}');
-  
+
   return lines.join('\n');
 }
 
