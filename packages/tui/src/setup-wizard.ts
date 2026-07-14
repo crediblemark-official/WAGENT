@@ -266,11 +266,16 @@ export async function setupWizard(): Promise<void> {
   const s = spinner();
   s.start('Generating config.jsonc...');
 
-  // Merge new provider config with existing ones
+  // Merge new provider config dengan existing — jangan overwrite jika skip
   const mergedProviders = { ...existingProviders };
-  mergedProviders[config.provider] = {};
-  if (config.apiKey) mergedProviders[config.provider].apiKey = config.apiKey;
-  if (config.baseUrl) mergedProviders[config.provider].baseUrl = config.baseUrl;
+  if (!skipAI && config.provider) {
+    // Preserve existing config, hanya update field yang baru diisi
+    const prev = mergedProviders[config.provider] || {};
+    mergedProviders[config.provider] = { ...prev };
+    if (config.apiKey) mergedProviders[config.provider].apiKey = config.apiKey;
+    if (config.baseUrl) mergedProviders[config.provider].baseUrl = config.baseUrl;
+  }
+
 
   const jsonConfig = generateJsonConfig(config, mergedProviders);
   writeFileSync(configPath, jsonConfig);
