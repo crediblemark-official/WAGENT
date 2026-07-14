@@ -111,13 +111,34 @@ program
       let dashboard: any = undefined;
       if (options.dashboard !== false && config.dashboardPort) {
         try {
-          const { DashboardServer } = await import('@wagent/dashboard');
-          dashboard = new DashboardServer(config, db);
-          logger.info('Dashboard module loaded');
+          // Resolve path relatif dari lokasi CLI — bekerja baik di dev maupun installed
+          const { fileURLToPath } = await import('url');
+          const { join, dirname, resolve } = await import('path');
+          const cliDir = dirname(fileURLToPath(import.meta.url));
+          // Coba beberapa lokasi: workspace link, path relatif dari dist, path relatif dari packages
+          const candidates = [
+            '@wagent/dashboard',
+            resolve(cliDir, '../../dashboard/dist/server.js'),
+            resolve(cliDir, '../dashboard/dist/server.js'),
+            resolve(cliDir, '../../../../packages/dashboard/dist/server.js'),
+          ];
+          let loaded = false;
+          for (const candidate of candidates) {
+            try {
+              const mod = await import(candidate);
+              const { DashboardServer } = mod;
+              dashboard = new DashboardServer(config, db);
+              logger.info('Dashboard module loaded from: %s', candidate);
+              loaded = true;
+              break;
+            } catch { /* coba kandidat berikutnya */ }
+          }
+          if (!loaded) throw new Error('Semua kandidat path gagal');
         } catch (err) {
           logger.warn('Dashboard module not available, running headless');
         }
       }
+
 
       // Load skills for AI agent
       const skillLoader = new SkillLoader();
