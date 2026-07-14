@@ -24,11 +24,23 @@ else
   exit 1
 fi
 
-# ── Stop if running ────────────────────────────────────────────
-if pgrep -f "wagent" &>/dev/null; then
-  echo "⏹️  Stopping WAGENT..."
-  pkill -f "wagent" 2>/dev/null || true
+# ── Stop server jika sedang berjalan ───────────────────────────
+SELF_PID=$$
+# Cari proses "wagent start" (bukan proses uninstall ini sendiri)
+WAGENT_PIDS=$(pgrep -f "wagent start" 2>/dev/null | grep -v "^$SELF_PID$" || true)
+
+if [ -n "$WAGENT_PIDS" ]; then
+  echo "⏹️  Stopping WAGENT server..."
+  echo "$WAGENT_PIDS" | xargs kill -TERM 2>/dev/null || true
   sleep 1
+  # Force kill jika masih ada
+  STILL_RUNNING=$(pgrep -f "wagent start" 2>/dev/null | grep -v "^$SELF_PID$" || true)
+  if [ -n "$STILL_RUNNING" ]; then
+    echo "$STILL_RUNNING" | xargs kill -KILL 2>/dev/null || true
+  fi
+  echo "✓ WAGENT server stopped"
+else
+  echo "ℹ️  Tidak ada server WAGENT yang berjalan"
 fi
 
 # ── Remove symlink ─────────────────────────────────────────────
