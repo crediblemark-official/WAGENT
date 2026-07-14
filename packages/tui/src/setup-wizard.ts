@@ -7,6 +7,7 @@
 
 import { writeFileSync, existsSync, readFileSync } from 'fs';
 import { join } from 'path';
+import { spawnSync } from 'child_process';
 import { intro, outro, text, select, confirm, isCancel, cancel, spinner } from '@clack/prompts';
 import color from 'picocolors';
 import { getCatalogProviders, getModelsForProviderCatalog } from '@wagent/core';
@@ -187,17 +188,25 @@ export async function setupWizard(): Promise<void> {
   // Jika skip, config.model tetap menggunakan nilai dari existingConfig
 
 
-  // ── Step 4: WhatsApp Session Name ───────────────────────────────
-  // Koneksi WA sebenarnya dilakukan saat 'wagent start' via QR code scan.
-  // Di sini kita hanya atur nama sesi-nya.
+  // ── Step 4: WhatsApp Session Name & QR Scan ────────────────────
   const session = await text({
-    message: 'Nama session WhatsApp (scan QR akan dilakukan saat wagent start):',
+    message: 'Nama session WhatsApp:',
     placeholder: 'wagent-session',
     defaultValue: config.session,
   });
 
   if (isCancel(session)) process.exit(0);
   config.session = session as string;
+
+  // Tawari scan QR WA sekarang
+  const scanNow = await confirm({
+    message: 'Scan QR WhatsApp sekarang? (bisa juga dilakukan otomatis saat service start)',
+    initialValue: true,
+  }) as boolean;
+
+  if (!isCancel(scanNow) && scanNow) {
+    await scanWhatsAppQR(config.session);
+  }
 
   // ── Step 5: Welcome Message ─────────────────────────────────────
   const welcomeMessage = await text({
@@ -297,13 +306,119 @@ export async function setupWizard(): Promise<void> {
   console.log(`  Dashboard  : ${config.dashboard.enabled ? color.green(`ON → http://localhost:${config.dashboard.port}`) : color.red('OFF')}`);
   console.log(`  Telegram   : ${config.escalation.telegramBotToken ? color.green('ON (Eskalasi Aktif)') : color.dim('OFF')}`);
   console.log('');
-  console.log(color.bold('Next steps:'));
-  console.log(color.dim('  1. Run: wagent start  → scan QR WhatsApp'));
-  if (config.dashboard.enabled) {
-    console.log(color.dim(`  2. Buka dashboard: `) + color.cyan(`http://localhost:${config.dashboard.port}`));
+
+  // ── Auto-start service ──────────────────────────────────────
+  const svc = spawnSync('systemctl', ['--user', 'is-active', 'wagent'], { encoding: 'utf-8' });
+  const svcActive = svc.stdout?.trim() === 'active';
+
+  if (svcActive) {
+    const rs = spawnSync('systemctl', ['--user', 'restart', 'wagent'], { encoding: 'utf-8' });
+    if (rs.status === 0) {
+      console.log(color.green('  ✔ WAGENT service di-restart dengan konfigurasi baru.'));
+    } else {
+      console.log(color.yellow('  ⚠ Gagal restart service otomatis. Jalankan: wagent service restart'));
+    }
+  } else {
+    // Coba start service jika tidak aktif
+    const st = spawnSync('systemctl', ['--user', 'start', 'wagent'], { encoding: 'utf-8' });
+    if (st.status === 0) {
+      console.log(color.green('  ✔ WAGENT service dimulai di background.'));
+    } else {
+      console.log(color.dim('  Service systemd belum aktif.'));
+    }
   }
-  console.log(color.dim('  3. Review config.jsonc jika perlu penyesuaian'));
+
   console.log('');
+  console.log(color.bold('Gunakan:'));
+  console.log(color.dim('  wagent service status   → cek status'));
+  console.log(color.dim('  wagent service logs     → lihat log'));
+  if (config.dashboard.enabled) {
+    console.log(color.dim(`  Dashboard: `) + color.cyan(`http://localhost:${config.dashboard.port}`));
+  }
+  console.log('');
+}
+
+// ── WhatsApp QR Scan (saat init) ────────────────────────────────
+
+/**
+ * Koneksi sementara ke WhatsApp hanya untuk scan QR dan simpan session.
+ * Setelah connected, koneksi ditutup — service yang akan mengelola selanjutnya.
+ * Timeout: 2 menit.
+ */
+async function scanWhatsAppQR(sessionName: string): Promise<void> {
+  console.log('');
+  console.log(color.bold('  📱 Koneksi WhatsApp'));
+  console.log(color.dim('  ' + '─'.repeat(36)));
+  console.log(color.dim('  QR code akan muncul di bawah ini.'));
+  console.log(color.dim('  Buka WhatsApp → ⋮ → Perangkat Tertaut → Tautkan Perangkat'));
+  console.log('');
+
+  try {
+    const { join, dirname, resolve } = await import('path');
+    const { fileURLToPath } = await import('url');
+    const { homedir } = await import('os');
+    const qrcode = await import('qrcode-terminal') as any;
+
+    // Resolve baileys dari whatsapp package yang pasti punya dependency ini
+    const tuiDir = dirname(fileURLToPath(import.meta.url));
+    const baileysPath = resolve(tuiDir, '../../whatsapp/node_modules/@whiskeysockets/baileys/lib/index.js');
+    const { default: makeWASocket, useMultiFileAuthState } =
+      await import(baileysPath) as any;
+
+    const sessionDir = join(homedir(), '.sessions', sessionName);
+    const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
+
+    const s = spinner();
+
+    await new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        console.log('');
+        console.log(color.yellow('  ⏱ Timeout — QR tidak di-scan dalam 2 menit.'));
+        console.log(color.dim('  WAGENT akan tetap berjalan; scan bisa dilakukan saat service pertama start.'));
+        resolve();
+      }, 120_000);
+
+      const sock = makeWASocket({
+        auth: state,
+        printQRInTerminal: false,
+        logger: { level: 'silent', child: () => ({ level: 'silent', info: () => {}, warn: () => {}, error: () => {}, debug: () => {}, trace: () => {}, fatal: () => {} }) },
+      });
+
+      sock.ev.on('creds.update', saveCreds);
+
+      sock.ev.on('connection.update', async (update: any) => {
+        const { connection, qr, lastDisconnect } = update;
+
+        if (qr) {
+          console.log('');
+          qrcode.generate(qr, { small: true });
+          console.log(color.dim('  Scan QR di atas dengan WhatsApp...'));
+        }
+
+        if (connection === 'open') {
+          clearTimeout(timeout);
+          s.start('Tersambung! Menyimpan session...');
+          await saveCreds();
+          await sock.logout().catch(() => {});
+          s.stop(color.green('✔ Session WhatsApp tersimpan!'));
+          console.log(color.dim(`  Session: ${sessionDir}`));
+          resolve();
+        }
+
+        if (connection === 'close') {
+          const code = (lastDisconnect?.error as any)?.output?.statusCode;
+          // Jika logout paksa atau tidak butuh reconnect
+          if (code !== 401) {
+            clearTimeout(timeout);
+            resolve();
+          }
+        }
+      });
+    });
+  } catch (err: any) {
+    console.log(color.yellow(`  ⚠ Tidak bisa scan QR saat ini: ${err?.message || err}`));
+    console.log(color.dim('  Session akan dibuat saat service pertama kali dijalankan.'));
+  }
 }
 
 // ── Helper Functions ────────────────────────────────────────────

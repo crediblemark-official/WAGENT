@@ -9,6 +9,7 @@ import color from 'picocolors';
 import { loadConfig, ensureDirectories, getLogger, Gateway, Database, WhatsAppNumberConfig, SkillLoader, isEncryptionAvailable, getEncryptionKey, generateEncryptionKey, encryptFile, decryptFile, encryptDirectory, decryptDirectory, encryptEnvFile, decryptEnvFile, getEncryptionStatus, KnowledgeStore } from '@wagent/core';
 import { BaileysAdapter } from '@wagent/whatsapp';
 import { setupWizard, saveConfigToEnv } from '@wagent/tui';
+import { serviceStatus, serviceStart, serviceStop, serviceRestart, serviceLogs, serviceEnable, serviceDisable, isServiceRunning } from './commands/service.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(
@@ -70,6 +71,36 @@ program
   .option('-p, --port <port>', 'Dashboard port', '3030')
   .option('--no-dashboard', 'Jalankan tanpa dashboard web')
   .action(async (options) => {
+    // ── Port conflict check ─────────────────────────────────────
+    // Lewati jika dijalankan sebagai systemd service (INVOCATION_ID di-set oleh systemd)
+    const runningAsService = !!process.env.INVOCATION_ID;
+
+    if (!runningAsService) {
+      // Cek apakah service systemd sudah running (hanya untuk user manual)
+      if (isServiceRunning()) {
+        console.log('');
+        console.log(color.yellow('⚠  WAGENT service sudah berjalan di background.'));
+        console.log(color.dim('   Gunakan:'));
+        console.log(color.dim('     wagent service status   → cek status'));
+        console.log(color.dim('     wagent service restart  → restart'));
+        console.log(color.dim('     wagent service logs     → lihat log'));
+        console.log('');
+        process.exit(0);
+      }
+
+      // Cek port secara langsung jika systemd tidak tersedia
+      const targetPort = parseInt(options.port, 10) || 3030;
+      const portInUse = await checkPort(targetPort);
+      if (portInUse) {
+        console.log('');
+        console.log(color.yellow(`⚠  Port ${targetPort} sudah dipakai.`));
+        console.log(color.dim('   WAGENT mungkin sudah berjalan. Cek dengan: wagent service status'));
+        console.log('');
+        process.exit(0);
+      }
+    }
+
+
     console.log('');
     console.log(color.bold(color.cyan('╔══════════════════════════════════════╗')));
     console.log(color.bold(color.cyan('║      🤖 WAGENT WhatsApp AI Agent     ║')));
@@ -78,7 +109,7 @@ program
     console.log(`  Runtime : Bun ${process.versions.bun || process.version}`);
     console.log('');
 
-    const config = await await loadConfig();
+    const config = await loadConfig();
     ensureDirectories(config);
 
     const logger = getLogger();
@@ -1386,9 +1417,64 @@ program
     }
   });
 
+// ── service ──────────────────────────────────────────────────────
+
+const serviceCmd = program
+  .command('service')
+  .description('Kelola WAGENT background service (systemd)');
+
+serviceCmd
+  .command('status')
+  .description('Cek status service')
+  .action(() => serviceStatus());
+
+serviceCmd
+  .command('start')
+  .description('Start service')
+  .action(() => serviceStart());
+
+serviceCmd
+  .command('stop')
+  .description('Stop service')
+  .action(() => serviceStop());
+
+serviceCmd
+  .command('restart')
+  .description('Restart service')
+  .action(() => serviceRestart());
+
+serviceCmd
+  .command('logs')
+  .description('Tampilkan log service (live)')
+  .action(() => serviceLogs());
+
+serviceCmd
+  .command('enable')
+  .description('Aktifkan autostart saat boot')
+  .action(() => serviceEnable());
+
+serviceCmd
+  .command('disable')
+  .description('Nonaktifkan autostart saat boot')
+  .action(() => serviceDisable());
+
+// ── Helper: cek port ─────────────────────────────────────────────
+
+async function checkPort(port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const net = require('net');
+    const server = net.createServer();
+    server.listen(port, '127.0.0.1', () => {
+      server.close(() => resolve(false)); // port bebas
+    });
+    server.on('error', () => resolve(true)); // port terpakai
+  });
+}
+
 // ── Parse args ──────────────────────────────────────────────────
 
 program.parse(process.argv);
+
 
 // Show help if no command
 if (!process.argv.slice(2).length) {

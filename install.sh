@@ -86,10 +86,37 @@ if ! echo "$PATH" | grep -q "$BIN_DIR"; then
   echo ""
 fi
 
+# ── Systemd Service ─────────────────────────────────────────────
+SERVICE_DIR="$HOME/.config/systemd/user"
+SERVICE_FILE="$SERVICE_DIR/wagent.service"
+SERVICE_TEMPLATE="$INSTALL_DIR/bin/wagent.service"
+
+if command -v systemctl &>/dev/null && systemctl --user status &>/dev/null 2>&1; then
+  echo "⚙️  Installing systemd service..."
+  mkdir -p "$SERVICE_DIR"
+  cp "$SERVICE_TEMPLATE" "$SERVICE_FILE"
+
+  systemctl --user daemon-reload
+  systemctl --user enable wagent
+  systemctl --user start wagent
+
+  # Aktifkan linger agar service tetap berjalan walau user logout (khusus VPS)
+  if command -v loginctl &>/dev/null; then
+    loginctl enable-linger "$USER" 2>/dev/null || true
+  fi
+
+  echo "✔  WAGENT service aktif dan akan auto-start saat boot."
+  echo "   Gunakan: wagent service status"
+else
+  echo ""
+  echo "ℹ️  systemd tidak tersedia — jalankan manual dengan: wagent start"
+fi
+
 echo ""
 echo "✅ WAGENT installed successfully!"
 echo ""
-echo "  Start:  wagent start"
-echo "  Setup:  wagent init"
-echo "  Help:   wagent help"
+echo "  Setup:   wagent init      → konfigurasi AI, WhatsApp, Telegram"
+echo "  Status:  wagent service status"
+echo "  Log:     wagent service logs"
+echo "  Help:    wagent --help"
 echo ""
