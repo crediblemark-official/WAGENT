@@ -2,20 +2,22 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { WebScraper } from './web-scraper.js';
 
 // Mock HTTPClient
-vi.mock('./http-client.js', () => ({
-  HTTPClient: vi.fn().mockImplementation(() => ({
-    get: vi.fn(),
-  })),
-}));
+const mockGet = vi.fn();
+vi.mock('./http-client.js', () => {
+  return {
+    HTTPClient: class MockHTTPClient {
+      get = mockGet;
+      constructor() {}
+    }
+  };
+});
 
 describe('WebScraper', () => {
   let scraper: WebScraper;
-  let mockGet: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
-    const { HTTPClient } = await import('./http-client.js');
+    mockGet.mockReset();
     scraper = new WebScraper({ delayMs: 0 });
-    mockGet = (scraper as any).httpClient.get;
   });
 
   describe('scrape', () => {

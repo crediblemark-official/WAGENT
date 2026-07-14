@@ -230,7 +230,7 @@ describe('TelegramBot', () => {
 
     it('should show general help', async () => {
       const result = await (bot as any).handleHelp([]);
-      expect(result).toContain('OpenCS Bot Commands');
+      expect(result).toContain('WAGENT Bot Commands');
       expect(result).toContain('/status');
       expect(result).toContain('/pause');
       expect(result).toContain('/pending');
