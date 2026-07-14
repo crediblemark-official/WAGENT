@@ -43,9 +43,6 @@ export default function createPaymentSkill() {
       version: '1.0.0',
       description: 'Kelola pembayaran: Midtrans, Xendit, Transfer, COD',
       author: 'WAGENT',
-      systemPromptAdditions: `Kamu bisa memproses pembayaran menggunakan tool yang tersedia.
-Metode yang didukung: Midtrans (kartu, VA, ewallet), Xendit (VA, ewallet), Transfer Bank, COD.
-Selalu konfirmasi total sebelum memproses pembayaran.`,
     },
     tools: [
       // ═══════════════════════════════════════════════════════════

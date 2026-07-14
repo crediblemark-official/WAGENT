@@ -43,9 +43,6 @@ export default function createPOSConnectorSkill() {
       version: '1.0.0',
       description: 'Koneksi ke POS/E-commerce system yang sudah ada',
       author: 'WAGENT',
-      systemPromptAdditions: `Kamu terhubung ke sistem POS/e-commerce.
-Kamu bisa: melihat produk, cek stok, lihat pesanan, buat pesanan baru.
-Gunakan tools yang tersedia untuk mengelola data.`,
     },
     tools: [
       // ═══════════════════════════════════════════════════════════

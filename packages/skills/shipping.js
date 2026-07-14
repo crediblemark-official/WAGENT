@@ -200,10 +200,6 @@ export default function createShippingSkill() {
       version: '1.0.0',
       description: `Hitung ongkos kirim multi-provider: ${providerNames}`,
       author: 'WAGENT',
-      systemPromptAdditions: `Kamu bisa menghitung ongkos kirim menggunakan tool hitung_ongkir.
-Provider yang tersedia: ${providerNames}.
-Untuk menghitung ongkir, kamu perlu: kota asal, kota tujuan, berat (gram), dan kurir.
-Selalu tanyakan berat barang dan kota tujuan sebelum menghitung.`,
     },
     tools: [
       {

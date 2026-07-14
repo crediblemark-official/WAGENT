@@ -1,8 +1,9 @@
 import { Logger } from 'pino';
 import { existsSync, readdirSync, statSync } from 'fs';
-import { join, extname } from 'path';
+import { join, resolve, extname } from 'path';
 import { SkillDefinition, SkillFactory, ToolDefinition } from './types.js';
 import { getLogger } from './logger.js';
+import { promptLoader } from './prompt-loader.js';
 
 export class SkillLoader {
   private skills: Map<string, SkillDefinition> = new Map();
@@ -11,7 +12,7 @@ export class SkillLoader {
 
   constructor(skillsDir?: string) {
     this.logger = getLogger().child({ module: 'skill-loader' });
-    this.skillsDir = skillsDir || join(process.cwd(), 'skills');
+    this.skillsDir = resolve(skillsDir || join(process.cwd(), 'skills'));
   }
 
   getSkillsDir(): string {
@@ -80,6 +81,16 @@ export class SkillLoader {
 
       const skill = await factory();
       this.validateSkill(skill, filename);
+      
+      // Inject prompt from skills.toon if not set in skill manifest
+      if (!skill.manifest.systemPromptAdditions) {
+        const toonPrompt = promptLoader.getSkillPrompt(skill.manifest.name);
+        if (toonPrompt) {
+          skill.manifest.systemPromptAdditions = toonPrompt;
+          this.logger.info('Injected prompt from skills.toon for skill: %s', skill.manifest.name);
+        }
+      }
+      
       this.skills.set(skill.manifest.name, skill);
       this.logger.info('Loaded skill: %s v%s', skill.manifest.name, skill.manifest.version);
       return skill;

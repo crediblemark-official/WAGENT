@@ -37,7 +37,6 @@ export default function createWeatherSkill() {
       version: '1.0.0',
       description: 'Cek cuaca terkini untuk berbagai kota di Indonesia',
       author: 'OpenCS Team',
-      systemPromptAdditions: 'Kamu bisa mengecek cuaca menggunakan tool get_weather.',
     },
     tools: [
       {
