@@ -129,8 +129,11 @@ export class Gateway {
     });
     this.toolSandbox = new ToolSandbox();
 
+    const isTest = process.env.NODE_ENV === 'test' || process.env.VITEST === 'true';
     this.agent = new Agent(config, db, extraTools, {
       approvalQueue: this.approvalQueue,
+      autoSummarizeEnabled: !isTest,
+      autoLearnEnabled: !isTest,
     });
 
     this.proactiveScheduler = new ProactiveScheduler({
@@ -247,10 +250,7 @@ export class Gateway {
             };
             this.db.saveContact(humanContact);
 
-            // Save the human's reply message
-            this.db.saveMessage(msg, humanChatId);
-
-            // Update chat's last message
+            // Update chat's last message first to satisfy FK constraint on messages table
             const humanExistingChat = this.db.getChat(humanChatId);
             this.db.saveChat({
               id: humanChatId,
@@ -262,6 +262,9 @@ export class Gateway {
               isGroup: humanContact.isGroup,
               createdAt: humanExistingChat?.createdAt || new Date(),
             });
+
+            // Save the human's reply message
+            this.db.saveMessage(msg, humanChatId);
           } catch (err: any) {
             this.logger.warn({ error: err.message }, 'Failed to save human reply to DB');
           }

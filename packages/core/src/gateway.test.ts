@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Gateway, WhatsAppAdapter, DashboardAdapter } from './gateway.js';
 import { Database } from './storage.js';
-import { OpenCSConfig, Message, ConnectionStatus, GatewayEvent, Contact } from './types.js';
+import { WAgentConfig, Message, ConnectionStatus, GatewayEvent, Contact } from './types.js';
 import { existsSync, unlinkSync } from 'fs';
 import { join } from 'path';
 
@@ -16,7 +16,7 @@ describe('Gateway', () => {
   let db: Database;
   let mockWhatsapp: WhatsAppAdapter;
   let gateway: Gateway;
-  let config: OpenCSConfig;
+  let config: WAgentConfig;
 
   beforeEach(() => {
     db = createTestDb();

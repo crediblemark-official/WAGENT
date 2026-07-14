@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { EscalationService, EscalationEvent } from './escalation.js';
-import type { OpenCSConfig } from './types.js';
+import type { WAgentConfig } from './types.js';
 
 // ── Helpers ────────────────────────────────────────────────────
 
 /** Create a minimal config, optionally with Telegram settings */
-function createConfig(overrides: Partial<OpenCSConfig> = {}): OpenCSConfig {
+function createConfig(overrides: Partial<WAgentConfig> = {}): WAgentConfig {
   return {
     whatsappSessionName: 'test',
     aiProvider: 'openai',

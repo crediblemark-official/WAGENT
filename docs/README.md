@@ -1,6 +1,6 @@
-# 📖 OpenCS Documentation
+# 📖 WAGENT Documentation
 
-Selamat datang di dokumentasi **OpenCS** — WhatsApp AI Customer Service Agent.
+Selamat datang di dokumentasi **WAGENT** — WhatsApp AI Customer Service Agent.
 
 ---
 
@@ -64,16 +64,16 @@ Selamat datang di dokumentasi **OpenCS** — WhatsApp AI Customer Service Agent.
 
 | Package | Status | Description |
 |---------|:------:|-------------|
-| `@opencs/core` | ✅ Production-ready | Engine utama (gateway, agent, storage, dll) |
-| `@opencs/cli` | ✅ Production-ready | Command-line interface |
-| `@opencs/whatsapp` | 🟡 In Progress | Baileys WhatsApp adapter |
-| `@opencs/dashboard` | 🟡 In Progress | Web UI (React) |
-| `@opencs/tui` | 🟡 In Progress | Terminal setup wizard |
+| `@wagent/core` | ✅ Production-ready | Engine utama (gateway, agent, storage, dll) |
+| `@wagent/cli` | ✅ Production-ready | Command-line interface |
+| `@wagent/whatsapp` | 🟡 In Progress | Baileys WhatsApp adapter |
+| `@wagent/dashboard` | 🟡 In Progress | Web UI (React) |
+| `@wagent/tui` | 🟡 In Progress | Terminal setup wizard |
 
 ---
 
 ## 🔗 Link Penting
 
-- [GitHub Repository](https://github.com/yourusername/opencs)
-- [Issue Tracker](https://github.com/yourusername/opencs/issues)
+- [GitHub Repository](https://github.com/yourusername/wagent)
+- [Issue Tracker](https://github.com/yourusername/wagent/issues)
 - [PRD (Product Requirements)](../PRD.md)

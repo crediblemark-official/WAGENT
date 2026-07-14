@@ -1,6 +1,6 @@
-// Example Weather Skill for OpenCS
+// Example Weather Skill for WAGENT
 // Exports a default factory function returning a SkillDefinition
-// USAGE: Install with `opencs skill install ./packages/skills/example-weather.js`
+// USAGE: Install with `wagent skill install ./packages/skills/example-weather.js`
 
 /**
  * @param {string} city
@@ -28,7 +28,7 @@ async function getWeather(city) {
 }
 
 /**
- * @returns {import('@opencs/core').SkillDefinition}
+ * @returns {import('@wagent/core').SkillDefinition}
  */
 export default function createWeatherSkill() {
   return {
@@ -36,7 +36,7 @@ export default function createWeatherSkill() {
       name: 'weather',
       version: '1.0.0',
       description: 'Cek cuaca terkini untuk berbagai kota di Indonesia',
-      author: 'OpenCS Team',
+      author: 'WAGENT Team',
     },
     tools: [
       {

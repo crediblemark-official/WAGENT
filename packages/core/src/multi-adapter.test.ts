@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MultiWhatsAppAdapter } from './multi-adapter.js';
 import { WhatsAppAdapter } from './gateway.js';
-import { OpenCSConfig, WhatsAppNumberConfig, Message, ConnectionStatus, GatewayEvent, Contact } from './types.js';
+import { WAgentConfig, WhatsAppNumberConfig, Message, ConnectionStatus, GatewayEvent, Contact } from './types.js';
 
 function createMockAdapter(numberId: string, jid: string = ''): WhatsAppAdapter {
   return {
@@ -29,7 +29,7 @@ describe('MultiWhatsAppAdapter', () => {
   let adapter: MultiWhatsAppAdapter;
   let factory: ReturnType<typeof vi.fn>;
 
-  const baseConfig: OpenCSConfig = {
+  const baseConfig: WAgentConfig = {
     whatsappSessionName: 'test',
     aiProvider: 'openai',
     systemPrompt: 'test',

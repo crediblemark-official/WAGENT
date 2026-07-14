@@ -167,8 +167,7 @@ export interface WAgentConfig {
   };
 }
 
-/** @deprecated Use WAgentConfig instead */
-export type OpenCSConfig = WAgentConfig;
+
 
 export type AIProviderType = 'openai' | 'gemini' | 'claude' | 'ollama';
 

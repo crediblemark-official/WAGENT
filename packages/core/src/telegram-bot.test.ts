@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { TelegramBot, TelegramGatewayAdapter } from './telegram-bot.js';
-import { OpenCSConfig } from './types.js';
+import { WAgentConfig } from './types.js';
 import { ApprovalQueue } from './approval-queue.js';
 import { Agent } from './agent.js';
 import { Database } from './storage.js';
@@ -42,7 +42,7 @@ function createMockDb(): Partial<Database> {
   } as unknown as Database;
 }
 
-function createConfig(overrides?: Partial<OpenCSConfig>): OpenCSConfig {
+function createConfig(overrides?: Partial<WAgentConfig>): WAgentConfig {
   return {
     whatsappSessionName: 'test',
     aiProvider: 'openai',

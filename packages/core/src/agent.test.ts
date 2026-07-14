@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Agent } from './agent.js';
 import { Database } from './storage.js';
-import { OpenCSConfig, ToolDefinition, ToolContext } from './types.js';
+import { WAgentConfig, ToolDefinition, ToolContext } from './types.js';
 import { existsSync, unlinkSync, mkdtempSync, rmdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { tmpdir } from 'os';
@@ -12,7 +12,7 @@ const mockFetch = vi.fn();
 describe('Agent', () => {
   let db: Database;
   let agent: Agent;
-  let config: OpenCSConfig;
+  let config: WAgentConfig;
   let TEST_DB: string;
 
   beforeEach(() => {
@@ -352,7 +352,7 @@ describe('Agent', () => {
 
   describe('provider errors', () => {
     it('should throw when OpenAI config is missing', () => {
-      const noKeyConfig: OpenCSConfig = {
+      const noKeyConfig: WAgentConfig = {
         ...config,
         openai: undefined,
       };
@@ -360,7 +360,7 @@ describe('Agent', () => {
     });
 
     it('should throw when Gemini config is missing', () => {
-      const noKeyConfig: OpenCSConfig = {
+      const noKeyConfig: WAgentConfig = {
         ...config,
         aiProvider: 'gemini',
         gemini: undefined,
@@ -369,7 +369,7 @@ describe('Agent', () => {
     });
 
     it('should throw when Claude config is missing', () => {
-      const noKeyConfig: OpenCSConfig = {
+      const noKeyConfig: WAgentConfig = {
         ...config,
         aiProvider: 'claude',
         anthropic: undefined,
@@ -378,7 +378,7 @@ describe('Agent', () => {
     });
 
     it('should throw when Ollama config is missing', () => {
-      const noKeyConfig: OpenCSConfig = {
+      const noKeyConfig: WAgentConfig = {
         ...config,
         aiProvider: 'ollama',
         ollama: undefined,
@@ -387,7 +387,7 @@ describe('Agent', () => {
     });
 
     it('should throw for unknown provider', () => {
-      const badConfig: OpenCSConfig = {
+      const badConfig: WAgentConfig = {
         ...config,
         aiProvider: 'unknown' as any,
       };

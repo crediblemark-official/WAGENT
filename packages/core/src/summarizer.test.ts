@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Summarizer } from './summarizer.js';
-import { MemoryEntry, OpenCSConfig } from './types.js';
+import { MemoryEntry, WAgentConfig } from './types.js';
 
 function makeEntry(role: MemoryEntry['role'], content: string, contactId = 'test@c.us'): MemoryEntry {
   return { contactId, role, content, timestamp: new Date().toISOString() };

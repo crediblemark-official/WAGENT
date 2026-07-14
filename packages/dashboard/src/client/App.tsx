@@ -131,7 +131,7 @@ export function App() {
       <aside style={styles.sidebar}>
         <div style={styles.logo}>
           <Icons.Zap />
-          <span style={styles.logoText}>OpenCS</span>
+          <span style={styles.logoText}>WAGENT</span>
         </div>
 
         <nav style={styles.nav}>

@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Transcriber } from './transcriber.js';
-import { OpenCSConfig, AudioMessageData } from './types.js';
+import { WAgentConfig, AudioMessageData } from './types.js';
 
 // Mock global fetch
 const mockFetch = vi.fn();
 
-function createMockConfig(overrides?: Partial<OpenCSConfig>): OpenCSConfig {
+function createMockConfig(overrides?: Partial<WAgentConfig>): WAgentConfig {
   return {
     whatsappSessionName: 'test',
     aiProvider: 'openai',

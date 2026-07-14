@@ -1040,7 +1040,7 @@ skillCmd
     if (skills.length === 0) {
       console.log(color.dim('  Tidak ada skill terinstall.'));
       console.log(color.dim(`  Letakkan file .js skill di: ${SKILLS_DIR}`));
-      console.log(color.dim('  Atau install: opencs skill install <path>'));
+      console.log(color.dim('  Atau install: wagent skill install <path>'));
       console.log('');
       return;
     }

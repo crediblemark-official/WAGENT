@@ -1,6 +1,6 @@
-# ✨ Fitur OpenCS
+# ✨ Fitur WAGENT
 
-Daftar fitur lengkap OpenCS beserta statusnya.
+Daftar fitur lengkap WAGENT beserta statusnya.
 
 ---
 

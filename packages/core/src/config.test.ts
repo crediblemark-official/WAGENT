@@ -25,7 +25,7 @@ vi.mock('./crypto.js', async (importOriginal) => {
 
 // Now import the module under test (vi.mock is hoisted)
 import { loadConfig, ensureDirectories } from './config.js';
-import type { OpenCSConfig } from './types.js';
+import type { WAgentConfig } from './types.js';
 import dotenv from 'dotenv';
 
 // ── Helpers ────────────────────────────────────────────────────
@@ -149,7 +149,7 @@ describe('ensureDirectories', () => {
     const dataDir = join(tmp.path, 'data');
     const dbPath = join(tmp.path, 'data', 'wagent.db');
 
-    const config: OpenCSConfig = {
+    const config: WAgentConfig = {
       whatsappSessionName: 'test',
       whatsappSessionDir: sessionDir,
       aiProvider: 'openai',
@@ -173,7 +173,7 @@ describe('ensureDirectories', () => {
     const sessionDir = join(tmp.path, 'sessions');
     mkdirSync(sessionDir, { recursive: true });
 
-    const config: OpenCSConfig = {
+    const config: WAgentConfig = {
       whatsappSessionName: 'test',
       whatsappSessionDir: sessionDir,
       aiProvider: 'openai',
@@ -189,7 +189,7 @@ describe('ensureDirectories', () => {
   });
 
   it('should handle undefined session dir gracefully', () => {
-    const config: OpenCSConfig = {
+    const config: WAgentConfig = {
       whatsappSessionName: 'test',
       whatsappSessionDir: undefined,
       aiProvider: 'openai',

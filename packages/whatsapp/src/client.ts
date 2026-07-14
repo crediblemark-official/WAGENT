@@ -16,7 +16,7 @@ import {
   Message,
   ConnectionStatus,
   Contact,
-  OpenCSConfig,
+  WAgentConfig,
   AudioMessageData,
   isEncryptionAvailable,
   getEncryptionKey,
@@ -37,7 +37,7 @@ export class BaileysAdapter implements WhatsAppAdapter {
   private onReadyCallback: (() => void) | null = null;
   private encryptionKey: Buffer | null = null;
 
-  constructor(config: OpenCSConfig, numberId?: string) {
+  constructor(config: WAgentConfig, numberId?: string) {
     this.numberId = numberId || 'default';
     this.logger = getLogger().child({ module: 'whatsapp', numberId: this.numberId });
     this.sessionDir = join(
@@ -100,7 +100,7 @@ export class BaileysAdapter implements WhatsAppAdapter {
       auth: state,
       printQRInTerminal: false,
       logger: pino({ level: 'silent' }),
-      browser: ['OpenCS', 'Chrome', '0.1.0'],
+      browser: ['WAGENT', 'Chrome', '0.1.0'],
       syncFullHistory: false,
       markOnlineOnConnect: false,
     });
@@ -157,7 +157,7 @@ export class BaileysAdapter implements WhatsAppAdapter {
 
       for (const msg of upsert.messages) {
         const key = msg.key;
-        if (!key || key.fromMe || !key.remoteJid) continue;
+        if (!key || !key.remoteJid) continue;
 
         // Check for voice note first
         if (this.isVoiceNote(msg)) {
@@ -170,7 +170,7 @@ export class BaileysAdapter implements WhatsAppAdapter {
             timestamp: msg.messageTimestamp
               ? new Date(Number(msg.messageTimestamp) * 1000)
               : new Date(),
-            fromMe: false,
+            fromMe: !!key.fromMe,
             metadata: {
               pushName: msg.pushName || '',
               isVoiceNote: true,
@@ -196,7 +196,7 @@ export class BaileysAdapter implements WhatsAppAdapter {
           timestamp: msg.messageTimestamp
             ? new Date(Number(msg.messageTimestamp) * 1000)
             : new Date(),
-          fromMe: false,
+          fromMe: !!key.fromMe,
           metadata: {
             pushName: msg.pushName || '',
             ...(mentionedJid.length > 0 ? { mentionedJid } : {}),

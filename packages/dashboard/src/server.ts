@@ -7,7 +7,7 @@ import { fileURLToPath } from 'url';
 import {
   DashboardAdapter,
   GatewayEvent,
-  OpenCSConfig,
+  WAgentConfig,
   Database,
   Message,
   Contact,
@@ -31,7 +31,7 @@ export class DashboardServer implements DashboardAdapter {
   private isRunning = false;
 
   constructor(
-    private config: OpenCSConfig,
+    private config: WAgentConfig,
     private db: Database,
     private gateway?: Gateway
   ) {

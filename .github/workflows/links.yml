@@ -1,0 +1,87 @@
+# ── WAGENT Docs Link Checker ─────────────────────────────────────
+# Checks for broken links in all Markdown documentation files.
+# Runs on PRs that modify .md files, and on push to main.
+#
+# Uses lycheeverse/lychee-action — a fast Rust-based link checker.
+# https://github.com/lycheeverse/lychee-action
+
+name: 🔗 Docs Link Check
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '**.md'
+  pull_request:
+    branches: [main]
+    paths:
+      - '**.md'
+
+# Auto-cancel previous runs for the same PR/branch
+concurrency:
+  group: links-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  link-check:
+    name: 🔗 Check Markdown Links
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      # ── Checkout ──────────────────────────────────────────
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      # ── Lychee Link Checker ───────────────────────────────
+      # Checks all .md files excluding node_modules, .git, dist, coverage
+      - name: 🔍 Run Lychee link checker
+        id: lychee
+        uses: lycheeverse/lychee-action@v2
+        with:
+          # Check all markdown files, exclude generated/build directories
+          args: >-
+            --verbose
+            --no-progress
+            --format detailed
+            --cache
+            --max-cache-age 1d
+            --schedule
+            --timeout 30
+            --retry-wait-time 5
+            --max-retries 3
+            --exclude-all-private
+            --exclude 'node_modules'
+            --exclude '.git'
+            --exclude 'dist'
+            --exclude 'coverage'
+            --exclude-mail
+            './**/*.md'
+          # Fail the job if any broken links are found
+          fail: true
+          # Post a comment on the PR summarizing broken links
+          output: /tmp/lychee-output.md
+
+      # ── Post PR Comment ───────────────────────────────────
+      # NOTE: always() ensures this runs even if lychee finds broken links
+      # so the PR always gets a report comment.
+      - name: 📝 Post PR comment with link report
+        if: ${{ always() && github.event_name == 'pull_request' }}
+        uses: thollander/actions-comment-pull-request@v3
+        with:
+          file-path: /tmp/lychee-output.md
+          comment-tag: 'lychee-link-check'
+          create-if-not-exists: true
+
+      # ── Summary ──────────────────────────────────────────
+      # always() — generates summary even when lychee fails (broken links found)
+      - name: 📋 Generate summary
+        if: ${{ always() }}
+        run: |
+          echo "## 🔗 Docs Link Check Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -s /tmp/lychee-output.md ]; then
+            cat /tmp/lychee-output.md >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ **No broken links found!** All Markdown links are valid." >> $GITHUB_STEP_SUMMARY
+          fi

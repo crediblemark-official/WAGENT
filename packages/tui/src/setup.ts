@@ -2,14 +2,14 @@ import { writeFileSync } from 'fs';
 import { intro, outro, text, select, confirm, isCancel, cancel } from '@clack/prompts';
 import color from 'picocolors';
 import qrcode from 'qrcode-terminal';
-import { OpenCSConfig, AIProviderType } from '@wagent/core';
+import { WAgentConfig, AIProviderType } from '@wagent/core';
 import { getLogger } from '@wagent/core';
 
-export async function setupWizard(): Promise<Partial<OpenCSConfig>> {
+export async function setupWizard(): Promise<Partial<WAgentConfig>> {
   console.clear();
-  intro(color.inverse(' OpenCS Setup Wizard '));
+  intro(color.inverse(' WAGENT Setup Wizard '));
 
-  const config: Partial<OpenCSConfig> = {};
+  const config: Partial<WAgentConfig> = {};
 
   // ── AI Provider ───────────────────────────────────────────────
   const aiProvider = await select({
@@ -213,8 +213,8 @@ export async function setupWizard(): Promise<Partial<OpenCSConfig>> {
   // ── Session Name ──────────────────────────────────────────────
   const sessionName = await text({
     message: 'Nama session WhatsApp:',
-    placeholder: 'opencs-session',
-    defaultValue: 'opencs-session',
+    placeholder: 'wagent-session',
+    defaultValue: 'wagent-session',
   });
   if (!isCancel(sessionName)) {
     config.whatsappSessionName = sessionName as string;
@@ -225,13 +225,13 @@ export async function setupWizard(): Promise<Partial<OpenCSConfig>> {
   return config;
 }
 
-export function saveConfigToEnv(config: Partial<OpenCSConfig>, envPath: string): void {
+export function saveConfigToEnv(config: Partial<WAgentConfig>, envPath: string): void {
   const envVars: string[] = [
-    '# OpenCS Configuration',
+    '# WAGENT Configuration',
     `# Generated at ${new Date().toISOString()}`,
     '',
     '# WhatsApp',
-    `WHATSAPP_SESSION_NAME=${config.whatsappSessionName || 'opencs-session'}`,
+    `WHATSAPP_SESSION_NAME=${config.whatsappSessionName || 'wagent-session'}`,
     '',
     '# AI Provider',
     `AI_PROVIDER=${config.aiProvider}`,
@@ -280,7 +280,7 @@ export function saveConfigToEnv(config: Partial<OpenCSConfig>, envPath: string):
   envVars.push('');
   envVars.push('# Database');
   envVars.push('DATABASE_TYPE=sqlite');
-  envVars.push('DATABASE_URL=./data/opencs.db');
+  envVars.push('DATABASE_URL=./data/wagent.db');
 
   envVars.push('');
   envVars.push('# Conversation Timeout (jam sebelum history otomatis dibersihkan)');

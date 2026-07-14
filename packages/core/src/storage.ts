@@ -191,9 +191,8 @@ export class Database {
       CREATE VIRTUAL TABLE IF NOT EXISTS kb_chunks_fts USING fts5(
         content,
         section_heading,
-        content_rowid='rowid',
-        content=kb_chunks,
-        content_rowid=rowid
+        content='kb_chunks',
+        content_rowid='rowid'
       );
 
       -- Triggers to keep FTS index in sync

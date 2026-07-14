@@ -1,14 +1,14 @@
 import { describe, it, expect, vi } from 'vitest';
 import { MultiNumberManager } from './multi-number.js';
 import type { WhatsAppAdapter } from './gateway.js';
-import type { OpenCSConfig, WhatsAppNumberConfig, Message, ConnectionStatus, GatewayEvent } from './types.js';
+import type { WAgentConfig, WhatsAppNumberConfig, Message, ConnectionStatus, GatewayEvent } from './types.js';
 import { existsSync, unlinkSync } from 'fs';
 import { join } from 'path';
 
 // ── Helpers ────────────────────────────────────────────────────
 
 /** Create a minimal config */
-function createConfig(overrides: Partial<OpenCSConfig> = {}): OpenCSConfig {
+function createConfig(overrides: Partial<WAgentConfig> = {}): WAgentConfig {
   return {
     whatsappSessionName: 'test',
     aiProvider: 'openai',
@@ -60,7 +60,7 @@ function createMockAdapter(
 function createMockFactory() {
   const adapters = new Map<string, WhatsAppAdapter>();
 
-  const factory = (_config: OpenCSConfig, numberId: string): WhatsAppAdapter => {
+  const factory = (_config: WAgentConfig, numberId: string): WhatsAppAdapter => {
     if (!adapters.has(numberId)) {
       adapters.set(numberId, createMockAdapter());
     }
@@ -322,7 +322,7 @@ describe('MultiNumberManager — Connection Status', () => {
       isConnected: vi.fn().mockReturnValue(true),
     });
 
-    const customFactory = (_cfg: OpenCSConfig, id: string) => {
+    const customFactory = (_cfg: WAgentConfig, id: string) => {
       if (id === 'wa-1') return adapter1;
       return adapter2;
     };

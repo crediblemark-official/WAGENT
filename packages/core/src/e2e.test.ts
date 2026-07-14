@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Gateway, WhatsAppAdapter, DashboardAdapter } from './gateway.js';
 import { Database } from './storage.js';
-import { OpenCSConfig, Message, Contact, ConnectionStatus, GatewayEvent } from './types.js';
+import { WAgentConfig, Message, Contact, ConnectionStatus, GatewayEvent } from './types.js';
 import { existsSync, unlinkSync, mkdtempSync, rmdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { tmpdir } from 'os';
@@ -75,7 +75,7 @@ function mockAIResponse(content: string, toolCalls?: any[]) {
 /**
  * Build a minimal valid config for testing.
  */
-function createTestConfig(dbPath: string): OpenCSConfig {
+function createTestConfig(dbPath: string): WAgentConfig {
   return {
     whatsappSessionName: 'e2e-test',
     aiProvider: 'openai',
@@ -136,7 +136,7 @@ describe('E2E: WhatsApp Natural Behavior', () => {
   let db: Database;
   let mockWhatsapp: ReturnType<typeof createMockWhatsapp>;
   let gateway: Gateway;
-  let config: OpenCSConfig;
+  let config: WAgentConfig;
   let TEST_DB: string;
   let dir: string;
 

@@ -3,7 +3,7 @@ Pesan pertama: "Halo, ada yang bisa saya bantu?"
 
 Ini "
 
-Statistik: 27 pesan dari customer, 0 dari agent.
+Statistik: 48 pesan dari customer, 0 dari agent.
 
 Pesan terbaru:
   👤 Customer: "Pesan 2"

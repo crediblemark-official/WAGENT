@@ -13,11 +13,12 @@ export class PromptLoader {
   private promptsDir: string;
 
   private constructor() {
-    // Find prompts directory
+    // Find prompts directory - prefer root prompts/ (has all TOON files)
     const possiblePaths = [
+      join(__dirname, '../../../prompts'),    // from packages/core/src -> root/prompts
+      join(__dirname, '../../prompts'),       // from packages/core -> root/prompts (alt layout)
       join(process.cwd(), 'prompts'),
-      join(__dirname, '../prompts'),
-      join(__dirname, '../../prompts'),
+      join(__dirname, '../prompts'),          // packages/core/prompts (legacy)
     ];
     
     this.promptsDir = possiblePaths.find(p => existsSync(p)) || possiblePaths[0];

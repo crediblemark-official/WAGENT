@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createBuiltInTools } from './tools.js';
-import type { ToolContext, OpenCSConfig } from './types.js';
+import type { ToolContext, WAgentConfig } from './types.js';
 import type { Database } from './storage.js';
 
 // ── Helpers ────────────────────────────────────────────────────
 
 /** Create a minimal config */
-function createConfig(): OpenCSConfig {
+function createConfig(): WAgentConfig {
   return {
     whatsappSessionName: 'test',
     aiProvider: 'openai',
