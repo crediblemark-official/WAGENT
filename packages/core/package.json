@@ -16,6 +16,7 @@
     "dev": "tsc --watch"
   },
   "dependencies": {
+    "@toon-format/toon": "^2.3.0",
     "dotenv": "^16.4.7",
     "pino": "^9.6.0",
     "pino-pretty": "^13.1.0"

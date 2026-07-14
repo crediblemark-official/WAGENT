@@ -14,6 +14,7 @@ import { fileURLToPath } from 'url';
 import { getLogger } from './logger.js';
 import { WAgentConfig } from './types.js';
 import { resolveModel, ResolvedModel } from './model-catalog.js';
+import { decode } from '@toon-format/toon';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -212,18 +213,36 @@ function getEnvKeyForProvider(provider: string): string | null {
  * Build WAgentConfig from JSON config
  */
 function buildConfig(jsonConfig: WAgentJsonConfig, resolved: ResolvedModel): WAgentConfig {
-  // Load system prompt from file (convention: prompts/system.md)
+  // Load system prompt from file (convention: prompts/system.toon or prompts/system.md)
   let systemPrompt = DEFAULT_SYSTEM_PROMPT;
   
   const promptPaths = [
+    join(process.cwd(), 'prompts/system.toon'),
     join(process.cwd(), 'prompts/system.md'),
+    join(__dirname, '../prompts/system.toon'),
     join(__dirname, '../prompts/system.md'),
+    join(__dirname, '../../prompts/system.toon'),
     join(__dirname, '../../prompts/system.md'),
   ];
   
   for (const promptPath of promptPaths) {
     if (existsSync(promptPath)) {
-      systemPrompt = readFileSync(promptPath, 'utf-8').trim();
+      const content = readFileSync(promptPath, 'utf-8').trim();
+      
+      // Parse based on file extension
+      if (promptPath.endsWith('.toon')) {
+        try {
+          const parsed = decode(content);
+          // Convert TOON object to readable prompt
+          systemPrompt = convertToonToPrompt(parsed);
+        } catch (error) {
+          getLogger().warn(`Failed to parse TOON prompt: ${error}, using raw content`);
+          systemPrompt = content;
+        }
+      } else {
+        systemPrompt = content;
+      }
+      
       getLogger().info(`Loaded system prompt from ${promptPath}`);
       break;
     }
@@ -350,6 +369,51 @@ export function createDefaultConfig(): void {
   
   writeFileSync(configPath, defaultConfig);
   getLogger().info(`Created default config at ${configPath}`);
+}
+
+/**
+ * Convert TOON parsed object to readable prompt
+ */
+function convertToonToPrompt(toonObj: any): string {
+  const lines: string[] = [];
+  
+  // Add role and language info
+  if (toonObj.role) {
+    lines.push(`Role: ${toonObj.role}`);
+  }
+  if (toonObj.language) {
+    lines.push(`Language: ${toonObj.language}`);
+  }
+  if (toonObj.style) {
+    lines.push(`Style: ${toonObj.style}`);
+  }
+  lines.push('');
+  
+  // Convert arrays to readable sections
+  const sections: { [key: string]: string[] } = {
+    'personality': toonObj.personality || [],
+    'speaking-style': toonObj['speaking-style'] || [],
+    'rules': toonObj.rules || [],
+    'format': toonObj.format || [],
+  };
+  
+  for (const [sectionName, items] of Object.entries(sections)) {
+    if (items.length > 0) {
+      const title = sectionName.split('-').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+      lines.push(`## ${title}`);
+      items.forEach((item: string) => {
+        lines.push(`- ${item}`);
+      });
+      lines.push('');
+    }
+  }
+  
+  // Add reminder
+  if (toonObj.reminder) {
+    lines.push(toonObj.reminder);
+  }
+  
+  return lines.join('\n');
 }
 
 export function ensureDirectories(config: WAgentConfig): void {
