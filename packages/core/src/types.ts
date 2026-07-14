@@ -169,7 +169,7 @@ export interface WAgentConfig {
 
 
 
-export type AIProviderType = 'openai' | 'gemini' | 'claude' | 'ollama';
+export type AIProviderType = 'openai' | 'gemini' | 'claude' | 'ollama' | (string & {});
 
 // ── Transcription Types ────────────────────────────────────────
 
