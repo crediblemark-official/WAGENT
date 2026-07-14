@@ -77,7 +77,7 @@ program
     console.log(color.bold(color.cyan('╚══════════════════════════════════════╝')));
     console.log('');
 
-    const config = loadConfig();
+    const config = await await loadConfig();
     ensureDirectories(config);
 
     const logger = getLogger();
@@ -156,8 +156,8 @@ program
 program
   .command('config')
   .description('Lihat konfigurasi saat ini')
-  .action(() => {
-    const config = loadConfig();
+  .action(async () => {
+    const config = await loadConfig();
     console.log('');
     console.log(color.bold('Current Configuration:'));
     console.log('──────────────────────────────');
@@ -190,9 +190,9 @@ program
 program
   .command('status')
   .description('Cek status koneksi WhatsApp')
-  .action(() => {
+  .action(async () => {
     // For simplicity, we check if session files exist
-    const config = loadConfig();
+    const config = await loadConfig();
     const sessionDir = join(
       config.whatsappSessionDir || join(process.cwd(), '.sessions'),
       config.whatsappSessionName
@@ -583,8 +583,8 @@ kbCmd
   .command('list')
   .description('Tampilkan semua entri knowledge base')
   .option('-c, --category <category>', 'Filter berdasarkan kategori')
-  .action((options) => {
-    const config = loadConfig();
+  .action(async (options) => {
+    const config = await loadConfig();
     const db = new Database(config.databaseUrl);
     const entries = options.category
       ? db.getAllKnowledgeEntries(options.category)
@@ -629,8 +629,8 @@ kbCmd
   .option('-k, --keywords <keywords>', 'Kata kunci, pisah dengan koma')
   .option('-t, --tags <tags>', 'Tags, pisah dengan koma')
   .option('-p, --priority <priority>', 'Prioritas (1-5, default: 0)', '0')
-  .action((options) => {
-    const config = loadConfig();
+  .action(async (options) => {
+    const config = await loadConfig();
     const db = new Database(config.databaseUrl);
 
     const id = `kb-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
@@ -663,8 +663,8 @@ kbCmd
   .command('remove')
   .description('Hapus entri knowledge base')
   .argument('<id>', 'ID entri yang akan dihapus')
-  .action((id: string) => {
-    const config = loadConfig();
+  .action(async (id: string) => {
+    const config = await loadConfig();
     const db = new Database(config.databaseUrl);
     const existing = db.getKnowledgeEntry(id);
 
@@ -688,8 +688,8 @@ kbCmd
   .argument('<query>', 'Kata kunci pencarian')
   .option('-c, --category <category>', 'Filter kategori')
   .option('-n, --limit <number>', 'Jumlah hasil (default: 5)', '5')
-  .action((query: string, options) => {
-    const config = loadConfig();
+  .action(async (query: string, options) => {
+    const config = await loadConfig();
     const db = new Database(config.databaseUrl);
     const limit = parseInt(options.limit, 10) || 5;
 
@@ -775,8 +775,8 @@ kbCmd
   .command('seed')
   .description('🌱 Isi database dengan contoh FAQ dari file kb-seed.md')
   .option('--clear', 'Hapus semua entri yang ada sebelum seed')
-  .action((options) => {
-    const config = loadConfig();
+  .action(async (options) => {
+    const config = await loadConfig();
     const db = new Database(config.databaseUrl);
 
     if (options.clear) {
@@ -842,8 +842,8 @@ kbCmd
 kbCmd
   .command('categories')
   .description('Tampilkan semua kategori knowledge base')
-  .action(() => {
-    const config = loadConfig();
+  .action(async () => {
+    const config = await loadConfig();
     const db = new Database(config.databaseUrl);
     const categories = db.getKnowledgeCategories();
     const total = db.getKnowledgeCount();
@@ -882,7 +882,7 @@ kbCmd
       return;
     }
 
-    const config = loadConfig();
+    const config = await loadConfig();
     const db = new Database(config.databaseUrl);
     const store = new KnowledgeStore(db, config);
 
@@ -910,7 +910,7 @@ kbCmd
   .argument('[action]', 'Action: list, delete, embed')
   .argument('[name]', 'Nama file (untuk delete)')
   .action(async (action: string, name: string) => {
-    const config = loadConfig();
+    const config = await loadConfig();
     const db = new Database(config.databaseUrl);
     const store = new KnowledgeStore(db, config);
 
@@ -984,7 +984,7 @@ escalationCmd
   .description('Kirim test escalation ke grup Telegram untuk verifikasi konfigurasi')
   .option('-m, --message <message>', 'Pesan test', '🧪 Ini adalah test escalation dari WAGENT. Jika kamu menerima ini, konfigurasi Telegram berhasil! ✅')
   .action(async (options) => {
-    const config = loadConfig();
+    const config = await loadConfig();
 
     if (!config.telegramBotToken) {
       console.log(color.red('\n✗ TELEGRAM_BOT_TOKEN tidak dikonfigurasi.'));
@@ -1141,7 +1141,7 @@ mcpCmd
   .command('list')
   .description('Tampilkan MCP servers yang terkonfigurasi')
   .action(async () => {
-    const config = loadConfig();
+    const config = await loadConfig();
     const mcpServers = (config as any).mcpServers || [];
 
     console.log('');
@@ -1173,7 +1173,7 @@ mcpCmd
   .argument('[name]', 'Nama server (default: semua)')
   .action(async (serverName?: string) => {
     const { MCPClient } = await import('@wagent/core');
-    const config = loadConfig();
+    const config = await loadConfig();
     const mcpServers = (config as any).mcpServers || [];
 
     if (mcpServers.length === 0) {
@@ -1209,7 +1209,7 @@ mcpCmd
   .option('--stdio', 'Use stdio transport (for local usage)')
   .action(async (opts) => {
     const { MCPServer, SkillLoader, loadConfig } = await import('@wagent/core');
-    const config = loadConfig();
+    const config = await loadConfig();
     const SKILLS_DIR = join(process.cwd(), 'skills');
 
     // Load tools from skills
@@ -1248,36 +1248,29 @@ modelCmd
   .command('resolve')
   .description('Resolve model ID ke provider info')
   .argument('<modelId>', 'Model ID (contoh: openai/gpt-4o)')
-  .option('--refresh', 'Force refresh dari models.dev')
-  .action(async (modelId, opts) => {
-    const { getModelCatalog } = await import('@wagent/core');
-    const catalog = getModelCatalog();
+  .action(async (modelId) => {
+    const { resolveModel } = await import('@wagent/core');
 
-    await catalog.init({ forceRefresh: opts.refresh });
-
-    const resolved = catalog.resolve(modelId);
+    const resolved = await resolveModel(modelId);
 
     console.log('');
     console.log(color.bold(`🔍 Resolve: ${modelId}`));
     console.log('──────────────────────────');
 
-    if (!resolved) {
-      console.log(color.red(`  Model "${modelId}" tidak ditemukan.`));
-    } else {
-      console.log(`  ${color.cyan('Model ID:')} ${resolved.modelId}`);
-      console.log(`  ${color.cyan('Provider:')} ${resolved.provider}`);
-      if (resolved.envKeys.length > 0) {
-        console.log(`  ${color.cyan('API Key Env:')} ${resolved.envKeys.join(', ')}`);
-      }
-      if (resolved.npm) {
-        console.log(`  ${color.cyan('SDK Package:')} ${resolved.npm}`);
-      }
-      if (resolved.api) {
-        console.log(`  ${color.cyan('Base URL:')} ${resolved.api}`);
-      }
-      if (resolved.name) {
-        console.log(`  ${color.cyan('Name:')} ${resolved.name}`);
-      }
+    console.log(`  ${color.cyan('Model ID:')} ${resolved.input}`);
+    console.log(`  ${color.cyan('Provider:')} ${resolved.provider}`);
+    console.log(`  ${color.cyan('Model:')} ${resolved.model}`);
+    if (resolved.envKey) {
+      console.log(`  ${color.cyan('API Key Env:')} ${resolved.envKey}`);
+    }
+    if (resolved.baseUrl) {
+      console.log(`  ${color.cyan('Base URL:')} ${resolved.baseUrl}`);
+    }
+    if (resolved.npm) {
+      console.log(`  ${color.cyan('SDK Package:')} ${resolved.npm}`);
+    }
+    if (resolved.name) {
+      console.log(`  ${color.cyan('Provider Name:')} ${resolved.name}`);
     }
 
     console.log('');
@@ -1286,14 +1279,20 @@ modelCmd
 modelCmd
   .command('list')
   .description('Tampilkan semua provider')
-  .option('--refresh', 'Force refresh dari models.dev')
-  .action(async (opts) => {
-    const { getModelCatalog } = await import('@wagent/core');
-    const catalog = getModelCatalog();
+  .action(async () => {
+    const { refreshModelCatalog } = await import('@wagent/core');
+    await refreshModelCatalog();
 
-    await catalog.init({ forceRefresh: opts.refresh });
+    const fs = await import('fs');
+    const cacheFile = join(process.env.HOME || '~', '.wagent', 'models.json');
+    
+    if (!fs.existsSync(cacheFile)) {
+      console.log(color.red('  Cache tidak ditemukan.'));
+      return;
+    }
 
-    const providers = catalog.listProviders();
+    const cache = JSON.parse(fs.readFileSync(cacheFile, 'utf-8'));
+    const providers = Object.values(cache.providers) as any[];
 
     console.log('');
     console.log(color.bold('🧠 WAGENT Model Catalog'));
@@ -1310,35 +1309,15 @@ modelCmd
   });
 
 modelCmd
-  .command('search')
-  .description('Cari provider berdasarkan nama')
-  .argument('<query>', 'Query pencarian')
-  .action(async (query) => {
-    const { getModelCatalog } = await import('@wagent/core');
-    const catalog = getModelCatalog();
-
-    await catalog.init();
-
-    const results = catalog.searchProviders(query);
-
+  .command('refresh')
+  .description('Force refresh catalog dari models.dev')
+  .action(async () => {
+    const { refreshModelCatalog } = await import('@wagent/core');
+    
     console.log('');
-    console.log(color.bold(`🔍 Search: "${query}"`));
-    console.log('──────────────────────────');
-
-    if (results.length === 0) {
-      console.log(color.dim('  Tidak ada hasil ditemukan.'));
-    } else {
-      for (const provider of results) {
-        console.log(`  ${color.cyan(provider.id)} - ${provider.name}`);
-        if (provider.env?.length) {
-          console.log(`    ${color.dim('Env:')} ${provider.env.join(', ')}`);
-        }
-        if (provider.npm) {
-          console.log(`    ${color.dim('SDK:')} ${provider.npm}`);
-        }
-      }
-    }
-
+    console.log(color.bold('🔄 Refreshing model catalog...'));
+    await refreshModelCatalog();
+    console.log(color.green('  ✓ Catalog updated'));
     console.log('');
   });
 

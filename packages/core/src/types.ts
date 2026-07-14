@@ -89,6 +89,18 @@ export interface WAgentConfig {
     dimensions?: number;
   };
 
+  // Auto-resolved model info from models.dev
+  resolvedModel?: {
+    input: string;
+    provider: string;
+    model: string;
+    apiKey?: string;
+    baseUrl?: string;
+    npm?: string;
+    envKey?: string;
+    name?: string;
+  };
+
   // Conversation Settings
   /** Auto-send welcome message on new conversations */
   welcomeMessage?: string;

@@ -1,26 +1,38 @@
 /**
- * Model Catalog - Integration with models.dev
+ * Model Catalog - Auto-detect provider from models.dev
  * 
- * Detect provider, API key env var, and model ID from models.dev
+ * Automatically resolves model ID to provider info.
+ * Caches to ~/.wagent/models.json for offline usage.
+ * Auto-refreshes when model not found.
  * 
  * Usage:
- *   import { ModelCatalog } from './model-catalog';
- *   const catalog = new ModelCatalog();
- *   await catalog.init();
- *   
- *   // Resolve model ID to provider info
- *   const info = catalog.resolve('openai/gpt-4o');
- *   // { provider: 'openai', envKey: 'OPENAI_API_KEY', npm: '@ai-sdk/openai', ... }
- *   
- *   // Auto-detect provider from model ID
- *   const provider = catalog.detectProvider('anthropic/claude-3-opus');
- *   // 'anthropic'
+ *   const info = await resolveModel('openai/gpt-4o');
+ *   // => { provider: 'openai', apiKey: '...', baseUrl: '...', model: 'gpt-4o' }
  */
 
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { dirname, join } from 'path';
 
-export interface ProviderInfo {
+export interface ResolvedModel {
+  /** Original model ID input */
+  input: string;
+  /** Provider ID (e.g., 'openai') */
+  provider: string;
+  /** Model ID for API calls (e.g., 'gpt-4o') */
+  model: string;
+  /** API key from environment */
+  apiKey?: string;
+  /** Base URL for API calls */
+  baseUrl?: string;
+  /** npm package for AI SDK */
+  npm?: string;
+  /** Environment variable name for API key */
+  envKey?: string;
+  /** Provider display name */
+  name?: string;
+}
+
+interface ProviderData {
   id: string;
   name: string;
   npm?: string;
@@ -29,330 +41,230 @@ export interface ProviderInfo {
   doc?: string;
 }
 
-export interface ModelInfo {
-  id: string;
-  name: string;
-  provider?: ProviderInfo;
+interface CatalogCache {
+  timestamp: number;
+  providers: { [id: string]: ProviderData };
 }
 
-export interface ResolvedModel {
-  /** Model ID (e.g., 'openai/gpt-4o') */
-  modelId: string;
-  /** Provider ID (e.g., 'openai') */
-  provider: string;
-  /** Environment variable keys for API key (e.g., ['OPENAI_API_KEY']) */
-  envKeys: string[];
-  /** npm package for AI SDK (e.g., '@ai-sdk/openai') */
-  npm?: string;
-  /** Base URL for OpenAI-compatible providers */
-  api?: string;
-  /** Provider documentation URL */
-  doc?: string;
-  /** Model display name */
-  name?: string;
+const CACHE_DIR = join(process.env.HOME || '~', '.wagent');
+const CACHE_FILE = join(CACHE_DIR, 'models.json');
+const CACHE_DURATION = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+// Local fallback for popular providers
+const LOCAL_PROVIDERS: { [id: string]: ProviderData } = {
+  openai: { id: 'openai', name: 'OpenAI', npm: '@ai-sdk/openai', env: ['OPENAI_API_KEY'] },
+  anthropic: { id: 'anthropic', name: 'Anthropic', npm: '@ai-sdk/anthropic', env: ['ANTHROPIC_API_KEY'] },
+  google: { id: 'google', name: 'Google', npm: '@ai-sdk/google', env: ['GOOGLE_API_KEY', 'GEMINI_API_KEY'] },
+  groq: { id: 'groq', name: 'Groq', npm: '@ai-sdk/groq', env: ['GROQ_API_KEY'], api: 'https://api.groq.com/openai/v1' },
+  deepseek: { id: 'deepseek', name: 'DeepSeek', npm: '@ai-sdk/openai-compatible', env: ['DEEPSEEK_API_KEY'], api: 'https://api.deepseek.com/v1' },
+  mistral: { id: 'mistral', name: 'Mistral', npm: '@ai-sdk/mistral', env: ['MISTRAL_API_KEY'] },
+  xai: { id: 'xai', name: 'xAI', npm: '@ai-sdk/openai-compatible', env: ['XAI_API_KEY'], api: 'https://api.x.ai/v1' },
+  ollama: { id: 'ollama', name: 'Ollama', npm: '@ai-sdk/ollama', env: [], api: 'http://localhost:11434/api' },
+  cohere: { id: 'cohere', name: 'Cohere', npm: '@ai-sdk/cohere', env: ['COHERE_API_KEY'] },
+  fireworks: { id: 'fireworks', name: 'Fireworks', npm: '@ai-sdk/openai-compatible', env: ['FIREWORKS_API_KEY'], api: 'https://api.fireworks.ai/inference/v1' },
+  together: { id: 'together', name: 'Together', npm: '@ai-sdk/openai-compatible', env: ['TOGETHER_API_KEY'], api: 'https://api.together.xyz/v1' },
+  perplexity: { id: 'perplexity', name: 'Perplexity', npm: '@ai-sdk/openai-compatible', env: ['PERPLEXITY_API_KEY'], api: 'https://api.perplexity.ai' },
+};
+
+let cache: CatalogCache | null = null;
+
+/**
+ * Resolve model ID to provider info
+ * 
+ * @example
+ * const info = await resolveModel('openai/gpt-4o');
+ * // => { provider: 'openai', apiKey: 'sk-...', model: 'gpt-4o' }
+ */
+export async function resolveModel(modelId: string): Promise<ResolvedModel> {
+  // Load catalog
+  const catalog = await loadCatalog();
+  
+  // Try to resolve
+  const result = tryResolve(modelId, catalog);
+  if (result) return result;
+  
+  // Not found in cache, refresh from models.dev
+  await refreshCatalog();
+  const updatedCatalog = await loadCatalog();
+  const retryResult = tryResolve(modelId, updatedCatalog);
+  if (retryResult) return retryResult;
+  
+  // Still not found, try local fallback
+  const localResult = tryResolveLocal(modelId);
+  if (localResult) return localResult;
+  
+  // Give up with best effort
+  return createFallback(modelId);
 }
 
-interface CatalogData {
-  [providerId: string]: {
-    id: string;
-    name: string;
-    npm?: string;
-    env?: string[];
-    api?: string;
-    doc?: string;
-    models?: {
-      [modelId: string]: {
-        id: string;
-        name?: string;
-      };
-    };
+/**
+ * Try to resolve from catalog
+ */
+function tryResolve(modelId: string, catalog: CatalogCache): ResolvedModel | null {
+  const slashIndex = modelId.indexOf('/');
+  
+  if (slashIndex > 0) {
+    const providerId = modelId.substring(0, slashIndex);
+    const modelName = modelId.substring(slashIndex + 1);
+    
+    const provider = catalog.providers[providerId];
+    if (provider) {
+      return buildResult(modelId, provider, modelName);
+    }
+  }
+  
+  // Try without prefix
+  for (const [providerId, provider] of Object.entries(catalog.providers)) {
+    if (modelId.startsWith(providerId + '/') || modelId === providerId) {
+      const modelName = modelId.replace(providerId + '/', '');
+      return buildResult(modelId, provider, modelName);
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Try to resolve from local fallback
+ */
+function tryResolveLocal(modelId: string): ResolvedModel | null {
+  const slashIndex = modelId.indexOf('/');
+  
+  if (slashIndex > 0) {
+    const providerId = modelId.substring(0, slashIndex);
+    const modelName = modelId.substring(slashIndex + 1);
+    
+    const provider = LOCAL_PROVIDERS[providerId];
+    if (provider) {
+      return buildResult(modelId, provider, modelName);
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Build result from provider and model name
+ */
+function buildResult(input: string, provider: ProviderData, modelName: string): ResolvedModel {
+  // Find API key from environment
+  let apiKey: string | undefined;
+  let envKey: string | undefined;
+  
+  if (provider.env) {
+    for (const key of provider.env) {
+      const value = process.env[key];
+      if (value) {
+        apiKey = value;
+        envKey = key;
+        break;
+      }
+    }
+  }
+  
+  return {
+    input,
+    provider: provider.id,
+    model: modelName,
+    apiKey,
+    baseUrl: provider.api,
+    npm: provider.npm,
+    envKey,
+    name: provider.name,
   };
 }
 
-export class ModelCatalog {
-  private providers: Map<string, ProviderInfo> = new Map();
-  private models: Map<string, ModelInfo> = new Map();
-  private cacheDir: string;
-  private cacheFile: string;
-  private cacheDuration = 7 * 24 * 60 * 60 * 1000; // 7 days
+/**
+ * Create fallback for unknown model
+ */
+function createFallback(modelId: string): ResolvedModel {
+  const slashIndex = modelId.indexOf('/');
+  const providerId = slashIndex > 0 ? modelId.substring(0, slashIndex) : 'openai';
+  const modelName = slashIndex > 0 ? modelId.substring(slashIndex + 1) : modelId;
+  
+  return {
+    input: modelId,
+    provider: providerId,
+    model: modelName,
+    apiKey: process.env[`${providerId.toUpperCase()}_API_KEY`],
+  };
+}
 
-  constructor(cacheDir?: string) {
-    this.cacheDir = cacheDir || join(process.env.HOME || '~', '.wagent');
-    this.cacheFile = join(this.cacheDir, 'models-catalog.json');
-  }
-
-  /**
-   * Initialize catalog - load from cache or fetch from models.dev
-   */
-  async init(options?: { forceRefresh?: boolean }): Promise<void> {
-    const { forceRefresh = false } = options || {};
-
-    if (!forceRefresh && this.loadFromCache()) {
-      return;
-    }
-
-    await this.fetchFromModelsDev();
-  }
-
-  /**
-   * Resolve model ID to provider info
-   * 
-   * Supports two formats:
-   * 1. "provider/model-name" (e.g., "openai/gpt-4o") - extracts provider from ID
-   * 2. "model-name" (e.g., "gpt-4o") - searches across all providers
-   * 
-   * @example
-   * catalog.resolve('openai/gpt-4o')
-   * // => { modelId: 'openai/gpt-4o', provider: 'openai', envKeys: ['OPENAI_API_KEY'], ... }
-   */
-  resolve(modelId: string): ResolvedModel | null {
-    // Try to extract provider from model ID (format: provider/model-name)
-    // This should be tried FIRST before exact match
-    const slashIndex = modelId.indexOf('/');
-    if (slashIndex > 0) {
-      const providerId = modelId.substring(0, slashIndex);
-      const modelName = modelId.substring(slashIndex + 1);
-      
-      // Check if provider exists
-      const provider = this.providers.get(providerId);
-      if (provider) {
-        // Try to find the model within the provider (without the provider prefix)
-        const modelWithoutPrefix = this.models.get(modelName);
-        if (modelWithoutPrefix?.provider?.id === providerId) {
-          return {
-            modelId,
-            provider: provider.id,
-            envKeys: provider.env || [],
-            npm: provider.npm,
-            api: provider.api,
-            doc: provider.doc,
-            name: modelWithoutPrefix.name,
-          };
-        }
-        
-        // Provider exists but model not found - still return provider info
-        return {
-          modelId,
-          provider: provider.id,
-          envKeys: provider.env || [],
-          npm: provider.npm,
-          api: provider.api,
-          doc: provider.doc,
-        };
-      }
-    }
-
-    // Try exact match (for models without provider prefix)
-    const model = this.models.get(modelId);
-    if (model?.provider) {
-      return {
-        modelId,
-        provider: model.provider.id,
-        envKeys: model.provider.env || [],
-        npm: model.provider.npm,
-        api: model.provider.api,
-        doc: model.provider.doc,
-        name: model.name,
-      };
-    }
-
-    return null;
-  }
-
-  /**
-   * Detect provider from model ID
-   * 
-   * @example
-   * catalog.detectProvider('anthropic/claude-3-opus')
-   * // => 'anthropic'
-   */
-  detectProvider(modelId: string): string | null {
-    const slashIndex = modelId.indexOf('/');
-    if (slashIndex > 0) {
-      return modelId.substring(0, slashIndex);
-    }
-    return null;
-  }
-
-  /**
-   * Get provider info by ID
-   */
-  getProvider(providerId: string): ProviderInfo | undefined {
-    return this.providers.get(providerId);
-  }
-
-  /**
-   * List all providers
-   */
-  listProviders(): ProviderInfo[] {
-    return Array.from(this.providers.values());
-  }
-
-  /**
-   * Search providers by query
-   */
-  searchProviders(query: string): ProviderInfo[] {
-    const q = query.toLowerCase();
-    return Array.from(this.providers.values()).filter(
-      p => p.id.toLowerCase().includes(q) ||
-           p.name.toLowerCase().includes(q)
-    );
-  }
-
-  /**
-   * Fetch catalog from models.dev
-   */
-  private async fetchFromModelsDev(): Promise<void> {
+/**
+ * Load catalog from cache or fetch
+ */
+async function loadCatalog(): Promise<CatalogCache> {
+  if (cache) return cache;
+  
+  // Try to load from file
+  if (existsSync(CACHE_FILE)) {
     try {
-      const response = await fetch('https://models.dev/api.json');
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      const data = JSON.parse(readFileSync(CACHE_FILE, 'utf-8')) as CatalogCache;
+      if (Date.now() - data.timestamp < CACHE_DURATION) {
+        cache = data;
+        return cache;
       }
-
-      const data = await response.json() as CatalogData;
-      this.parseCatalog(data);
-      this.saveToCache();
-    } catch (error) {
-      console.error('Failed to fetch from models.dev:', error);
-      this.loadLocalFallback();
+    } catch {
+      // Invalid cache, will refresh
     }
   }
+  
+  // Fetch from models.dev
+  await refreshCatalog();
+  return cache || { timestamp: 0, providers: LOCAL_PROVIDERS };
+}
 
-  /**
-   * Parse catalog data
-   */
-  private parseCatalog(data: CatalogData): void {
-    this.providers.clear();
-    this.models.clear();
-
-    for (const [providerId, providerData] of Object.entries(data)) {
-      const provider: ProviderInfo = {
-        id: providerId,
-        name: providerData.name || providerId,
+/**
+ * Refresh catalog from models.dev
+ */
+async function refreshCatalog(): Promise<void> {
+  try {
+    const response = await fetch('https://models.dev/api.json');
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    
+    const data = await response.json() as { [providerId: string]: any };
+    
+    const providers: { [id: string]: ProviderData } = {};
+    for (const [id, providerData] of Object.entries(data)) {
+      providers[id] = {
+        id,
+        name: providerData.name || id,
         npm: providerData.npm,
         env: providerData.env,
         api: providerData.api,
         doc: providerData.doc,
       };
-      this.providers.set(providerId, provider);
-
-      if (providerData.models) {
-        for (const [modelId, modelData] of Object.entries(providerData.models)) {
-          this.models.set(modelId, {
-            id: modelId,
-            name: modelData.name || modelId,
-            provider,
-          });
-        }
-      }
     }
-  }
-
-  /**
-   * Load from cache
-   */
-  private loadFromCache(): boolean {
-    try {
-      if (!existsSync(this.cacheFile)) return false;
-
-      const stat = require('fs').statSync(this.cacheFile);
-      if (Date.now() - stat.mtimeMs > this.cacheDuration) return false;
-
-      const data = JSON.parse(readFileSync(this.cacheFile, 'utf-8'));
-      this.parseCatalog(data);
-      return true;
-    } catch {
-      return false;
+    
+    cache = { timestamp: Date.now(), providers };
+    saveCache(cache);
+  } catch (error) {
+    console.error('Failed to fetch from models.dev:', error);
+    // Use local fallback
+    if (!cache) {
+      cache = { timestamp: Date.now(), providers: LOCAL_PROVIDERS };
     }
-  }
-
-  /**
-   * Save to cache
-   */
-  private saveToCache(): void {
-    try {
-      const dir = dirname(this.cacheFile);
-      if (!existsSync(dir)) {
-        mkdirSync(dir, { recursive: true });
-      }
-
-      const data: CatalogData = {};
-      for (const [id, provider] of this.providers) {
-        const providerModels: { [modelId: string]: { id: string; name?: string } } = {};
-        for (const [modelId, model] of this.models) {
-          if (model.provider?.id === id) {
-            providerModels[modelId] = { id: modelId, name: model.name };
-          }
-        }
-        data[id] = {
-          id,
-          name: provider.name,
-          npm: provider.npm,
-          env: provider.env,
-          api: provider.api,
-          doc: provider.doc,
-          models: providerModels,
-        };
-      }
-
-      writeFileSync(this.cacheFile, JSON.stringify(data));
-    } catch (error) {
-      console.error('Failed to save cache:', error);
-    }
-  }
-
-  /**
-   * Local fallback catalog (popular providers only)
-   */
-  private loadLocalFallback(): void {
-    const fallback: CatalogData = {
-      openai: {
-        id: 'openai', name: 'OpenAI',
-        npm: '@ai-sdk/openai', env: ['OPENAI_API_KEY'],
-      },
-      anthropic: {
-        id: 'anthropic', name: 'Anthropic',
-        npm: '@ai-sdk/anthropic', env: ['ANTHROPIC_API_KEY'],
-      },
-      google: {
-        id: 'google', name: 'Google',
-        npm: '@ai-sdk/google', env: ['GOOGLE_API_KEY'],
-      },
-      ollama: {
-        id: 'ollama', name: 'Ollama',
-        npm: '@ai-sdk/ollama', env: [],
-        api: 'http://localhost:11434/api',
-      },
-      groq: {
-        id: 'groq', name: 'Groq',
-        npm: '@ai-sdk/openai-compatible', env: ['GROQ_API_KEY'],
-        api: 'https://api.groq.com/openai/v1',
-      },
-      deepseek: {
-        id: 'deepseek', name: 'DeepSeek',
-        npm: '@ai-sdk/openai-compatible', env: ['DEEPSEEK_API_KEY'],
-        api: 'https://api.deepseek.com/v1',
-      },
-      mistral: {
-        id: 'mistral', name: 'Mistral',
-        npm: '@ai-sdk/mistral', env: ['MISTRAL_API_KEY'],
-      },
-      xai: {
-        id: 'xai', name: 'xAI',
-        npm: '@ai-sdk/openai-compatible', env: ['XAI_API_KEY'],
-        api: 'https://api.x.ai/v1',
-      },
-    };
-    this.parseCatalog(fallback);
   }
 }
 
-// Singleton
-let instance: ModelCatalog | null = null;
-
-export function getModelCatalog(): ModelCatalog {
-  if (!instance) {
-    instance = new ModelCatalog();
+/**
+ * Save cache to file
+ */
+function saveCache(data: CatalogCache): void {
+  try {
+    if (!existsSync(CACHE_DIR)) {
+      mkdirSync(CACHE_DIR, { recursive: true });
+    }
+    writeFileSync(CACHE_FILE, JSON.stringify(data, null, 2));
+  } catch (error) {
+    console.error('Failed to save cache:', error);
   }
-  return instance;
+}
+
+/**
+ * Force refresh catalog
+ */
+export async function refreshModelCatalog(): Promise<void> {
+  cache = null;
+  await refreshCatalog();
 }

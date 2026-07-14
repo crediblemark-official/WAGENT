@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import { WAgentConfig } from './types.js';
 import { getLogger } from './logger.js';
 import { isEncryptionAvailable, getEncryptionKey, decryptEnvFile, decryptString } from './crypto.js';
+import { resolveModel, ResolvedModel } from './model-catalog.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -46,8 +47,9 @@ function findEnvFile(): string {
 
 /**
  * Load config, auto-decrypting .env.encrypted if encryption key is available.
+ * Automatically resolves model ID from models.dev catalog.
  */
-export function loadConfig(): WAgentConfig {
+export async function loadConfig(): Promise<WAgentConfig> {
   const envPath = findEnvFile();
 
   // Auto-decrypt .env.encrypted → .env if encryption key is set
@@ -70,11 +72,17 @@ export function loadConfig(): WAgentConfig {
     getLogger().warn('No .env file found, using environment variables');
   }
 
+  // Auto-resolve model from catalog
+  const modelId = process.env.AI_MODEL || 'openai/gpt-4o';
+  const resolved = await resolveModel(modelId);
+  
+  getLogger().info(`Resolved model: ${resolved.input} → ${resolved.provider}/${resolved.model}`);
+
   return {
     whatsappSessionName: process.env.WHATSAPP_SESSION_NAME || 'wagent-session',
     whatsappSessionDir: process.env.WHATSAPP_SESSION_DIR || join(process.cwd(), '.sessions'),
 
-    aiProvider: (process.env.AI_PROVIDER as WAgentConfig['aiProvider']) || 'openai',
+    aiProvider: resolved.provider as WAgentConfig['aiProvider'],
     systemPrompt: process.env.AGENT_SYSTEM_PROMPT || DEFAULT_SYSTEM_PROMPT,
     welcomeMessage: process.env.WELCOME_MESSAGE || DEFAULT_WELCOME_MESSAGE,
     welcomeMessageEnabled: process.env.WELCOME_MESSAGE_ENABLED !== 'false',
@@ -103,25 +111,41 @@ export function loadConfig(): WAgentConfig {
     groupChatEnabled: process.env.GROUP_CHAT_ENABLED === 'true',
     groupChatReplyIfMentioned: process.env.GROUP_CHAT_REPLY_IF_MENTIONED !== 'false',
 
-    openai: process.env.OPENAI_API_KEY ? {
+    // Auto-resolved provider config
+    openai: resolved.provider === 'openai' ? {
+      apiKey: resolved.apiKey || process.env.OPENAI_API_KEY || '',
+      model: resolved.model,
+    } : process.env.OPENAI_API_KEY ? {
       apiKey: process.env.OPENAI_API_KEY,
       model: process.env.OPENAI_MODEL || 'gpt-4o',
     } : undefined,
 
-    gemini: process.env.GEMINI_API_KEY ? {
+    gemini: resolved.provider === 'google' ? {
+      apiKey: resolved.apiKey || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '',
+      model: resolved.model,
+    } : process.env.GEMINI_API_KEY ? {
       apiKey: process.env.GEMINI_API_KEY,
       model: process.env.GEMINI_MODEL || 'gemini-2.0-flash',
     } : undefined,
 
-    anthropic: process.env.ANTHROPIC_API_KEY ? {
+    anthropic: resolved.provider === 'anthropic' ? {
+      apiKey: resolved.apiKey || process.env.ANTHROPIC_API_KEY || '',
+      model: resolved.model,
+    } : process.env.ANTHROPIC_API_KEY ? {
       apiKey: process.env.ANTHROPIC_API_KEY,
       model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-20250514',
     } : undefined,
 
-    ollama: process.env.OLLAMA_BASE_URL ? {
+    ollama: resolved.provider === 'ollama' ? {
+      baseUrl: resolved.baseUrl || process.env.OLLAMA_BASE_URL || 'http://localhost:11434/api',
+      model: resolved.model,
+    } : process.env.OLLAMA_BASE_URL ? {
       baseUrl: process.env.OLLAMA_BASE_URL,
       model: process.env.OLLAMA_MODEL || 'llama3',
     } : undefined,
+
+    // Store resolved model info for agent use
+    resolvedModel: resolved,
 
     dashboardPort: parseInt(process.env.DASHBOARD_PORT || '3030', 10),
     dashboardHost: process.env.DASHBOARD_HOST || 'localhost',
