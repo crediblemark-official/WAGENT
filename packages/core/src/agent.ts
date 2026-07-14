@@ -32,7 +32,7 @@ interface AIProvider {
 class OpenAIProvider implements AIProvider {
   name = 'OpenAI';
 
-  constructor(private config: NonNullable<WAgentConfig['openai']>, private baseUrl = 'https://api.openai.com/v1') {}
+  constructor(private config: { apiKey: string; model: string }, private baseUrl = 'https://api.openai.com/v1') {}
 
   async chat(messages: AIMessage[], tools: ToolDefinition[]): Promise<AIResponse> {
     const cleanUrl = this.baseUrl.endsWith('/chat/completions') ? this.baseUrl : `${this.baseUrl.replace(/\/$/, '')}/chat/completions`;
@@ -92,7 +92,7 @@ class OpenAIProvider implements AIProvider {
 class GeminiProvider implements AIProvider {
   name = 'Gemini';
 
-  constructor(private config: NonNullable<WAgentConfig['gemini']>) {}
+  constructor(private config: { apiKey: string; model: string; baseUrl?: string }) {}
 
   async chat(messages: AIMessage[], tools: ToolDefinition[]): Promise<AIResponse> {
     const systemMsg = messages.find(m => m.role === 'system');
@@ -126,14 +126,14 @@ class GeminiProvider implements AIProvider {
       }];
     }
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${this.config.model}:generateContent?key=${this.config.apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      }
-    );
+    const baseUrl = this.config.baseUrl || 'https://generativelanguage.googleapis.com/v1beta';
+    const endpoint = `${baseUrl}/models/${this.config.model}:generateContent?key=${this.config.apiKey}`;
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
 
     if (!response.ok) {
       const err = await response.text();
@@ -172,7 +172,7 @@ class GeminiProvider implements AIProvider {
 class ClaudeProvider implements AIProvider {
   name = 'Claude';
 
-  constructor(private config: NonNullable<WAgentConfig['anthropic']>) {}
+  constructor(private config: { apiKey: string; model: string; baseUrl?: string }) {}
 
   async chat(messages: AIMessage[], tools: ToolDefinition[]): Promise<AIResponse> {
     const systemMsg = messages.find(m => m.role === 'system');
@@ -200,7 +200,9 @@ class ClaudeProvider implements AIProvider {
       }));
     }
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const endpoint = this.config.baseUrl || 'https://api.anthropic.com/v1/messages';
+
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -245,7 +247,7 @@ class ClaudeProvider implements AIProvider {
 class OllamaProvider implements AIProvider {
   name = 'Ollama';
 
-  constructor(private config: NonNullable<WAgentConfig['ollama']>) {}
+  constructor(private config: { baseUrl: string; model: string }) {}
 
   async chat(messages: AIMessage[], tools: ToolDefinition[]): Promise<AIResponse> {
     const response = await fetch(`${this.config.baseUrl}/api/chat`, {
@@ -355,40 +357,36 @@ export class Agent {
   }
 
   private createProvider(config: WAgentConfig): AIProvider {
-    // Dynamically handle non-hardcoded models from models.dev using OpenAI-compatible interface
-    if (config.resolvedModel && !['openai', 'gemini', 'claude', 'ollama', 'google', 'anthropic'].includes(config.resolvedModel.provider)) {
-      const resolved = config.resolvedModel;
-      const providerName = resolved.name || resolved.provider;
-      const baseUrl = resolved.baseUrl || 'https://api.openai.com/v1';
-      const apiKey = resolved.apiKey || '';
-      
-      const provider = new OpenAIProvider({
-        apiKey,
-        model: resolved.model
-      }, baseUrl);
-      provider.name = providerName;
-      return provider;
+    const resolved = config.resolvedModel;
+    if (!resolved) {
+      throw new Error('AI Model belum dikonfigurasi dengan benar (resolvedModel missing).');
     }
 
-    switch (config.aiProvider) {
-      case 'openai':
-        if (!config.openai) throw new Error('OpenAI API key not configured');
-        return new OpenAIProvider(config.openai);
+    const providerName = resolved.name || resolved.provider;
+    const apiKey = resolved.apiKey || '';
+    const baseUrl = resolved.baseUrl || 'https://api.openai.com/v1';
+
+    // Untuk provider spesifik yang memiliki SDK/endpoint khusus
+    switch (resolved.provider) {
+      case 'google':
       case 'gemini':
-      case 'google' as any:
-        const geminiConfig = config.gemini || (config.resolvedModel?.provider === 'google' ? { apiKey: config.resolvedModel.apiKey || '', model: config.resolvedModel.model } : undefined);
-        if (!geminiConfig) throw new Error('Gemini API key not configured');
-        return new GeminiProvider(geminiConfig);
+        if (!apiKey) throw new Error('Gemini API key not configured');
+        return new GeminiProvider({ apiKey, model: resolved.model, baseUrl: resolved.baseUrl });
+        
+      case 'anthropic':
       case 'claude':
-      case 'anthropic' as any:
-        const anthropicConfig = config.anthropic || (config.resolvedModel?.provider === 'anthropic' ? { apiKey: config.resolvedModel.apiKey || '', model: config.resolvedModel.model } : undefined);
-        if (!anthropicConfig) throw new Error('Anthropic API key not configured');
-        return new ClaudeProvider(anthropicConfig);
+        if (!apiKey) throw new Error('Anthropic API key not configured');
+        return new ClaudeProvider({ apiKey, model: resolved.model, baseUrl: resolved.baseUrl });
+        
       case 'ollama':
-        if (!config.ollama) throw new Error('Ollama base URL not configured');
-        return new OllamaProvider(config.ollama);
+        return new OllamaProvider({ baseUrl: resolved.baseUrl || 'http://localhost:11434/api', model: resolved.model });
+        
+      case 'openai':
       default:
-        throw new Error(`Unknown AI provider: ${config.aiProvider}`);
+        // Gunakan OpenAI-compatible endpoint untuk provider lainnya (deepseek, groq, xai, dll)
+        const provider = new OpenAIProvider({ apiKey, model: resolved.model }, baseUrl);
+        provider.name = providerName;
+        return provider;
     }
   }
 

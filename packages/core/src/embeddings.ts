@@ -311,7 +311,7 @@ export class EmbeddingService {
   private modelConfig: EmbeddingModelConfig;
 
   constructor(
-    private config: Pick<WAgentConfig, 'gemini' | 'openai' | 'embedding'>,
+    private config: Pick<WAgentConfig, 'resolvedModel' | 'embedding'>,
   ) {
     const modelName = (config as any).embedding?.model || 'text-embedding-004';
     this.modelConfig = EMBEDDING_MODELS[modelName] || EMBEDDING_MODELS['text-embedding-004'];
@@ -417,7 +417,7 @@ export class EmbeddingService {
   // ═══════════════════════════════════════════════════════════════
 
   private async generateGemini(text: string): Promise<number[] | null> {
-    const apiKey = this.config.gemini?.apiKey;
+    const apiKey = process.env[this.modelConfig.apiEnvKey || 'GEMINI_API_KEY'] || (this.config.resolvedModel?.provider === 'google' || this.config.resolvedModel?.provider === 'gemini' ? this.config.resolvedModel?.apiKey : undefined);
     if (!apiKey) {
       this.logger.warn('Gemini API key not configured');
       return null;
@@ -457,7 +457,7 @@ export class EmbeddingService {
   }
 
   private async generateOpenAI(text: string): Promise<number[] | null> {
-    const apiKey = this.config.openai?.apiKey;
+    const apiKey = process.env[this.modelConfig.apiEnvKey || 'OPENAI_API_KEY'] || (this.config.resolvedModel?.provider === 'openai' ? this.config.resolvedModel?.apiKey : undefined);
     if (!apiKey) {
       this.logger.warn('OpenAI API key not configured');
       return null;

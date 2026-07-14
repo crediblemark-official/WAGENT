@@ -111,29 +111,42 @@ export class Summarizer {
    * Supports OpenAI, Gemini, Claude, and Ollama.
    */
   private async callAI(config: WAgentConfig, prompt: string, maxTokens: number): Promise<string> {
-    switch (config.aiProvider) {
-      case 'openai':
-        return this.callOpenAI(config.openai!, prompt, maxTokens);
+    const resolved = config.resolvedModel;
+    if (!resolved) throw new Error('AI Model belum dikonfigurasi (resolvedModel missing)');
+    
+    const providerConfig = {
+      apiKey: resolved.apiKey,
+      baseUrl: resolved.baseUrl,
+      model: resolved.model,
+    };
+
+    switch (resolved.provider) {
+      case 'google':
       case 'gemini':
-        return this.callGemini(config.gemini!, prompt, maxTokens);
+        return this.callGemini(providerConfig, prompt, maxTokens);
+      case 'anthropic':
       case 'claude':
-        return this.callClaude(config.anthropic!, prompt, maxTokens);
+        return this.callClaude(providerConfig, prompt, maxTokens);
       case 'ollama':
-        return this.callOllama(config.ollama!, prompt, maxTokens);
+        return this.callOllama(providerConfig, prompt, maxTokens);
+      case 'openai':
       default:
-        throw new Error(`Unknown AI provider: ${config.aiProvider}`);
+        return this.callOpenAI(providerConfig, prompt, maxTokens);
     }
   }
 
   private async callOpenAI(
-    config: NonNullable<WAgentConfig['openai']>,
+    config: { apiKey?: string; baseUrl?: string; model: string },
     prompt: string,
     maxTokens: number,
   ): Promise<string> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 30_000);
     try {
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      const baseUrl = config.baseUrl || 'https://api.openai.com/v1';
+      const endpoint = baseUrl.endsWith('/chat/completions') ? baseUrl : `${baseUrl.replace(/\/$/, '')}/chat/completions`;
+      
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -163,15 +176,16 @@ export class Summarizer {
   }
 
   private async callGemini(
-    config: NonNullable<WAgentConfig['gemini']>,
+    config: { apiKey?: string; baseUrl?: string; model: string },
     prompt: string,
     maxTokens: number,
   ): Promise<string> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 30_000);
     try {
+      const baseUrl = config.baseUrl || 'https://generativelanguage.googleapis.com/v1beta';
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${config.model}:generateContent?key=${config.apiKey}`,
+        `${baseUrl}/models/${config.model}:generateContent?key=${config.apiKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -203,18 +217,19 @@ export class Summarizer {
   }
 
   private async callClaude(
-    config: NonNullable<WAgentConfig['anthropic']>,
+    config: { apiKey?: string; baseUrl?: string; model: string },
     prompt: string,
     maxTokens: number,
   ): Promise<string> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 30_000);
     try {
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
+      const endpoint = config.baseUrl || 'https://api.anthropic.com/v1/messages';
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-api-key': config.apiKey,
+          'x-api-key': config.apiKey || '',
           'anthropic-version': '2023-06-01',
         },
         body: JSON.stringify({
@@ -239,14 +254,14 @@ export class Summarizer {
   }
 
   private async callOllama(
-    config: NonNullable<WAgentConfig['ollama']>,
+    config: { apiKey?: string; baseUrl?: string; model: string },
     prompt: string,
     maxTokens: number,
   ): Promise<string> {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 60_000);
+    const timeout = setTimeout(() => controller.abort(), 30_000);
     try {
-      const response = await fetch(`${config.baseUrl}/api/chat`, {
+      const response = await fetch(`${config.baseUrl || 'http://localhost:11434'}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

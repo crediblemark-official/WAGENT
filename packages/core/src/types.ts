@@ -63,24 +63,6 @@ export interface WAgentConfig {
   aiProvider: AIProviderType;
   systemPrompt: string;
 
-  // Provider-specific config
-  openai?: {
-    apiKey: string;
-    model: string;
-  };
-  gemini?: {
-    apiKey: string;
-    model: string;
-  };
-  anthropic?: {
-    apiKey: string;
-    model: string;
-  };
-  ollama?: {
-    baseUrl: string;
-    model: string;
-  };
-
   // Embedding Configuration
   embedding?: {
     /** Embedding model name (e.g. 'text-embedding-004', 'text-embedding-3-large', 'bge-large-en-v1.5') */
@@ -169,7 +151,7 @@ export interface WAgentConfig {
 
 
 
-export type AIProviderType = 'openai' | 'gemini' | 'claude' | 'ollama' | (string & {});
+export type AIProviderType = string;
 
 // ── Transcription Types ────────────────────────────────────────
 

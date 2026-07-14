@@ -155,19 +155,15 @@ program
     console.log(`  Database         : ${config.databaseType} (${config.databaseUrl})`);
     console.log('');
 
-    if (config.openai) {
-      console.log(`  OpenAI Model     : ${config.openai.model}`);
-      console.log(`  OpenAI Key       : ${config.openai.apiKey.substring(0, 8)}...`);
-    }
-    if (config.gemini) {
-      console.log(`  Gemini Model     : ${config.gemini.model}`);
-    }
-    if (config.anthropic) {
-      console.log(`  Claude Model     : ${config.anthropic.model}`);
-    }
-    if (config.ollama) {
-      console.log(`  Ollama URL       : ${config.ollama.baseUrl}`);
-      console.log(`  Ollama Model     : ${config.ollama.model}`);
+    if (config.resolvedModel) {
+      console.log(`  Model Provider   : ${config.resolvedModel.provider} (${config.resolvedModel.name || ''})`);
+      console.log(`  Model Name       : ${config.resolvedModel.model}`);
+      if (config.resolvedModel.baseUrl) {
+        console.log(`  Base URL         : ${config.resolvedModel.baseUrl}`);
+      }
+      if (config.resolvedModel.apiKey) {
+        console.log(`  API Key          : ${config.resolvedModel.apiKey.substring(0, 8)}...`);
+      }
     }
     console.log('');
   });

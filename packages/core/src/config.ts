@@ -207,7 +207,7 @@ function getEnvKeyForProvider(provider: string): string | null {
     perplexity: 'PERPLEXITY_API_KEY',
   };
   
-  return mapping[provider] || null;
+  return mapping[provider] || `${provider.toUpperCase()}_API_KEY`;
 }
 
 /**
@@ -257,27 +257,6 @@ function buildConfig(jsonConfig: WAgentJsonConfig, resolved: ResolvedModel): WAg
     // AI Provider (auto-detected)
     aiProvider: resolved.provider as WAgentConfig['aiProvider'],
     systemPrompt,
-    
-    // Provider configs
-    openai: resolved.provider === 'openai' ? {
-      apiKey: resolved.apiKey || '',
-      model: resolved.model,
-    } : undefined,
-    
-    gemini: resolved.provider === 'google' ? {
-      apiKey: resolved.apiKey || '',
-      model: resolved.model,
-    } : undefined,
-    
-    anthropic: resolved.provider === 'anthropic' ? {
-      apiKey: resolved.apiKey || '',
-      model: resolved.model,
-    } : undefined,
-    
-    ollama: resolved.provider === 'ollama' ? {
-      baseUrl: resolved.baseUrl || 'http://localhost:11434/api',
-      model: resolved.model,
-    } : undefined,
     
     // Store resolved model
     resolvedModel: resolved,

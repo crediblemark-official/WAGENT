@@ -16,9 +16,13 @@ export class Transcriber {
     this.logger = getLogger().child({ module: 'transcriber' });
 
     // Auto-detect provider: prefer OpenAI if available, else Gemini, else none
-    if (config.openai?.apiKey) {
+    if (config.resolvedModel?.provider === 'openai' && config.resolvedModel?.apiKey) {
       this.provider = 'openai';
-    } else if (config.gemini?.apiKey) {
+    } else if ((config.resolvedModel?.provider === 'google' || config.resolvedModel?.provider === 'gemini') && config.resolvedModel?.apiKey) {
+      this.provider = 'gemini';
+    } else if (process.env.OPENAI_API_KEY) {
+      this.provider = 'openai';
+    } else if (process.env.GEMINI_API_KEY) {
       this.provider = 'gemini';
     } else {
       this.provider = 'none';
@@ -49,7 +53,7 @@ export class Transcriber {
   private async transcribeWithOpenAI(audio: AudioMessageData): Promise<TranscriptionResult> {
     this.logger.info('Transcribing audio with OpenAI Whisper...');
 
-    const apiKey = this.config.openai?.apiKey;
+    const apiKey = this.config.resolvedModel?.provider === 'openai' ? this.config.resolvedModel?.apiKey : process.env.OPENAI_API_KEY;
     if (!apiKey) throw new Error('OpenAI API key not configured');
 
     // Convert buffer to Blob-like FormData
@@ -89,7 +93,7 @@ export class Transcriber {
   private async transcribeWithGemini(audio: AudioMessageData): Promise<TranscriptionResult> {
     this.logger.info('Transcribing audio with Gemini...');
 
-    const apiKey = this.config.gemini?.apiKey;
+    const apiKey = (this.config.resolvedModel?.provider === 'google' || this.config.resolvedModel?.provider === 'gemini') ? this.config.resolvedModel?.apiKey : process.env.GEMINI_API_KEY;
     if (!apiKey) throw new Error('Gemini API key not configured');
 
     // Convert audio to base64
@@ -109,9 +113,10 @@ export class Transcriber {
       }],
     };
 
-    const model = this.config.gemini?.model || 'gemini-2.0-flash';
+    const model = (this.config.resolvedModel?.provider === 'google' || this.config.resolvedModel?.provider === 'gemini') ? this.config.resolvedModel?.model : 'gemini-2.0-flash';
+    const baseUrl = this.config.resolvedModel?.baseUrl || 'https://generativelanguage.googleapis.com/v1beta';
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+      `${baseUrl}/models/${model}:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
