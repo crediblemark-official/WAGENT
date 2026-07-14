@@ -228,6 +228,18 @@ export async function setupWizard(): Promise<void> {
 
     if (isCancel(botToken)) process.exit(0);
 
+    // Tampilkan panduan cara dapat Chat ID
+    console.log('');
+    console.log(color.bold('  📋 Cara mendapatkan Telegram Chat ID:'));
+    console.log(color.dim('  ─'.repeat(28)));
+    console.log(color.dim('  1. Tambahkan bot ke grup/channel Telegram kamu'));
+    console.log(color.dim('  2. Kirim pesan apa saja di grup tersebut'));
+    console.log(color.dim('  3. Buka URL ini di browser:'));
+    console.log(`  ${color.cyan(`https://api.telegram.org/bot${(botToken as string).substring(0, 20)}…/getUpdates`)}`);
+    console.log(color.dim('  4. Cari "chat":{"id": -100xxxxxxxxx} di JSON response'));
+    console.log(color.dim('  5. Salin angkanya (biasanya diawali -100...)'));
+    console.log('');
+
     const chatId = await text({
       message: 'Masukkan Telegram Chat ID (grup/channel untuk notifikasi eskalasi):',
       placeholder: '-100123456789',
