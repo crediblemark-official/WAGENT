@@ -82,14 +82,19 @@ export async function setupWizard(): Promise<void> {
     };
   });
 
-  // Sort: provider populer berada di paling atas
-  const popularOrder = ['openai', 'google', 'gemini', 'anthropic', 'claude', 'deepseek', 'groq', 'ollama'];
+  // Sort dinamis — tanpa list hardcoded:
+  // 1. Provider sudah terkonfigurasi → paling atas
+  // 2. Provider yang punya npm SDK (lebih mature) → berikutnya
+  // 3. Sisanya alfabetis
   providerOptions.sort((a, b) => {
-    const idxA = popularOrder.indexOf(a.value);
-    const idxB = popularOrder.indexOf(b.value);
-    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-    if (idxA !== -1) return -1;
-    if (idxB !== -1) return 1;
+    const aConfigured = !!(existingProviders[a.value]?.apiKey || existingProviders[a.value]?.baseUrl);
+    const bConfigured = !!(existingProviders[b.value]?.apiKey || existingProviders[b.value]?.baseUrl);
+    if (aConfigured !== bConfigured) return aConfigured ? -1 : 1;
+
+    const aHasNpm = !!(providersMap[a.value]?.npm);
+    const bHasNpm = !!(providersMap[b.value]?.npm);
+    if (aHasNpm !== bHasNpm) return aHasNpm ? -1 : 1;
+
     return a.label.localeCompare(b.label);
   });
 
