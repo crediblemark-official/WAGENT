@@ -15,11 +15,12 @@ export class Transcriber {
   constructor(private config: WAgentConfig) {
     this.logger = getLogger().child({ module: 'transcriber' });
 
-    // Auto-detect provider: prefer OpenAI if available, else Gemini, else none
-    if (config.resolvedModel?.provider === 'openai' && config.resolvedModel?.apiKey) {
-      this.provider = 'openai';
-    } else if ((config.resolvedModel?.provider === 'google' || config.resolvedModel?.provider === 'gemini') && config.resolvedModel?.apiKey) {
+    // Auto-detect provider: Gemini uses specific logic, others default to OpenAI-compatible
+    if ((config.resolvedModel?.provider === 'google' || config.resolvedModel?.provider === 'gemini') && config.resolvedModel?.apiKey) {
       this.provider = 'gemini';
+    } else if (config.resolvedModel?.apiKey) {
+      // Default to OpenAI compatible for all others (OpenAI, Groq, DeepSeek, etc.)
+      this.provider = 'openai';
     } else if (process.env.OPENAI_API_KEY) {
       this.provider = 'openai';
     } else if (process.env.GEMINI_API_KEY) {
@@ -53,7 +54,7 @@ export class Transcriber {
   private async transcribeWithOpenAI(audio: AudioMessageData): Promise<TranscriptionResult> {
     this.logger.info('Transcribing audio with OpenAI Whisper...');
 
-    const apiKey = this.config.resolvedModel?.provider === 'openai' ? this.config.resolvedModel?.apiKey : process.env.OPENAI_API_KEY;
+    const apiKey = (this.provider === 'openai' && this.config.resolvedModel?.apiKey) ? this.config.resolvedModel?.apiKey : process.env.OPENAI_API_KEY;
     if (!apiKey) throw new Error('OpenAI API key not configured');
 
     // Convert buffer to Blob-like FormData
@@ -65,7 +66,11 @@ export class Transcriber {
     formData.append('response_format', 'json');
     formData.append('language', 'id'); // Prefer Indonesian
 
-    const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+    let baseUrl = this.config.resolvedModel?.baseUrl || 'https://api.openai.com/v1';
+    baseUrl = baseUrl.endsWith('/chat/completions') ? baseUrl.replace('/chat/completions', '') : baseUrl;
+    const endpoint = `${baseUrl.replace(/\/$/, '')}/audio/transcriptions`;
+
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
