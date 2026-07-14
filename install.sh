@@ -25,7 +25,7 @@ echo "✓ Bun $(bun --version)"
 # ── Clone ──────────────────────────────────────────────────────
 if [ -d "$INSTALL_DIR" ]; then
   echo "⚠️  WAGENT already installed at $INSTALL_DIR"
-  echo "   Run 'wagent update' to update, or 'wagent uninstall' first."
+  echo "   Run 'rm -rf $INSTALL_DIR $WAGENT_BIN' to remove it first."
   exit 1
 fi
 
