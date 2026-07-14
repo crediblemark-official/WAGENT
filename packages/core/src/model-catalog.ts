@@ -1,36 +1,24 @@
 /**
  * Model Catalog - Integration with models.dev
  * 
- * Provides access to 166+ providers and 5600+ AI models
- * with automatic caching and fallback to local catalog.
+ * Detect provider, API key env var, and model ID from models.dev
  * 
  * Usage:
  *   import { ModelCatalog } from './model-catalog';
  *   const catalog = new ModelCatalog();
  *   await catalog.init();
- *   const models = catalog.search('gpt');
- *   const model = catalog.get('openai/gpt-4o');
+ *   
+ *   // Resolve model ID to provider info
+ *   const info = catalog.resolve('openai/gpt-4o');
+ *   // { provider: 'openai', envKey: 'OPENAI_API_KEY', npm: '@ai-sdk/openai', ... }
+ *   
+ *   // Auto-detect provider from model ID
+ *   const provider = catalog.detectProvider('anthropic/claude-3-opus');
+ *   // 'anthropic'
  */
 
-export interface ModelInfo {
-  id: string;
-  name: string;
-  description?: string;
-  family?: string;
-  context?: number;
-  input?: number;
-  cost?: {
-    input?: number;
-    output?: number;
-    unit?: string;
-  };
-  modalities?: {
-    input?: string[];
-    output?: string[];
-  };
-  features?: string[];
-  provider?: ProviderInfo;
-}
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
+import { dirname, join } from 'path';
 
 export interface ProviderInfo {
   id: string;
@@ -41,7 +29,30 @@ export interface ProviderInfo {
   doc?: string;
 }
 
-export interface CatalogResponse {
+export interface ModelInfo {
+  id: string;
+  name: string;
+  provider?: ProviderInfo;
+}
+
+export interface ResolvedModel {
+  /** Model ID (e.g., 'openai/gpt-4o') */
+  modelId: string;
+  /** Provider ID (e.g., 'openai') */
+  provider: string;
+  /** Environment variable keys for API key (e.g., ['OPENAI_API_KEY']) */
+  envKeys: string[];
+  /** npm package for AI SDK (e.g., '@ai-sdk/openai') */
+  npm?: string;
+  /** Base URL for OpenAI-compatible providers */
+  api?: string;
+  /** Provider documentation URL */
+  doc?: string;
+  /** Model display name */
+  name?: string;
+}
+
+interface CatalogData {
   [providerId: string]: {
     id: string;
     name: string;
@@ -50,7 +61,10 @@ export interface CatalogResponse {
     api?: string;
     doc?: string;
     models?: {
-      [modelId: string]: ModelInfo;
+      [modelId: string]: {
+        id: string;
+        name?: string;
+      };
     };
   };
 }
@@ -58,152 +72,110 @@ export interface CatalogResponse {
 export class ModelCatalog {
   private providers: Map<string, ProviderInfo> = new Map();
   private models: Map<string, ModelInfo> = new Map();
-  private modelsByProvider: Map<string, ModelInfo[]> = new Map();
+  private cacheDir: string;
   private cacheFile: string;
-  private lastFetch: number = 0;
-  private cacheDuration: number = 24 * 60 * 60 * 1000; // 24 hours
+  private cacheDuration = 7 * 24 * 60 * 60 * 1000; // 7 days
 
   constructor(cacheDir?: string) {
-    const dir = cacheDir || `${process.env.HOME}/.wagent`;
-    this.cacheFile = `${dir}/models-cache.json`;
+    this.cacheDir = cacheDir || join(process.env.HOME || '~', '.wagent');
+    this.cacheFile = join(this.cacheDir, 'models-catalog.json');
   }
 
   /**
-   * Initialize catalog - fetch from models.dev or load cache
+   * Initialize catalog - load from cache or fetch from models.dev
    */
   async init(options?: { forceRefresh?: boolean }): Promise<void> {
     const { forceRefresh = false } = options || {};
 
-    // Try to load from cache first
-    if (!forceRefresh) {
-      const loaded = await this.loadFromCache();
-      if (loaded) {
-        console.log(`Loaded ${this.models.size} models from cache`);
-        return;
-      }
+    if (!forceRefresh && this.loadFromCache()) {
+      return;
     }
 
-    // Fetch from models.dev
     await this.fetchFromModelsDev();
   }
 
   /**
-   * Fetch models from models.dev API
+   * Resolve model ID to provider info
+   * 
+   * Supports two formats:
+   * 1. "provider/model-name" (e.g., "openai/gpt-4o") - extracts provider from ID
+   * 2. "model-name" (e.g., "gpt-4o") - searches across all providers
+   * 
+   * @example
+   * catalog.resolve('openai/gpt-4o')
+   * // => { modelId: 'openai/gpt-4o', provider: 'openai', envKeys: ['OPENAI_API_KEY'], ... }
    */
-  private async fetchFromModelsDev(): Promise<void> {
-    try {
-      console.log('Fetching models from models.dev...');
-      const response = await fetch('https://models.dev/api.json');
+  resolve(modelId: string): ResolvedModel | null {
+    // Try to extract provider from model ID (format: provider/model-name)
+    // This should be tried FIRST before exact match
+    const slashIndex = modelId.indexOf('/');
+    if (slashIndex > 0) {
+      const providerId = modelId.substring(0, slashIndex);
+      const modelName = modelId.substring(slashIndex + 1);
       
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const data = await response.json() as CatalogResponse;
-      this.parseCatalog(data);
-      
-      // Save to cache
-      await this.saveToCache();
-      
-      console.log(`Fetched ${this.models.size} models from ${this.providers.size} providers`);
-    } catch (error) {
-      console.error('Failed to fetch from models.dev:', error);
-      
-      // Try to load from cache even if expired
-      const loaded = await this.loadFromCache();
-      if (!loaded) {
-        // Use local catalog as last resort
-        this.loadLocalCatalog();
-      }
-    }
-  }
-
-  /**
-   * Parse catalog data
-   */
-  private parseCatalog(data: CatalogResponse): void {
-    this.providers.clear();
-    this.models.clear();
-    this.modelsByProvider.clear();
-
-    for (const [providerId, providerData] of Object.entries(data)) {
-      // Store provider info
-      const providerInfo: ProviderInfo = {
-        id: providerId,
-        name: providerData.name || providerId,
-        npm: providerData.npm,
-        env: providerData.env,
-        api: providerData.api,
-        doc: providerData.doc,
-      };
-      this.providers.set(providerId, providerInfo);
-
-      // Store models
-      const providerModels: ModelInfo[] = [];
-      if (providerData.models) {
-        for (const [modelId, modelData] of Object.entries(providerData.models)) {
-          const modelInfo: ModelInfo = {
-            id: modelId,
-            name: modelData.name || modelId,
-            description: modelData.description,
-            family: modelData.family,
-            context: modelData.context,
-            input: modelData.input,
-            cost: modelData.cost,
-            modalities: modelData.modalities,
-            features: modelData.features,
-            provider: providerInfo,
+      // Check if provider exists
+      const provider = this.providers.get(providerId);
+      if (provider) {
+        // Try to find the model within the provider (without the provider prefix)
+        const modelWithoutPrefix = this.models.get(modelName);
+        if (modelWithoutPrefix?.provider?.id === providerId) {
+          return {
+            modelId,
+            provider: provider.id,
+            envKeys: provider.env || [],
+            npm: provider.npm,
+            api: provider.api,
+            doc: provider.doc,
+            name: modelWithoutPrefix.name,
           };
-          
-          this.models.set(modelId, modelInfo);
-          providerModels.push(modelInfo);
         }
+        
+        // Provider exists but model not found - still return provider info
+        return {
+          modelId,
+          provider: provider.id,
+          envKeys: provider.env || [],
+          npm: provider.npm,
+          api: provider.api,
+          doc: provider.doc,
+        };
       }
-      
-      this.modelsByProvider.set(providerId, providerModels);
     }
 
-    this.lastFetch = Date.now();
-  }
-
-  /**
-   * Search models by query
-   */
-  search(query: string, options?: { provider?: string; limit?: number }): ModelInfo[] {
-    const { provider, limit = 20 } = options || {};
-    const queryLower = query.toLowerCase();
-    
-    let results: ModelInfo[] = [];
-    
-    if (provider) {
-      // Search within specific provider
-      const providerModels = this.modelsByProvider.get(provider) || [];
-      results = providerModels.filter(m => 
-        m.id.toLowerCase().includes(queryLower) ||
-        m.name.toLowerCase().includes(queryLower) ||
-        m.description?.toLowerCase().includes(queryLower)
-      );
-    } else {
-      // Search all models
-      results = Array.from(this.models.values()).filter(m =>
-        m.id.toLowerCase().includes(queryLower) ||
-        m.name.toLowerCase().includes(queryLower) ||
-        m.description?.toLowerCase().includes(queryLower)
-      );
+    // Try exact match (for models without provider prefix)
+    const model = this.models.get(modelId);
+    if (model?.provider) {
+      return {
+        modelId,
+        provider: model.provider.id,
+        envKeys: model.provider.env || [],
+        npm: model.provider.npm,
+        api: model.provider.api,
+        doc: model.provider.doc,
+        name: model.name,
+      };
     }
-    
-    return results.slice(0, limit);
+
+    return null;
   }
 
   /**
-   * Get model by ID
+   * Detect provider from model ID
+   * 
+   * @example
+   * catalog.detectProvider('anthropic/claude-3-opus')
+   * // => 'anthropic'
    */
-  get(modelId: string): ModelInfo | undefined {
-    return this.models.get(modelId);
+  detectProvider(modelId: string): string | null {
+    const slashIndex = modelId.indexOf('/');
+    if (slashIndex > 0) {
+      return modelId.substring(0, slashIndex);
+    }
+    return null;
   }
 
   /**
-   * Get provider by ID
+   * Get provider info by ID
    */
   getProvider(providerId: string): ProviderInfo | undefined {
     return this.providers.get(providerId);
@@ -217,89 +189,76 @@ export class ModelCatalog {
   }
 
   /**
-   * List all models for a provider
+   * Search providers by query
    */
-  listModels(providerId?: string): ModelInfo[] {
-    if (providerId) {
-      return this.modelsByProvider.get(providerId) || [];
-    }
-    return Array.from(this.models.values());
+  searchProviders(query: string): ProviderInfo[] {
+    const q = query.toLowerCase();
+    return Array.from(this.providers.values()).filter(
+      p => p.id.toLowerCase().includes(q) ||
+           p.name.toLowerCase().includes(q)
+    );
   }
 
   /**
-   * Get recommended models by use case
+   * Fetch catalog from models.dev
    */
-  getRecommended(useCase: 'chat' | 'code' | 'vision' | 'embedding' | 'fast' | 'cheap'): ModelInfo[] {
-    const recommendations: ModelInfo[] = [];
-    
-    for (const model of this.models.values()) {
-      let match = false;
-      
-      switch (useCase) {
-        case 'chat':
-          // Models good for general chat
-          match = (!model.modalities?.output?.includes('image') &&
-                   (model.context || 0) >= 4000) || false;
-          break;
-          
-        case 'code':
-          // Models good for coding
-          match = (model.description?.toLowerCase().includes('code') ||
-                   model.description?.toLowerCase().includes('coding') ||
-                   model.family?.includes('code')) || false;
-          break;
-          
-        case 'vision':
-          // Models with image input
-          match = model.modalities?.input?.includes('image') || false;
-          break;
-          
-        case 'embedding':
-          // Embedding models
-          match = (model.description?.toLowerCase().includes('embedding') ||
-                   model.id.includes('embed')) || false;
-          break;
-          
-        case 'fast':
-          // Fast models (usually smaller context or "fast" in name)
-          match = (model.name.toLowerCase().includes('fast') ||
-                   model.name.toLowerCase().includes('mini') ||
-                   model.name.toLowerCase().includes('flash')) || false;
-          break;
-          
-        case 'cheap':
-          // Cheap models
-          match = ((model.cost?.input || 0) < 1) || false;
-          break;
-      }
-      
-      if (match) {
-        recommendations.push(model);
-      }
-    }
-    
-    // Sort by cost (cheapest first)
-    return recommendations.sort((a, b) => (a.cost?.input || 0) - (b.cost?.input || 0));
-  }
-
-  /**
-   * Load from cache file
-   */
-  private async loadFromCache(): Promise<boolean> {
+  private async fetchFromModelsDev(): Promise<void> {
     try {
-      const fs = await import('fs');
-      if (!fs.existsSync(this.cacheFile)) {
-        return false;
+      const response = await fetch('https://models.dev/api.json');
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
       }
-      
-      const stat = fs.statSync(this.cacheFile);
-      const age = Date.now() - stat.mtimeMs;
-      
-      if (age > this.cacheDuration) {
-        return false; // Cache expired
+
+      const data = await response.json() as CatalogData;
+      this.parseCatalog(data);
+      this.saveToCache();
+    } catch (error) {
+      console.error('Failed to fetch from models.dev:', error);
+      this.loadLocalFallback();
+    }
+  }
+
+  /**
+   * Parse catalog data
+   */
+  private parseCatalog(data: CatalogData): void {
+    this.providers.clear();
+    this.models.clear();
+
+    for (const [providerId, providerData] of Object.entries(data)) {
+      const provider: ProviderInfo = {
+        id: providerId,
+        name: providerData.name || providerId,
+        npm: providerData.npm,
+        env: providerData.env,
+        api: providerData.api,
+        doc: providerData.doc,
+      };
+      this.providers.set(providerId, provider);
+
+      if (providerData.models) {
+        for (const [modelId, modelData] of Object.entries(providerData.models)) {
+          this.models.set(modelId, {
+            id: modelId,
+            name: modelData.name || modelId,
+            provider,
+          });
+        }
       }
-      
-      const data = JSON.parse(fs.readFileSync(this.cacheFile, 'utf-8'));
+    }
+  }
+
+  /**
+   * Load from cache
+   */
+  private loadFromCache(): boolean {
+    try {
+      if (!existsSync(this.cacheFile)) return false;
+
+      const stat = require('fs').statSync(this.cacheFile);
+      if (Date.now() - stat.mtimeMs > this.cacheDuration) return false;
+
+      const data = JSON.parse(readFileSync(this.cacheFile, 'utf-8'));
       this.parseCatalog(data);
       return true;
     } catch {
@@ -308,189 +267,89 @@ export class ModelCatalog {
   }
 
   /**
-   * Save to cache file
+   * Save to cache
    */
-  private async saveToCache(): Promise<void> {
+  private saveToCache(): void {
     try {
-      const fs = await import('fs');
-      const path = await import('path');
-      
-      // Ensure directory exists
-      const dir = path.dirname(this.cacheFile);
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
+      const dir = dirname(this.cacheFile);
+      if (!existsSync(dir)) {
+        mkdirSync(dir, { recursive: true });
       }
-      
-      // Convert Maps to object for serialization
-      const data: CatalogResponse = {};
-      for (const [providerId, provider] of this.providers) {
-        const providerModels = this.modelsByProvider.get(providerId) || [];
-        const models: { [modelId: string]: ModelInfo } = {};
-        for (const model of providerModels) {
-          models[model.id] = model;
+
+      const data: CatalogData = {};
+      for (const [id, provider] of this.providers) {
+        const providerModels: { [modelId: string]: { id: string; name?: string } } = {};
+        for (const [modelId, model] of this.models) {
+          if (model.provider?.id === id) {
+            providerModels[modelId] = { id: modelId, name: model.name };
+          }
         }
-        data[providerId] = {
-          id: provider.id,
+        data[id] = {
+          id,
           name: provider.name,
           npm: provider.npm,
           env: provider.env,
           api: provider.api,
           doc: provider.doc,
-          models,
+          models: providerModels,
         };
       }
-      
-      fs.writeFileSync(this.cacheFile, JSON.stringify(data, null, 2));
+
+      writeFileSync(this.cacheFile, JSON.stringify(data));
     } catch (error) {
       console.error('Failed to save cache:', error);
     }
   }
 
   /**
-   * Load local catalog (fallback)
+   * Local fallback catalog (popular providers only)
    */
-  private loadLocalCatalog(): void {
-    console.log('Loading local catalog...');
-    
-    // Local catalog of popular models
-    const localCatalog: CatalogResponse = {
+  private loadLocalFallback(): void {
+    const fallback: CatalogData = {
       openai: {
-        id: 'openai',
-        name: 'OpenAI',
-        npm: '@ai-sdk/openai',
-        env: ['OPENAI_API_KEY'],
-        models: {
-          'openai/gpt-4o': {
-            id: 'openai/gpt-4o',
-            name: 'GPT-4o',
-            description: 'Most capable GPT-4 model',
-            context: 128000,
-            modalities: { input: ['text', 'image'], output: ['text'] },
-          },
-          'openai/gpt-4o-mini': {
-            id: 'openai/gpt-4o-mini',
-            name: 'GPT-4o Mini',
-            description: 'Fast and affordable',
-            context: 128000,
-            modalities: { input: ['text', 'image'], output: ['text'] },
-          },
-          'openai/gpt-4-turbo': {
-            id: 'openai/gpt-4-turbo',
-            name: 'GPT-4 Turbo',
-            description: 'Previous generation',
-            context: 128000,
-            modalities: { input: ['text', 'image'], output: ['text'] },
-          },
-        },
+        id: 'openai', name: 'OpenAI',
+        npm: '@ai-sdk/openai', env: ['OPENAI_API_KEY'],
       },
       anthropic: {
-        id: 'anthropic',
-        name: 'Anthropic',
-        npm: '@ai-sdk/anthropic',
-        env: ['ANTHROPIC_API_KEY'],
-        models: {
-          'anthropic/claude-3-opus': {
-            id: 'anthropic/claude-3-opus',
-            name: 'Claude 3 Opus',
-            description: 'Most capable Claude model',
-            context: 200000,
-            modalities: { input: ['text', 'image'], output: ['text'] },
-          },
-          'anthropic/claude-3-sonnet': {
-            id: 'anthropic/claude-3-sonnet',
-            name: 'Claude 3 Sonnet',
-            description: 'Balanced performance',
-            context: 200000,
-            modalities: { input: ['text', 'image'], output: ['text'] },
-          },
-          'anthropic/claude-3-haiku': {
-            id: 'anthropic/claude-3-haiku',
-            name: 'Claude 3 Haiku',
-            description: 'Fast and affordable',
-            context: 200000,
-            modalities: { input: ['text', 'image'], output: ['text'] },
-          },
-        },
+        id: 'anthropic', name: 'Anthropic',
+        npm: '@ai-sdk/anthropic', env: ['ANTHROPIC_API_KEY'],
       },
       google: {
-        id: 'google',
-        name: 'Google',
-        npm: '@ai-sdk/google',
-        env: ['GOOGLE_API_KEY'],
-        models: {
-          'google/gemini-2.0-flash': {
-            id: 'google/gemini-2.0-flash',
-            name: 'Gemini 2.0 Flash',
-            description: 'Fast and capable',
-            context: 1000000,
-            modalities: { input: ['text', 'image', 'audio', 'video'], output: ['text'] },
-          },
-          'google/gemini-2.0-pro': {
-            id: 'google/gemini-2.0-pro',
-            name: 'Gemini 2.0 Pro',
-            description: 'Most capable Gemini',
-            context: 2000000,
-            modalities: { input: ['text', 'image', 'audio', 'video'], output: ['text'] },
-          },
-        },
+        id: 'google', name: 'Google',
+        npm: '@ai-sdk/google', env: ['GOOGLE_API_KEY'],
       },
       ollama: {
-        id: 'ollama',
-        name: 'Ollama',
-        npm: '@ai-sdk/ollama',
-        env: [],
+        id: 'ollama', name: 'Ollama',
+        npm: '@ai-sdk/ollama', env: [],
         api: 'http://localhost:11434/api',
-        models: {
-          'ollama/llama3.1:8b': {
-            id: 'ollama/llama3.1:8b',
-            name: 'Llama 3.1 8B',
-            description: 'Fast local model',
-            context: 128000,
-          },
-          'ollama/mistral': {
-            id: 'ollama/mistral',
-            name: 'Mistral 7B',
-            description: 'Fast and capable',
-            context: 32000,
-          },
-        },
+      },
+      groq: {
+        id: 'groq', name: 'Groq',
+        npm: '@ai-sdk/openai-compatible', env: ['GROQ_API_KEY'],
+        api: 'https://api.groq.com/openai/v1',
+      },
+      deepseek: {
+        id: 'deepseek', name: 'DeepSeek',
+        npm: '@ai-sdk/openai-compatible', env: ['DEEPSEEK_API_KEY'],
+        api: 'https://api.deepseek.com/v1',
+      },
+      mistral: {
+        id: 'mistral', name: 'Mistral',
+        npm: '@ai-sdk/mistral', env: ['MISTRAL_API_KEY'],
+      },
+      xai: {
+        id: 'xai', name: 'xAI',
+        npm: '@ai-sdk/openai-compatible', env: ['XAI_API_KEY'],
+        api: 'https://api.x.ai/v1',
       },
     };
-    
-    this.parseCatalog(localCatalog);
-  }
-
-  /**
-   * Export catalog as JSON
-   */
-  export(): CatalogResponse {
-    const data: CatalogResponse = {};
-    for (const [providerId, provider] of this.providers) {
-      const providerModels = this.modelsByProvider.get(providerId) || [];
-      const models: { [modelId: string]: ModelInfo } = {};
-      for (const model of providerModels) {
-        models[model.id] = model;
-      }
-      data[providerId] = {
-        id: provider.id,
-        name: provider.name,
-        npm: provider.npm,
-        env: provider.env,
-        api: provider.api,
-        doc: provider.doc,
-        models,
-      };
-    }
-    return data;
+    this.parseCatalog(fallback);
   }
 }
 
-// Singleton instance
+// Singleton
 let instance: ModelCatalog | null = null;
 
-/**
- * Get singleton ModelCatalog instance
- */
 export function getModelCatalog(): ModelCatalog {
   if (!instance) {
     instance = new ModelCatalog();

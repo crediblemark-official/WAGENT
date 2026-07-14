@@ -48,8 +48,6 @@ export type { MCPServerConfig, MCPToolInfo } from './mcp-client.js';
 export { MCPServer } from './mcp-server.js';
 export type { MCPServerOptions } from './mcp-server.js';
 export { ModelCatalog, getModelCatalog } from './model-catalog.js';
-export type { ModelInfo, ProviderInfo, CatalogResponse } from './model-catalog.js';
-export { OpenRouterAdapter, createOpenRouterAdapter } from './openrouter.js';
-export type { OpenRouterModel, OpenRouterMessage, OpenRouterResponse } from './openrouter.js';
+export type { ModelInfo, ProviderInfo, ResolvedModel } from './model-catalog.js';
 
 export * from './types.js';

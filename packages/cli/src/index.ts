@@ -1242,55 +1242,68 @@ mcpCmd
 
 // ── model ──────────────────────────────────────────────────────
 
-const modelCmd = program.command('model').description('🧠 Kelola AI model catalog (166+ providers, 5600+ models)');
+const modelCmd = program.command('model').description('🧠 Kelola AI model catalog (166+ providers via models.dev)');
+
+modelCmd
+  .command('resolve')
+  .description('Resolve model ID ke provider info')
+  .argument('<modelId>', 'Model ID (contoh: openai/gpt-4o)')
+  .option('--refresh', 'Force refresh dari models.dev')
+  .action(async (modelId, opts) => {
+    const { getModelCatalog } = await import('@wagent/core');
+    const catalog = getModelCatalog();
+
+    await catalog.init({ forceRefresh: opts.refresh });
+
+    const resolved = catalog.resolve(modelId);
+
+    console.log('');
+    console.log(color.bold(`🔍 Resolve: ${modelId}`));
+    console.log('──────────────────────────');
+
+    if (!resolved) {
+      console.log(color.red(`  Model "${modelId}" tidak ditemukan.`));
+    } else {
+      console.log(`  ${color.cyan('Model ID:')} ${resolved.modelId}`);
+      console.log(`  ${color.cyan('Provider:')} ${resolved.provider}`);
+      if (resolved.envKeys.length > 0) {
+        console.log(`  ${color.cyan('API Key Env:')} ${resolved.envKeys.join(', ')}`);
+      }
+      if (resolved.npm) {
+        console.log(`  ${color.cyan('SDK Package:')} ${resolved.npm}`);
+      }
+      if (resolved.api) {
+        console.log(`  ${color.cyan('Base URL:')} ${resolved.api}`);
+      }
+      if (resolved.name) {
+        console.log(`  ${color.cyan('Name:')} ${resolved.name}`);
+      }
+    }
+
+    console.log('');
+  });
 
 modelCmd
   .command('list')
-  .description('Tampilkan semua provider dan model')
-  .option('-p, --provider <provider>', 'Filter by provider')
-  .option('-l, --limit <limit>', 'Limit jumlah model', '20')
+  .description('Tampilkan semua provider')
   .option('--refresh', 'Force refresh dari models.dev')
   .action(async (opts) => {
     const { getModelCatalog } = await import('@wagent/core');
     const catalog = getModelCatalog();
 
+    await catalog.init({ forceRefresh: opts.refresh });
+
+    const providers = catalog.listProviders();
+
     console.log('');
     console.log(color.bold('🧠 WAGENT Model Catalog'));
     console.log('──────────────────────────');
+    console.log(`  ${color.green(String(providers.length))} providers tersedia`);
+    console.log('');
 
-    await catalog.init({ forceRefresh: opts.refresh });
-
-    if (opts.provider) {
-      // List models for specific provider
-      const models = catalog.listModels(opts.provider);
-      if (models.length === 0) {
-        console.log(color.red(`  Provider "${opts.provider}" tidak ditemukan.`));
-        return;
-      }
-
-      const provider = catalog.getProvider(opts.provider);
-      console.log(`  ${color.cyan(provider?.name || opts.provider)}:`);
-      console.log('');
-
-      for (const model of models.slice(0, parseInt(opts.limit) || 20)) {
-        console.log(`    ${color.green(model.id)}`);
-        if (model.description) console.log(`      ${color.dim(model.description)}`);
-        if (model.context) console.log(`      Context: ${model.context.toLocaleString()}`);
-        if (model.cost?.input) console.log(`      Cost: $${model.cost.input}/1M input`);
-        console.log('');
-      }
-
-      console.log(color.dim(`  Total: ${models.length} models`));
-    } else {
-      // List all providers
-      const providers = catalog.listProviders();
-      console.log(`  ${color.green(String(providers.length))} providers tersedia`);
-      console.log('');
-
-      for (const provider of providers) {
-        const models = catalog.listModels(provider.id);
-        console.log(`    ${color.cyan(provider.id)} (${color.dim(String(models.length))} models)`);
-      }
+    for (const provider of providers) {
+      const envStr = provider.env?.length ? color.dim(` [${provider.env.join(', ')}]`) : '';
+      console.log(`  ${color.cyan(provider.id)} - ${provider.name}${envStr}`);
     }
 
     console.log('');
@@ -1298,302 +1311,31 @@ modelCmd
 
 modelCmd
   .command('search')
-  .description('Cari model berdasarkan nama atau deskripsi')
+  .description('Cari provider berdasarkan nama')
   .argument('<query>', 'Query pencarian')
-  .option('-p, --provider <provider>', 'Filter by provider')
-  .option('-l, --limit <limit>', 'Limit hasil', '10')
-  .action(async (query, opts) => {
+  .action(async (query) => {
     const { getModelCatalog } = await import('@wagent/core');
     const catalog = getModelCatalog();
 
     await catalog.init();
 
-    const results = catalog.search(query, {
-      provider: opts.provider,
-      limit: parseInt(opts.limit) || 10,
-    });
+    const results = catalog.searchProviders(query);
 
     console.log('');
-    console.log(color.bold(`🔍 Search results for "${query}"`));
+    console.log(color.bold(`🔍 Search: "${query}"`));
     console.log('──────────────────────────');
 
     if (results.length === 0) {
       console.log(color.dim('  Tidak ada hasil ditemukan.'));
     } else {
-      for (const model of results) {
-        console.log(`  ${color.green(model.id)}`);
-        console.log(`    ${color.dim(model.name)}`);
-        if (model.description) console.log(`    ${color.dim(model.description)}`);
-        if (model.context) console.log(`    Context: ${model.context.toLocaleString()}`);
-        if (model.cost?.input) console.log(`    Cost: $${model.cost.input}/1M input`);
-        console.log('');
-      }
-
-      console.log(color.dim(`  Total: ${results.length} results`));
-    }
-
-    console.log('');
-  });
-
-modelCmd
-  .command('info')
-  .description('Tampilkan detail model')
-  .argument('<modelId>', 'Model ID (contoh: openai/gpt-4o)')
-  .action(async (modelId) => {
-    const { getModelCatalog } = await import('@wagent/core');
-    const catalog = getModelCatalog();
-
-    await catalog.init();
-
-    const model = catalog.get(modelId);
-
-    console.log('');
-    console.log(color.bold(`📋 Model Info: ${modelId}`));
-    console.log('──────────────────────────');
-
-    if (!model) {
-      console.log(color.red(`  Model "${modelId}" tidak ditemukan.`));
-      console.log(color.dim('  Gunakan "wagent model search" untuk mencari model.'));
-    } else {
-      console.log(`  ${color.cyan('ID:')} ${model.id}`);
-      console.log(`  ${color.cyan('Name:')} ${model.name}`);
-      if (model.description) console.log(`  ${color.cyan('Description:')} ${model.description}`);
-      if (model.family) console.log(`  ${color.cyan('Family:')} ${model.family}`);
-      if (model.context) console.log(`  ${color.cyan('Context:')} ${model.context.toLocaleString()} tokens`);
-      if (model.modalities) {
-        console.log(`  ${color.cyan('Input:')} ${model.modalities.input?.join(', ') || 'text'}`);
-        console.log(`  ${color.cyan('Output:')} ${model.modalities.output?.join(', ') || 'text'}`);
-      }
-      if (model.cost) {
-        console.log(`  ${color.cyan('Cost:')}`);
-        if (model.cost.input) console.log(`    Input: $${model.cost.input}/1M tokens`);
-        if (model.cost.output) console.log(`    Output: $${model.cost.output}/1M tokens`);
-      }
-      if (model.provider) {
-        console.log(`  ${color.cyan('Provider:')} ${model.provider.name}`);
-        if (model.provider.env?.length) {
-          console.log(`  ${color.cyan('Env Keys:')} ${model.provider.env.join(', ')}`);
+      for (const provider of results) {
+        console.log(`  ${color.cyan(provider.id)} - ${provider.name}`);
+        if (provider.env?.length) {
+          console.log(`    ${color.dim('Env:')} ${provider.env.join(', ')}`);
         }
-        if (model.provider.npm) {
-          console.log(`  ${color.cyan('SDK Package:')} ${model.provider.npm}`);
+        if (provider.npm) {
+          console.log(`    ${color.dim('SDK:')} ${provider.npm}`);
         }
-      }
-    }
-
-    console.log('');
-  });
-
-modelCmd
-  .command('recommend')
-  .description('Rekomendasikan model berdasarkan use case')
-  .argument('<useCase>', 'Use case: chat, code, vision, embedding, fast, cheap')
-  .option('-l, --limit <limit>', 'Limit hasil', '5')
-  .action(async (useCase, opts) => {
-    const { getModelCatalog } = await import('@wagent/core');
-    const catalog = getModelCatalog();
-
-    await catalog.init();
-
-    const validCases = ['chat', 'code', 'vision', 'embedding', 'fast', 'cheap'];
-    if (!validCases.includes(useCase)) {
-      console.log(color.red(`  Use case "${useCase}" tidak valid.`));
-      console.log(color.dim(`  Valid use cases: ${validCases.join(', ')}`));
-      return;
-    }
-
-    const results = catalog.getRecommended(useCase as any);
-
-    console.log('');
-    console.log(color.bold(`💡 Rekomendasi model untuk: ${useCase}`));
-    console.log('──────────────────────────');
-
-    if (results.length === 0) {
-      console.log(color.dim('  Tidak ada rekomendasi ditemukan.'));
-    } else {
-      for (const model of results.slice(0, parseInt(opts.limit) || 5)) {
-        console.log(`  ${color.green(model.id)}`);
-        console.log(`    ${color.dim(model.name)}`);
-        if (model.context) console.log(`    Context: ${model.context.toLocaleString()}`);
-        if (model.cost?.input) console.log(`    Cost: $${model.cost.input}/1M input`);
-        console.log('');
-      }
-    }
-
-    console.log('');
-  });
-
-// ── openrouter ──────────────────────────────────────────────────
-
-const orCmd = program.command('openrouter').description('🔗 OpenRouter - Akses 400+ AI models dengan 1 API key');
-
-orCmd
-  .command('list')
-  .description('Tampilkan semua model di OpenRouter')
-  .option('-q, --query <query>', 'Filter by name')
-  .option('-l, --limit <limit>', 'Limit jumlah model', '20')
-  .action(async (opts) => {
-    const { createOpenRouterAdapter } = await import('@wagent/core');
-    const adapter = createOpenRouterAdapter();
-
-    if (!adapter) {
-      console.log(color.red('  OpenRouter API key tidak ditemukan.'));
-      console.log(color.dim('  Tambahkan di .env: OPENROUTER_API_KEY=sk-or-xxx'));
-      return;
-    }
-
-    console.log('');
-    console.log(color.bold('🔗 OpenRouter Models'));
-    console.log('──────────────────────────');
-
-    const models = opts.query
-      ? await adapter.searchModels(opts.query)
-      : await adapter.listModels();
-
-    console.log(`  ${color.green(String(models.length))} models tersedia`);
-    console.log('');
-
-    for (const model of models.slice(0, parseInt(opts.limit) || 20)) {
-      console.log(`  ${color.green(model.id)}`);
-      console.log(`    ${color.dim(model.name)}`);
-      if (model.context_length) console.log(`    Context: ${model.context_length.toLocaleString()}`);
-      if (model.pricing?.prompt) {
-        const cost = parseFloat(model.pricing.prompt) * 1_000_000;
-        console.log(`    Cost: $${cost.toFixed(2)}/1M input`);
-      }
-      console.log('');
-    }
-
-    console.log('');
-  });
-
-orCmd
-  .command('info')
-  .description('Tampilkan detail model OpenRouter')
-  .argument('<modelId>', 'Model ID (contoh: openai/gpt-4o)')
-  .action(async (modelId) => {
-    const { createOpenRouterAdapter } = await import('@wagent/core');
-    const adapter = createOpenRouterAdapter();
-
-    if (!adapter) {
-      console.log(color.red('  OpenRouter API key tidak ditemukan.'));
-      return;
-    }
-
-    const model = await adapter.getModel(modelId);
-
-    console.log('');
-    console.log(color.bold(`📋 OpenRouter Model: ${modelId}`));
-    console.log('──────────────────────────');
-
-    if (!model) {
-      console.log(color.red(`  Model "${modelId}" tidak ditemukan.`));
-    } else {
-      console.log(`  ${color.cyan('ID:')} ${model.id}`);
-      console.log(`  ${color.cyan('Name:')} ${model.name}`);
-      if (model.description) console.log(`  ${color.cyan('Description:')} ${model.description}`);
-      if (model.context_length) console.log(`  ${color.cyan('Context:')} ${model.context_length.toLocaleString()} tokens`);
-      if (model.architecture) {
-        console.log(`  ${color.cyan('Modality:')} ${model.architecture.modality || 'unknown'}`);
-      }
-      if (model.pricing) {
-        console.log(`  ${color.cyan('Cost:')}`);
-        if (model.pricing.prompt) {
-          const input = parseFloat(model.pricing.prompt) * 1_000_000;
-          console.log(`    Input: $${input.toFixed(2)}/1M tokens`);
-        }
-        if (model.pricing.completion) {
-          const output = parseFloat(model.pricing.completion) * 1_000_000;
-          console.log(`    Output: $${output.toFixed(2)}/1M tokens`);
-        }
-      }
-      if (model.top_provider) {
-        console.log(`  ${color.cyan('Max Output:')} ${model.top_provider.max_completion_tokens?.toLocaleString() || 'unknown'} tokens`);
-      }
-    }
-
-    console.log('');
-  });
-
-orCmd
-  .command('test')
-  .description('Test chat dengan model OpenRouter')
-  .argument('<modelId>', 'Model ID (contoh: openai/gpt-4o)')
-  .argument('[message]', 'Pesan untuk diuji', 'Hello, how are you?')
-  .action(async (modelId, message) => {
-    const { createOpenRouterAdapter } = await import('@wagent/core');
-    const adapter = createOpenRouterAdapter();
-
-    if (!adapter) {
-      console.log(color.red('  OpenRouter API key tidak ditemukan.'));
-      return;
-    }
-
-    console.log('');
-    console.log(color.bold(`💬 Test Chat: ${modelId}`));
-    console.log('──────────────────────────');
-    console.log(`  ${color.cyan('Message:')} ${message}`);
-    console.log('');
-
-    try {
-      const response = await adapter.chat(modelId, message);
-      const content = response.choices[0]?.message?.content;
-      
-      if (content) {
-        console.log(`  ${color.green('Response:')}`);
-        console.log(`  ${content}`);
-        console.log('');
-        if (response.usage) {
-          console.log(`  ${color.dim('Tokens:')} ${response.usage.total_tokens} total`);
-        }
-      } else {
-        console.log(color.red('  Tidak ada response.'));
-      }
-    } catch (error) {
-      console.log(color.red(`  Error: ${error}`));
-    }
-
-    console.log('');
-  });
-
-orCmd
-  .command('recommend')
-  .description('Rekomendasikan model OpenRouter berdasarkan use case')
-  .argument('<useCase>', 'Use case: chat, code, vision, fast, cheap')
-  .option('-l, --limit <limit>', 'Limit hasil', '5')
-  .action(async (useCase, opts) => {
-    const { createOpenRouterAdapter } = await import('@wagent/core');
-    const adapter = createOpenRouterAdapter();
-
-    if (!adapter) {
-      console.log(color.red('  OpenRouter API key tidak ditemukan.'));
-      return;
-    }
-
-    const validCases = ['chat', 'code', 'vision', 'fast', 'cheap'];
-    if (!validCases.includes(useCase)) {
-      console.log(color.red(`  Use case "${useCase}" tidak valid.`));
-      console.log(color.dim(`  Valid use cases: ${validCases.join(', ')}`));
-      return;
-    }
-
-    const results = await adapter.getRecommended(useCase as any);
-
-    console.log('');
-    console.log(color.bold(`💡 Rekomendasi OpenRouter untuk: ${useCase}`));
-    console.log('──────────────────────────');
-
-    if (results.length === 0) {
-      console.log(color.dim('  Tidak ada rekomendasi ditemukan.'));
-    } else {
-      for (const model of results.slice(0, parseInt(opts.limit) || 5)) {
-        console.log(`  ${color.green(model.id)}`);
-        console.log(`    ${color.dim(model.name)}`);
-        if (model.context_length) console.log(`    Context: ${model.context_length.toLocaleString()}`);
-        if (model.pricing?.prompt) {
-          const cost = parseFloat(model.pricing.prompt) * 1_000_000;
-          console.log(`    Cost: $${cost.toFixed(2)}/1M input`);
-        }
-        console.log('');
       }
     }
 
