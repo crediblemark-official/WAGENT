@@ -5,7 +5,7 @@
  * No manual file editing needed.
  */
 
-import { writeFileSync } from 'fs';
+import { writeFileSync, existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { intro, outro, text, select, confirm, isCancel, cancel, spinner } from '@clack/prompts';
 import color from 'picocolors';
@@ -34,17 +34,31 @@ export async function setupWizard(): Promise<void> {
   console.clear();
   intro(color.inverse(' WAGENT Setup Wizard '));
 
+  // Load existing config if available
+  const configPath = join(process.cwd(), 'config.jsonc');
+  let existingConfig: any = null;
+  if (existsSync(configPath)) {
+    try {
+      const content = readFileSync(configPath, 'utf-8');
+      existingConfig = parseJsonc(content);
+    } catch {
+      // Ignore parse error
+    }
+  }
+
+  const existingProviders = existingConfig?.providers || {};
+
   const config: WizardConfig = {
-    session: 'wagent-session',
-    model: '',
+    session: existingConfig?.session || 'wagent-session',
+    model: existingConfig?.model || '',
     apiKey: '',
     provider: '',
     agent: {
-      welcomeMessage: 'Halo! 👋 Ada yang bisa saya bantu hari ini?',
+      welcomeMessage: existingConfig?.agent?.welcomeMessage || 'Halo! 👋 Ada yang bisa saya bantu hari ini?',
     },
     dashboard: {
-      enabled: true,
-      port: 3030,
+      enabled: existingConfig?.dashboard?.enabled !== false,
+      port: existingConfig?.dashboard?.port || 3030,
     },
   };
 
@@ -52,10 +66,13 @@ export async function setupWizard(): Promise<void> {
   intro(color.cyan('🔍 Mengambil daftar provider dari models.dev...'));
   const providersMap = await getCatalogProviders();
   
-  const providerOptions = Object.entries(providersMap).map(([id, p]) => ({
-    value: id,
-    label: p.name || id,
-  }));
+  const providerOptions = Object.entries(providersMap).map(([id, p]) => {
+    const hasConfig = !!(existingProviders[id]?.apiKey || existingProviders[id]?.baseUrl);
+    return {
+      value: id,
+      label: hasConfig ? `${p.name || id} ${color.green('✔ (Terkonfigurasi)')}` : (p.name || id),
+    };
+  });
   
   // Sort: provider populer berada di paling atas
   const popularOrder = ['openai', 'google', 'gemini', 'anthropic', 'claude', 'deepseek', 'groq', 'ollama'];
@@ -83,18 +100,21 @@ export async function setupWizard(): Promise<void> {
 
   // ── Step 2: Credentials ─────────────────────────────────────────
   if (provider === 'ollama') {
+    const oldBaseUrl = existingProviders[provider]?.baseUrl || providerInfo?.api || 'http://localhost:11434/api';
     const baseUrl = await text({
       message: 'Ollama base URL:',
       placeholder: 'http://localhost:11434/api',
-      defaultValue: providerInfo?.api || 'http://localhost:11434/api',
+      defaultValue: oldBaseUrl,
     });
     if (isCancel(baseUrl)) process.exit(0);
     config.baseUrl = baseUrl as string;
   } else {
     const envKey = providerInfo?.env?.[0] || `${provider.toUpperCase()}_API_KEY`;
+    const oldApiKey = existingProviders[provider]?.apiKey || '';
     const apiKey = await text({
       message: `Masukkan API Key untuk ${providerInfo?.name || provider} (${envKey}):`,
-      placeholder: '...',
+      placeholder: oldApiKey ? 'Menggunakan API Key yang disimpan...' : '...',
+      defaultValue: oldApiKey,
       validate: (v) => !v ? 'API Key tidak boleh kosong' : undefined,
     });
     if (isCancel(apiKey)) process.exit(0);
@@ -141,7 +161,7 @@ export async function setupWizard(): Promise<void> {
   const session = await text({
     message: 'Nama session WhatsApp:',
     placeholder: 'wagent-session',
-    defaultValue: 'wagent-session',
+    defaultValue: config.session,
   });
 
   if (isCancel(session)) process.exit(0);
@@ -151,7 +171,7 @@ export async function setupWizard(): Promise<void> {
   const welcomeMessage = await text({
     message: 'Welcome message untuk chat baru:',
     placeholder: 'Halo! Ada yang bisa saya bantu?',
-    defaultValue: 'Halo! 👋 Ada yang bisa saya bantu hari ini?',
+    defaultValue: config.agent.welcomeMessage,
   });
 
   if (isCancel(welcomeMessage)) process.exit(0);
@@ -160,14 +180,14 @@ export async function setupWizard(): Promise<void> {
   // ── Step 6: Dashboard ───────────────────────────────────────────
   const enableDashboard = await confirm({
     message: 'Aktifkan web dashboard?',
-    initialValue: true,
+    initialValue: config.dashboard.enabled,
   }) as boolean;
 
   if (enableDashboard) {
     const port = await text({
       message: 'Port untuk dashboard:',
       placeholder: '3030',
-      defaultValue: '3030',
+      defaultValue: String(config.dashboard.port),
     });
 
     if (isCancel(port)) process.exit(0);
@@ -180,8 +200,17 @@ export async function setupWizard(): Promise<void> {
   const s = spinner();
   s.start('Generating config.jsonc...');
 
-  const jsonConfig = generateJsonConfig(config);
-  const configPath = join(process.cwd(), 'config.jsonc');
+  // Merge new provider config with existing ones
+  const mergedProviders = { ...existingProviders };
+  mergedProviders[config.provider] = {};
+  if (config.apiKey) {
+    mergedProviders[config.provider].apiKey = config.apiKey;
+  }
+  if (config.baseUrl) {
+    mergedProviders[config.provider].baseUrl = config.baseUrl;
+  }
+
+  const jsonConfig = generateJsonConfig(config, mergedProviders);
   
   writeFileSync(configPath, jsonConfig);
   
@@ -209,7 +238,23 @@ export async function setupWizard(): Promise<void> {
 
 // ── Helper Functions ────────────────────────────────────────────
 
-function generateJsonConfig(config: WizardConfig): string {
+function parseJsonc(content: string): any {
+  try {
+    let cleaned = content.replace(/\/\/.*$/gm, (match) => {
+      const idx = content.indexOf(match);
+      const before = content.substring(0, idx);
+      const openQuotes = (before.match(/"/g) || []).length;
+      return openQuotes % 2 === 0 ? '' : match;
+    });
+    cleaned = cleaned.replace(/\/\*[\s\S]*?\*\//g, '');
+    cleaned = cleaned.replace(/,\s*([}\]])/g, '$1');
+    return JSON.parse(cleaned);
+  } catch {
+    return null;
+  }
+}
+
+function generateJsonConfig(config: WizardConfig, providers: any): string {
   const lines: string[] = [];
   
   lines.push('{');
@@ -226,16 +271,22 @@ function generateJsonConfig(config: WizardConfig): string {
   lines.push(`  "model": "${config.model}",`);
   lines.push('');
   
-  // Provider
+  // Providers
   lines.push('  // API Keys / Base URLs');
   lines.push('  "providers": {');
-  lines.push(`    "${config.provider}": {`);
-  if (config.apiKey) {
-    lines.push(`      "apiKey": "${config.apiKey}"`);
-  } else if (config.baseUrl) {
-    lines.push(`      "baseUrl": "${config.baseUrl}"`);
-  }
-  lines.push('    }');
+  const providerEntries = Object.entries(providers);
+  providerEntries.forEach(([pId, pConfig]: [string, any], index) => {
+    lines.push(`    "${pId}": {`);
+    const fields: string[] = [];
+    if (pConfig.apiKey) {
+      fields.push(`      "apiKey": "${pConfig.apiKey}"`);
+    }
+    if (pConfig.baseUrl) {
+      fields.push(`      "baseUrl": "${pConfig.baseUrl}"`);
+    }
+    lines.push(fields.join(',\n'));
+    lines.push(index === providerEntries.length - 1 ? '    }' : '    },');
+  });
   lines.push('  },');
   lines.push('');
   
