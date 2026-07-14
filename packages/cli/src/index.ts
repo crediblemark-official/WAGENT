@@ -111,33 +111,21 @@ program
       let dashboard: any = undefined;
       if (options.dashboard !== false && config.dashboardPort) {
         try {
-          // Resolve path relatif dari lokasi CLI — bekerja baik di dev maupun installed
+          // Path relatif dari cli/dist/ → packages/dashboard/dist/server.js
+          const { resolve, dirname } = await import('path');
           const { fileURLToPath } = await import('url');
-          const { join, dirname, resolve } = await import('path');
-          const cliDir = dirname(fileURLToPath(import.meta.url));
-          // Coba beberapa lokasi: workspace link, path relatif dari dist, path relatif dari packages
-          const candidates = [
-            '@wagent/dashboard',
-            resolve(cliDir, '../../dashboard/dist/server.js'),
-            resolve(cliDir, '../dashboard/dist/server.js'),
-            resolve(cliDir, '../../../../packages/dashboard/dist/server.js'),
-          ];
-          let loaded = false;
-          for (const candidate of candidates) {
-            try {
-              const mod = await import(candidate);
-              const { DashboardServer } = mod;
-              dashboard = new DashboardServer(config, db);
-              logger.info('Dashboard module loaded from: %s', candidate);
-              loaded = true;
-              break;
-            } catch { /* coba kandidat berikutnya */ }
-          }
-          if (!loaded) throw new Error('Semua kandidat path gagal');
-        } catch (err) {
-          logger.warn('Dashboard module not available, running headless');
+          const cliDistDir = dirname(fileURLToPath(import.meta.url));
+          const dashboardPath = resolve(cliDistDir, '../../dashboard/dist/server.js');
+          const mod = await import(dashboardPath);
+          const { DashboardServer } = mod;
+          if (!DashboardServer) throw new Error('DashboardServer tidak ditemukan di modul');
+          dashboard = new DashboardServer(config, db);
+          logger.info('Dashboard loaded: %s', dashboardPath);
+        } catch (err: any) {
+          logger.warn('Dashboard module not available, running headless: %s', err?.message);
         }
       }
+
 
 
       // Load skills for AI agent

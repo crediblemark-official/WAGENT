@@ -485,8 +485,8 @@ export class DashboardServer implements DashboardAdapter {
     if (existsSync(publicDir)) {
       this.app.use(express.static(publicDir));
 
-      // SPA fallback
-      this.app.get('*', (_req, res) => {
+      // SPA fallback — gunakan regex agar kompatibel semua versi path-to-regexp
+      this.app.get(/.*/, (_req, res) => {
         res.sendFile(resolve(publicDir, 'index.html'));
       });
     }
