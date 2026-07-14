@@ -24,3 +24,5 @@ npm-debug.log*
 .idea/
 *.swp
 *.swo
+tmp/
+packages/core/tmp/
