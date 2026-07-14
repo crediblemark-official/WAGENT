@@ -81,6 +81,14 @@ export interface WAgentConfig {
     model: string;
   };
 
+  // Embedding Configuration
+  embedding?: {
+    /** Embedding model name (e.g. 'text-embedding-004', 'text-embedding-3-large', 'bge-large-en-v1.5') */
+    model: string;
+    /** Override dimensions (optional, uses model default if not set) */
+    dimensions?: number;
+  };
+
   // Conversation Settings
   /** Auto-send welcome message on new conversations */
   welcomeMessage?: string;
