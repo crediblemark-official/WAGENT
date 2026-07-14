@@ -39,6 +39,17 @@ program
     await setupConfigWizard();
   });
 
+// ── setup-prompts ────────────────────────────────────────────────
+
+program
+  .command('setup-prompts')
+  .description('AI-guided setup untuk generate prompt files (system, personality, messages, skills)')
+  .action(async () => {
+    const { setupPromptWizard } = await import('@wagent/tui');
+    
+    await setupPromptWizard();
+  });
+
 // ── start ───────────────────────────────────────────────────────
 
 program

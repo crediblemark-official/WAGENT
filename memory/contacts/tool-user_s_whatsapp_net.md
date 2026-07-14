@@ -1,16 +1,19 @@
 # Tool User
 
-- Tone: friendly
-- Deskripsi Tone: Ramah, hangat, dan akrab
+- Tone: professional
+- Deskripsi Tone: Professional, sopan dan terstruktur
+- Bahasa: Indonesia
+- Sapaan: "test"
+- Topik: Jadwal, Komplain
 
-Last updated: 13 Juli 2026 pukul 23.40
+Last updated: 14 Juli 2026 pukul 09.21
 
 ## Interaksi Terbaru
-- 2026-07-13: Panggil tool aneh → Tool tidak dikenal.
-- 2026-07-13: Test → OK, saya coba lagi.
-- 2026-07-13: Cari info → Informasi lengkap.
-- 2026-07-13: Test →
-- 2026-07-13: Loop test →
+- 2026-07-14: Panggil tool aneh → Tool tidak dikenal.
+- 2026-07-14: Test → OK, saya coba lagi.
+- 2026-07-14: Cari info → Informasi lengkap.
+- 2026-07-14: Test →
+- 2026-07-14: Loop test →
 
 ## Pola yang Dipelajari
 - User sering chat malam hari (setelah jam 10 malam)
