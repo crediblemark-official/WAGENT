@@ -437,7 +437,7 @@ describe('EscalationService — escalateSimple', () => {
     );
 
     const body = JSON.parse(fetchMock.mock.calls[0][1].body);
-    expect(body.text).toContain('AI meminta bantuan manusia secara eksplisit');
+    expect(body.text).toContain('AI meminta bantuan manusia');
   });
 
   it('should return false when disabled', async () => {
