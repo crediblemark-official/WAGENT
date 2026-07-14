@@ -91,12 +91,70 @@ export class WebScraper {
   }
 
   /**
-   * Search and scrape (simplified - in production would use search API)
+   * Search and scrape results from DuckDuckGo HTML
    */
-  async search(query: string): Promise<ScrapedContent[]> {
-    // This is a placeholder - in production, integrate with search API
-    this.logger.info({ query }, 'Search requested (not implemented)');
-    return [];
+  async search(query: string, limit = 5): Promise<ScrapedContent[]> {
+    this.logger.info({ query, limit }, 'Searching DuckDuckGo');
+
+    try {
+      // Search DuckDuckGo HTML version
+      const searchUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
+      const searchResponse = await this.httpClient.get(searchUrl);
+
+      if (!searchResponse.ok) {
+        this.logger.warn({ status: searchResponse.status }, 'Search request failed');
+        return [];
+      }
+
+      // Extract result URLs from DuckDuckGo HTML
+      const urls = this.extractSearchUrls(searchResponse.body);
+
+      if (urls.length === 0) {
+        this.logger.info('No search results found');
+        return [];
+      }
+
+      // Scrape top results
+      const results: ScrapedContent[] = [];
+      for (const url of urls.slice(0, limit)) {
+        const content = await this.scrape(url);
+        if (content) {
+          results.push(content);
+        }
+      }
+
+      this.logger.info({ query, results: results.length }, 'Search completed');
+      return results;
+    } catch (err: any) {
+      this.logger.warn({ error: err.message, query }, 'Search failed');
+      return [];
+    }
+  }
+
+  /**
+   * Extract URLs from DuckDuckGo HTML search results
+   */
+  private extractSearchUrls(html: string): string[] {
+    const urls: string[] = [];
+    // DuckDuckGo result links are in <a class="result__a" href="...">
+    const regex = /class="result__a"[^>]*href="([^"]+)"/gi;
+    let match;
+
+    while ((match = regex.exec(html)) !== null) {
+      const href = match[1];
+      // DuckDuckGo wraps URLs in redirect URLs, extract the actual URL
+      const urlMatch = href.match(/uddg=([^&]+)/);
+      if (urlMatch) {
+        const decoded = decodeURIComponent(urlMatch[1]);
+        if (!urls.includes(decoded)) {
+          urls.push(decoded);
+        }
+      } else if (href.startsWith('http') && !urls.includes(href)) {
+        urls.push(href);
+      }
+    }
+
+    return urls.slice(0, 20); // Limit to 20 results
   }
 
   /**

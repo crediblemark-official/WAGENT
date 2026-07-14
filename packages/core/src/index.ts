@@ -43,5 +43,9 @@ export {
   isEncryptionAvailable,
   getEncryptionStatus,
 } from './crypto.js';
+export { MCPClient } from './mcp-client.js';
+export type { MCPServerConfig, MCPToolInfo } from './mcp-client.js';
+export { MCPServer } from './mcp-server.js';
+export type { MCPServerOptions } from './mcp-server.js';
 
 export * from './types.js';

@@ -16,6 +16,10 @@ function createMockDb(): Database {
         averageResponseTime: 1500,
       },
     ]),
+    getTopContactsByMessageCount: vi.fn().mockReturnValue([
+      { name: 'Alice', messages: 50 },
+      { name: 'Bob', messages: 30 },
+    ]),
   } as unknown as Database;
 }
 

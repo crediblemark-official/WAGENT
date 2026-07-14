@@ -187,6 +187,33 @@ export class Database {
 
       CREATE INDEX IF NOT EXISTS idx_chunks_file_id ON kb_chunks(file_id);
 
+      -- FTS5 full-text search index for knowledge base chunks
+      CREATE VIRTUAL TABLE IF NOT EXISTS kb_chunks_fts USING fts5(
+        content,
+        section_heading,
+        content_rowid='rowid',
+        content=kb_chunks,
+        content_rowid=rowid
+      );
+
+      -- Triggers to keep FTS index in sync
+      CREATE TRIGGER IF NOT EXISTS kb_chunks_ai AFTER INSERT ON kb_chunks BEGIN
+        INSERT INTO kb_chunks_fts(rowid, content, section_heading)
+        VALUES (new.rowid, new.content, new.section_heading);
+      END;
+
+      CREATE TRIGGER IF NOT EXISTS kb_chunks_ad AFTER DELETE ON kb_chunks BEGIN
+        INSERT INTO kb_chunks_fts(kb_chunks_fts, rowid, content, section_heading)
+        VALUES('delete', old.rowid, old.content, old.section_heading);
+      END;
+
+      CREATE TRIGGER IF NOT EXISTS kb_chunks_au AFTER UPDATE ON kb_chunks BEGIN
+        INSERT INTO kb_chunks_fts(kb_chunks_fts, rowid, content, section_heading)
+        VALUES('delete', old.rowid, old.content, old.section_heading);
+        INSERT INTO kb_chunks_fts(rowid, content, section_heading)
+        VALUES (new.rowid, new.content, new.section_heading);
+      END;
+
       -- Orders (real-time e-commerce)
       CREATE TABLE IF NOT EXISTS orders (
         id TEXT PRIMARY KEY,
@@ -226,6 +253,22 @@ export class Database {
       this.db.exec('ALTER TABLE knowledge_base ADD COLUMN embedding TEXT');
     } catch {
       // Column already exists or table doesn't exist — both are fine
+    }
+
+    // Rebuild FTS index for existing data
+    this.rebuildFtsIndex();
+  }
+
+  /**
+   * Rebuild FTS5 index from existing kb_chunks data.
+   * Useful after schema migration or if index is corrupted.
+   */
+  rebuildFtsIndex(): void {
+    try {
+      this.db.exec("INSERT INTO kb_chunks_fts(kb_chunks_fts) VALUES('rebuild')");
+      getLogger().info('FTS5 index rebuilt');
+    } catch (err: any) {
+      getLogger().warn({ error: err.message }, 'Failed to rebuild FTS5 index');
     }
   }
 
@@ -464,6 +507,21 @@ export class Database {
       aiResponseCount: r.ai_response_count,
       averageResponseTime: r.avg_response_time,
     }));
+  }
+
+  /**
+   * Get top contacts by message count
+   */
+  getTopContactsByMessageCount(limit = 5): { name: string; messages: number }[] {
+    const rows = this.db.query(`
+      SELECT c.contact_name AS name, COUNT(m.id) AS messages
+      FROM messages m
+      JOIN chats c ON m.chat_id = c.id
+      GROUP BY m.chat_id
+      ORDER BY messages DESC
+      LIMIT ?
+    `).all(limit) as any[];
+    return rows.map(r => ({ name: r.name, messages: r.messages }));
   }
 
   // ── Broadcasts ────────────────────────────────────────────────
@@ -995,9 +1053,64 @@ export class Database {
   }
 
   /**
-   * Keyword search across KB chunks.
+   * Keyword search across KB chunks using FTS5 with BM25 ranking.
    */
   searchKbChunksKeyword(query: string, maxResults = 5): Array<{ chunkId: string; fileId: string; content: string; sectionHeading?: string; score: number; fileName?: string }> {
+    const results: Array<{ chunkId: string; fileId: string; content: string; sectionHeading?: string; score: number; fileName?: string }> = [];
+    
+    // Clean query for FTS5: escape special characters, join with AND
+    const queryWords = query.toLowerCase()
+      .replace(/[^\w\s]/g, ' ')
+      .split(/\s+/)
+      .filter(w => w.length > 1);
+    
+    if (queryWords.length === 0) return results;
+
+    const ftsQuery = queryWords.join(' AND ');
+
+    try {
+      const rows = this.db.query(`
+        SELECT 
+          fts.rowid,
+          fts.rank,
+          c.id,
+          c.file_id,
+          c.content,
+          c.section_heading,
+          f.file_name
+        FROM kb_chunks_fts fts
+        JOIN kb_chunks c ON c.rowid = fts.rowid
+        LEFT JOIN kb_files f ON c.file_id = f.id
+        WHERE kb_chunks_fts MATCH ?
+        ORDER BY fts.rank
+        LIMIT ?
+      `).all(ftsQuery, maxResults) as any[];
+
+      for (const row of rows) {
+        // BM25 rank is negative (lower = better), normalize to 0-1 score
+        const score = Math.min(1, Math.max(0, 1 + row.rank / 10));
+        results.push({
+          chunkId: row.id,
+          fileId: row.file_id,
+          content: row.content,
+          sectionHeading: row.section_heading || undefined,
+          score,
+          fileName: row.file_name || undefined,
+        });
+      }
+    } catch (err: any) {
+      // Fallback to simple substring search if FTS fails
+      getLogger().warn({ error: err.message }, 'FTS5 search failed, falling back to substring');
+      return this.searchKbChunksKeywordFallback(query, maxResults);
+    }
+
+    return results;
+  }
+
+  /**
+   * Fallback keyword search using simple substring matching.
+   */
+  private searchKbChunksKeywordFallback(query: string, maxResults: number): Array<{ chunkId: string; fileId: string; content: string; sectionHeading?: string; score: number; fileName?: string }> {
     const results: Array<{ chunkId: string; fileId: string; content: string; sectionHeading?: string; score: number; fileName?: string }> = [];
     const queryWords = query.toLowerCase().split(/\s+/).filter(w => w.length > 1);
 

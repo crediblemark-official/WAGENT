@@ -15,6 +15,7 @@ import {
   ConnectionStatus,
   WhatsAppNumberConfig,
 } from '@wagent/core';
+import type { Gateway } from '@wagent/core';
 import { getLogger } from '@wagent/core';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -31,7 +32,8 @@ export class DashboardServer implements DashboardAdapter {
 
   constructor(
     private config: OpenCSConfig,
-    private db: Database
+    private db: Database,
+    private gateway?: Gateway
   ) {
     this.loadNumbers();
     this.wss = new WebSocketServer({ noServer: true });
@@ -208,22 +210,23 @@ export class DashboardServer implements DashboardAdapter {
 
       // ── Approval Queue ────────────────────────────────────
 
-      case 'get:approval-pending':
-        // TODO: Wire to Gateway.getApprovalQueue().getPending()
-        ws.send(JSON.stringify({ type: 'approval:list', requests: [] }));
+      case 'get:approval-pending': {
+        const pending = this.gateway?.getApprovalQueue().getPending() || [];
+        ws.send(JSON.stringify({ type: 'approval:list', requests: pending }));
         break;
+      }
 
       case 'approval:approve': {
         const { id, note } = msg;
-        // TODO: Wire to Gateway.getApprovalQueue().approve(id, 'dashboard', note)
-        ws.send(JSON.stringify({ type: 'approval:updated', id, status: 'approved', note }));
+        const ok = this.gateway?.getApprovalQueue().approve(id, 'dashboard', note) ?? false;
+        ws.send(JSON.stringify({ type: 'approval:updated', id, status: ok ? 'approved' : 'not_found', note }));
         break;
       }
 
       case 'approval:reject': {
         const { id: rejId, reason } = msg;
-        // TODO: Wire to Gateway.getApprovalQueue().reject(id, 'dashboard', reason)
-        ws.send(JSON.stringify({ type: 'approval:updated', id: rejId, status: 'rejected', reason }));
+        const ok = this.gateway?.getApprovalQueue().reject(rejId, 'dashboard', reason) ?? false;
+        ws.send(JSON.stringify({ type: 'approval:updated', id: rejId, status: ok ? 'rejected' : 'not_found', reason }));
         break;
       }
     }
@@ -459,22 +462,22 @@ export class DashboardServer implements DashboardAdapter {
     // For now, they return empty/default data; real impl needs gateway reference
 
     this.app.get('/api/approval/pending', (_req, res) => {
-      // TODO: Wire to Gateway.getApprovalQueue().getPending()
-      res.json({ requests: [] });
+      const pending = this.gateway?.getApprovalQueue().getPending() || [];
+      res.json({ requests: pending });
     });
 
     this.app.post('/api/approval/:id/approve', (req, res) => {
       const { id } = req.params;
       const note = req.body?.note || '';
-      // TODO: Wire to Gateway.getApprovalQueue().approve(id, 'dashboard', note)
-      res.json({ success: true, id, action: 'approved', note });
+      const ok = this.gateway?.getApprovalQueue().approve(id, 'dashboard', note) ?? false;
+      res.json({ success: ok, id, action: 'approved', note });
     });
 
     this.app.post('/api/approval/:id/reject', (req, res) => {
       const { id } = req.params;
       const reason = req.body?.reason || '';
-      // TODO: Wire to Gateway.getApprovalQueue().reject(id, 'dashboard', reason)
-      res.json({ success: true, id, action: 'rejected', reason });
+      const ok = this.gateway?.getApprovalQueue().reject(id, 'dashboard', reason) ?? false;
+      res.json({ success: ok, id, action: 'rejected', reason });
     });
 
     // Serve static files in production
@@ -546,6 +549,10 @@ export class DashboardServer implements DashboardAdapter {
 
   getNumbers(): WhatsAppNumberConfig[] {
     return this.numbers;
+  }
+
+  setGateway(gateway: Gateway): void {
+    this.gateway = gateway;
   }
 
   broadcast(event: GatewayEvent): void {

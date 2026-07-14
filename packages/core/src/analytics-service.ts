@@ -242,9 +242,7 @@ export class AnalyticsService {
    * Get top contacts by message count
    */
   private getTopContacts(limit: number): { name: string; messages: number }[] {
-    // This would need a proper query in production
-    // For now, return empty
-    return [];
+    return this.db.getTopContactsByMessageCount(limit);
   }
 
   /**

@@ -116,6 +116,11 @@ program
       // Create Gateway
       const gateway = new Gateway(config, db, whatsapp, dashboard, extraTools);
 
+      // Wire dashboard to gateway (for approval queue)
+      if (dashboard && typeof dashboard.setGateway === 'function') {
+        dashboard.setGateway(gateway);
+      }
+
       // Handle graceful shutdown
       const shutdown = async () => {
         console.log(color.yellow('\n⏳ Shutting down WAGENT...'));
@@ -1126,6 +1131,113 @@ skillCmd
       console.log(color.red(`✗ Skill "${name}" tidak ditemukan.`));
     }
     console.log('');
+  });
+
+// ── mcp ──────────────────────────────────────────────────────
+
+const mcpCmd = program.command('mcp').description('🔌 Kelola MCP (Model Context Protocol) servers');
+
+mcpCmd
+  .command('list')
+  .description('Tampilkan MCP servers yang terkonfigurasi')
+  .action(async () => {
+    const config = loadConfig();
+    const mcpServers = (config as any).mcpServers || [];
+
+    console.log('');
+    console.log(color.bold('🔌 WAGENT MCP Servers'));
+    console.log('──────────────────────────');
+
+    if (mcpServers.length === 0) {
+      console.log(color.dim('  Tidak ada MCP server terkonfigurasi.'));
+      console.log(color.dim('  Tambahkan di .env:'));
+      console.log(color.dim('    MCP_SERVERS=[{"name":"mysql","command":"npx","args":["mysql-mcp-server"]}]'));
+      console.log('');
+      return;
+    }
+
+    for (const server of mcpServers) {
+      console.log(`  ${color.cyan(server.name || 'unnamed')}`);
+      console.log(`    Command: ${color.green(server.command)} ${(server.args || []).join(' ')}`);
+      if (server.env) console.log(`    Env: ${Object.keys(server.env).join(', ')}`);
+      console.log('');
+    }
+
+    console.log(color.dim(`  Total: ${mcpServers.length} servers`));
+    console.log('');
+  });
+
+mcpCmd
+  .command('test')
+  .description('Test koneksi ke MCP server')
+  .argument('[name]', 'Nama server (default: semua)')
+  .action(async (serverName?: string) => {
+    const { MCPClient } = await import('@wagent/core');
+    const config = loadConfig();
+    const mcpServers = (config as any).mcpServers || [];
+
+    if (mcpServers.length === 0) {
+      console.log(color.red('✗ Tidak ada MCP server terkonfigurasi.'));
+      return;
+    }
+
+    const client = new MCPClient();
+    const servers = serverName
+      ? mcpServers.filter((s: any) => s.name === serverName)
+      : mcpServers;
+
+    for (const server of servers) {
+      console.log(`\n  Connecting to ${color.cyan(server.name)}...`);
+      const ok = await client.connect(server);
+      if (ok) {
+        console.log(color.green(`  ✓ Connected to ${server.name}`));
+        const tools = client.listServers().find(s => s.name === server.name);
+        console.log(`    Tools: ${tools?.tools.join(', ') || 'none'}`);
+      } else {
+        console.log(color.red(`  ✗ Failed to connect to ${server.name}`));
+      }
+    }
+
+    await client.disconnectAll();
+    console.log('');
+  });
+
+mcpCmd
+  .command('expose')
+  .description('Expose WAGENT tools via MCP server')
+  .option('-p, --port <port>', 'HTTP port', '3001')
+  .option('--stdio', 'Use stdio transport (for local usage)')
+  .action(async (opts) => {
+    const { MCPServer, SkillLoader, loadConfig } = await import('@wagent/core');
+    const config = loadConfig();
+    const SKILLS_DIR = join(process.cwd(), 'skills');
+
+    // Load tools from skills
+    const loader = new SkillLoader(SKILLS_DIR);
+    await loader.loadAll();
+    const tools = loader.getTools();
+
+    if (tools.length === 0) {
+      console.log(color.red('✗ Tidak ada tools untuk di-expose.'));
+      return;
+    }
+
+    console.log(`\n  Exposing ${color.green(String(tools.length))} tools via MCP...`);
+
+    const server = new MCPServer({
+      name: 'wagent',
+      version: '1.0.0',
+      tools,
+    });
+
+    if (opts.stdio) {
+      console.log(color.dim('  Starting on stdio...'));
+      await server.startStdio();
+    } else {
+      const port = parseInt(opts.port) || 3001;
+      console.log(color.dim(`  Starting on HTTP port ${port}...`));
+      await server.startHTTP(port);
+    }
   });
 
 // ── Parse args ──────────────────────────────────────────────────
