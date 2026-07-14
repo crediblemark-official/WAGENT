@@ -104,7 +104,7 @@ describe('loadConfig — defaults', () => {
     expect(config.whatsappSessionName).toBe('wagent-session');
     expect(config.whatsappSessionDir).toContain('.sessions');
     expect(config.aiProvider).toBe('openai');
-    expect(config.systemPrompt).toContain('Kamu adalah customer service AI');
+    expect(config.systemPrompt).toContain('customer-service-ai');
     expect(config.welcomeMessage).toContain('Halo');
     expect(config.welcomeMessageEnabled).toBe(true);
     expect(config.conversationTimeoutHours).toBe(24);
