@@ -1,6 +1,6 @@
-# 🤖 WAGENT — WhatsApp AI Agent
+# 🤖 WAGENT — WhatsApp AI Agent Platform
 
-**Open-source, self-hosted, multi-AI WhatsApp chatbot untuk customer service otomatis.**
+**Open-source, self-hosted, multi-AI WhatsApp agent untuk bisnis apapun.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Bun](https://img.shields.io/badge/Bun-%3E%3D1.0-f5e0ac)](https://bun.sh)
@@ -9,150 +9,242 @@
 
 ---
 
-## ✨ Fitur Unggulan
+## 🎯 Apa itu WAGENT?
 
-### v1.0 (Current)
+WAGENT bukan cuma chatbot CS. Ini adalah **platform WhatsApp AI Agent** yang bisa:
+
+- 💬 **Jawab pertanyaan** — FAQ, produk, harga, stok
+- 🛒 **Terima pesanan** — dari chat langsung ke sistem
+- 🚚 **Hitung ongkir** — integrasi 17+ shipping provider
+- 💰 **Proses pembayaran** — Midtrans, Xendit, transfer, COD
+- 🔌 **Konek ke sistem existing** — POS, Shopee, Tokopedia via MCP
+- 🧠 **Belajar** — adaptif dengan gaya bicara customer
+
+---
+
+## ✨ Fitur
+
+### Core
 | Fitur | Deskripsi |
 |-------|-----------|
 | 🧠 **Multi-AI Provider** | OpenAI, Gemini, Claude, atau Ollama (local) |
-| 📚 **RAG Knowledge Base** | Semantic search dengan Gemini embeddings untuk jawaban akurat |
-| 👥 **Multi-Number WhatsApp** | Kelola banyak nomor WhatsApp dari satu instance |
+| 📚 **RAG Knowledge Base** | Semantic search + FTS5 untuk jawaban akurat |
+| 👥 **Multi-Number WhatsApp** | Kelola banyak nomor dari satu instance |
 | 🤝 **Human Takeover** | AI otomatis berhenti ketika human agent membalas |
 | 🚨 **Telegram Escalation** | Notifikasi ke Telegram ketika AI tidak bisa menjawab |
 | 🎤 **Voice Transcription** | Transkripsi pesan suara via Whisper atau Gemini |
 | 🔐 **Encryption at-rest** | AES-256-GCM enkripsi data sensitif |
-| 🧩 **Plugin System** | Skills untuk menambah kemampuan AI |
 | ⏰ **Scheduled Messages** | Kirim pesan terjadwal (daily/weekly/monthly) |
-| 🏢 **Jam Operasional** | Konfigurasi jam kerja dengan timezone |
-| 🐌 **Natural Behavior** | Typing delay, read receipts, presence — seperti manusia |
-| 🚀 **Self-Hosted** | Semua data di server sendiri, zero third-party |
+| 🐌 **Natural Behavior** | Typing delay, read receipts — seperti manusia |
 
-### v2.0 (Planning)
+### Business
 | Fitur | Deskripsi |
 |-------|-----------|
-| 🎭 **Per-Contact Style** | Formal/bisnis, casual/friends, family, romantic — berbeda per kontak |
-| 🧠 **Memory System** | Short-term (JSONL) + Long-term (Markdown) — seperti manusia |
-| ⏰ **Proactive Actions** | Scheduled messaging, reminders, auto follow-up |
-| 📱 **Control Plane** | Telegram bot (primary), WA self-chat, Web Dashboard |
-| 🔄 **Adaptive Learning** | Belajar dari gaya bicara user dan koreksi |
-| 🛠️ **Tool Sandbox** | Safe shell, HTTP requests, file ops, web scraping |
-| 📁 **Flexible RAG** | Upload apapun (.md, .txt, .csv) → langsung searchable |
+| 🛒 **Order Management** | Buat & kelola pesanan dari WhatsApp |
+| 📦 **Product Catalog** | Kelola produk, stok, harga |
+| 🚚 **Shipping Integration** | 17+ kurir (JNE, J&T, SiCepat, dll) |
+| 💳 **Payment Gateway** | Midtrans, Xendit, Transfer, COD |
+| 📊 **Analytics** | Response time, CSAT, top contacts |
 
-Lihat [PLAN.md](./PLAN.md) untuk detail lengkap.
+### Integration
+| Fitur | Deskripsi |
+|-------|-----------|
+| 🔌 **MCP Support** | Model Context Protocol — konek ke sistem apapun |
+| 🧩 **Skill System** | Plugin untuk extensibilitas |
+| 🌐 **Web Scraper** | Cari info dari internet |
+| 📱 **Dashboard** | Web UI untuk monitoring & management |
 
 ---
 
-## 🏗️ Quick Start
+## 🚀 Quick Start
 
 ### Prasyarat
 
-- **Bun** ≥ 1.0 (runtime & package manager)
+- **Bun** ≥ 1.0
 - Akun **WhatsApp** (nomor bisnis)
-- API key salah satu AI provider
+- API key AI provider (Gemini gratis)
 
-### 1. Clone & Install
+### Install
 
 ```bash
-git clone https://github.com/yourusername/wagent.git
-cd wagent
+git clone https://github.com/crediblemark-official/WAGENT.git
+cd WAGENT
 bun install
 bun run build
 ```
 
-### 2. Setup
+### Setup
 
 ```bash
 ./bin/wagent init              # Setup wizard interaktif
 ```
 
-Atau manual — buat `.env` di root project:
+Atau buat `.env`:
 
 ```env
 AI_PROVIDER=gemini
 GEMINI_API_KEY=your_api_key_here
-GEMINI_MODEL=gemini-2.0-flash
-DATABASE_TYPE=sqlite
-DATABASE_URL=data/wagent.db
-DASHBOARD_PORT=3030
+AGENT_SYSTEM_PROMPT="Kamu adalah asisten bisnis yang membantu."
 ```
 
-### 3. Start
+### Start
 
 ```bash
 ./bin/wagent start
 ```
 
-Scan QR code WhatsApp yang muncul di terminal. Selesai!
+Scan QR code WhatsApp. Selesai!
 
-### Global Command (opsional)
+---
 
-Biar bisa panggil `wagent` dari mana saja tanpa `./bin/`:
+## 💡 Use Cases
+
+### 🏪 Toko Online / E-Commerce
+```bash
+# Upload katalog produk
+./bin/wagent kb upload products.csv
+
+# Customer tanya: "Baju A ada warna apa?"
+# AI search KB → jawab otomatis
+
+# Customer tanya: "Ongkir ke Bandung?"
+# AI hitung ongkir via RajaOngkir → jawab
+
+# Customer: "Mau order 2 pcs"
+# AI buat order → approval via Telegram
+```
+
+### 🏢 Service Business (Salon, Klinik, etc)
+```bash
+# Upload daftar harga & layanan
+./bin/wagent kb upload services.md
+
+# Customer: "Berapa facial?"
+# AI jawab dari KB
+
+# Customer: "Mau booking jam 3"
+# AI catat → kirim notifikasi ke Telegram
+```
+
+### 🏭 B2B / Distributor
+```bash
+# Konek ke POS yang sudah ada via MCP
+./bin/wagent mcp connect pos-server
+
+# Customer: "Stok barang A berapa?"
+# AI query POS via MCP → jawab
+
+# Customer: "Buat PO 100 unit"
+# AI buat order di POS → approval
+```
+
+### 🤖 AI Agent untuk Apapun
+```bash
+# Buat skill custom
+cat > skills/my-skill.js << 'EOF'
+export default () => ({
+  manifest: { name: 'my-skill', version: '1.0.0', description: 'Custom skill' },
+  tools: [{
+    name: 'my_tool',
+    description: 'My custom tool',
+    parameters: { type: 'object', properties: {} },
+    handler: async () => JSON.stringify({ result: 'Hello!' }),
+  }],
+});
+EOF
+
+# Skill langsung ter-load
+./bin/wagent start
+```
+
+---
+
+## 📦 Skills / Integrasi
+
+WAGENT mendukung integrasi via **Skills** (plugins):
+
+### Shipping (17+ Provider)
+- **Aggregator:** RajaOngkir, Shipper, Biteship, KiriminAja, Popaket, Autokirim, APIKurir
+- **Kurir:** JNE, J&T, SiCepat, AnterAja, TIKI, POS, Lion, Ninja Van, Grab
+
+### Payment
+- **Gateway:** Midtrans, Xendit
+- **Manual:** Transfer Bank, COD, E-Wallet
+
+### POS / E-Commerce
+- Shopee, Tokopedia, WooCommerce
+- Custom POS via REST API
+
+### MCP (Model Context Protocol)
+- Database: MySQL, PostgreSQL, MongoDB
+- File System
+- Custom API
+
+Lihat [Dokumentasi Skills](./docs/skills.md) untuk detail.
+
+---
+
+## 🔌 MCP (Model Context Protocol)
+
+WAGENT mendukung MCP untuk konek ke sistem eksternal:
 
 ```bash
-export PATH="$PWD/bin:$PATH"       # temporary
-# atau
-echo 'export PATH="/path/to/wagent/bin:$PATH"' >> ~/.bashrc  # permanent
+# Connect ke MySQL via MCP
+./bin/wagent mcp connect mysql-server
+
+# Expose WAGENT tools ke AI lain
+./bin/wagent mcp expose --stdio
+./bin/wagent mcp expose --port 3001
 ```
 
-### Commands
+---
+
+## 📋 Commands
 
 ```bash
-wagent init                  # Setup wizard
-wagent start                 # Start dengan dashboard
-wagent start --no-dashboard  # Start tanpa dashboard
-wagent status                # Cek status WhatsApp
-wagent config                # Lihat konfigurasi
-wagent log                   # Lihat log terbaru
-wagent kb list               # List knowledge base
-wagent kb add                # Tambah KB entry
-wagent kb search "query"     # Cari di KB
-wagent kb upload <file>      # Upload file ke KB
-wagent help                  # Semua commands
+# Core
+./bin/wagent init                  # Setup wizard
+./bin/wagent start                 # Start agent
+./bin/wagent status                # Cek status
+./bin/wagent config                # Lihat config
+
+# Knowledge Base
+./bin/wagent kb list               # List KB
+./bin/wagent kb upload <file>      # Upload file
+./bin/wagent kb search "query"     # Search KB
+
+# Skills
+./bin/wagent skill list            # List skills
+./bin/wagent skill install <path>  # Install skill
+
+# MCP
+./bin/wagent mcp list              # List MCP servers
+./bin/wagent mcp test              # Test connections
+./bin/wagent mcp expose            # Expose tools
 ```
 
 ---
 
-## 🔧 Konfigurasi Cepat
+## 🛠️ Tech Stack
 
-Buat file `.env` di root project:
-
-```env
-# Pilih AI Provider (openai / gemini / claude / ollama)
-AI_PROVIDER=gemini
-
-# Google Gemini (gratis — recommended untuk testing)
-GEMINI_API_KEY=your_gemini_api_key
-GEMINI_MODEL=gemini-2.0-flash
-
-# Atau OpenAI
-# OPENAI_API_KEY=sk-...
-# OPENAI_MODEL=gpt-4o
-
-# System Prompt
-AGENT_SYSTEM_PROMPT="Kamu adalah customer service yang ramah dan membantu."
+```
+Runtime      │ Bun ≥1.0 (ESM)
+Language     │ TypeScript 5.7
+Database     │ bun:sqlite (SQLite + WAL + FTS5)
+AI Providers │ OpenAI / Gemini / Claude / Ollama
+Embeddings   │ Gemini text-embedding-004 (768d)
+WhatsApp     │ @whiskeysockets/baileys
+CLI          │ Commander.js + picocolors
+Dashboard    │ React 19 + Vite + Express + WebSocket
+MCP          │ @modelcontextprotocol/sdk v2
+Encryption   │ AES-256-GCM (Node crypto)
+Logging      │ Pino structured logger
+Testing      │ Vitest + coverage v8
 ```
 
-Lihat [Dokumentasi Konfigurasi Lengkap](./docs/configuration.md) untuk semua opsi.
-
 ---
 
-## 📖 Dokumentasi Lengkap
-
-| Dokumen | Deskripsi |
-|---------|-----------|
-| [📘 Getting Started](./docs/getting-started.md) | Instalasi detail, setup, first run |
-| [⚙️ Configuration](./docs/configuration.md) | Semua env vars, AI provider setup |
-| [🏛️ Architecture](./docs/architecture.md) | System design, component diagram |
-| [📟 CLI Commands](./docs/cli-commands.md) | Semua perintah CLI dengan contoh |
-| [📚 Knowledge Base](./docs/knowledge-base.md) | KB management + RAG semantic search |
-| [🧩 Skills / Plugin](./docs/skills.md) | Cara membuat dan install skills |
-| [🔐 Encryption](./docs/encryption.md) | AES-256-GCM data protection |
-| [🚨 Escalation](./docs/escalation.md) | Telegram escalation setup |
-| [📋 PRD](./PRD.md) | Product Requirements Document |
-
----
-
-## 🧪 Test Coverage
+## 📊 Test Coverage
 
 ```bash
 cd packages/core
@@ -164,78 +256,53 @@ bun test --coverage
 | **Lines** | **~83%** 🟢 |
 | **Branches** | **~81%** 🟢 |
 | **Functions** | **~91%** 🟢 |
-| **Tests** | **712** ✅ |
+| **Tests** | **712+** ✅ |
 
 ---
 
-## 🚀 Use Case
+## 📖 Dokumentasi
 
-### UKM / Toko Online
-- Jawab FAQ otomatis (ongkir, retur, status pesanan)
-- Jam operasional terbatas (otomatis offline di luar jam)
-- Eskalasi ke CS via Telegram jika AI tidak bisa menjawab
-- Multi-nomor untuk CS 1, CS 2, dll
-
-### Agency / Developer
-- White-label untuk klien
-- Custom skills dengan plugin system
-- Dashboard real-time monitoring
-- Encryption untuk kepatuhan data
-
-### Enterprise (v1.0)
-- Team management
-- Advanced analytics
-- Postgres support
-- Docker / Kubernetes deployment
-
----
-
-## 🛠️ Tech Stack
-
-```
-Runtime      │ Bun ≥1.0 (ESM)
-Language     │ TypeScript 5.7
-Database     │ bun:sqlite (SQLite + WAL)
-AI Providers │ OpenAI / Gemini / Claude / Ollama
-Embeddings   │ Gemini text-embedding-004 (768d)
-WhatsApp     │ @whiskeysockets/baileys
-CLI          │ Commander.js + picocolors
-Dashboard    │ React 19 + Vite + Express + WebSocket
-Encryption   │ AES-256-GCM (Node crypto)
-Logging      │ Pino structured logger
-Testing      │ Vitest + coverage v8
-```
+| Dokumen | Deskripsi |
+|---------|-----------|
+| [📘 Getting Started](./docs/getting-started.md) | Instalasi & setup |
+| [⚙️ Configuration](./docs/configuration.md) | Semua env vars |
+| [🏗️ Architecture](./docs/architecture.md) | System design |
+| [📟 CLI Commands](./docs/cli-commands.md) | Semua commands |
+| [📚 Knowledge Base](./docs/knowledge-base.md) | KB + RAG |
+| [🧩 Skills](./docs/skills.md) | Plugin system |
+| [🔌 MCP](./docs/mcp.md) | Model Context Protocol |
+| [🔐 Encryption](./docs/encryption.md) | Data protection |
+| [🚨 Escalation](./docs/escalation.md) | Telegram setup |
 
 ---
 
 ## 🤝 Kontribusi
 
-Kami menyambut kontribusi dari siapa pun! Beberapa cara untuk berkontribusi:
-
 1. **Coding:** Buka issue, fork, buat PR
-2. **Testing:** Coba install dan laporkan bugs
-3. **Dokumentasi:** Bantu perbaiki docs
-4. **Ide:** Share use case dan feature request
+2. **Testing:** Coba install, laporkan bugs
+3. **Skills:** Buat skill baru untuk integrasi
+4. **Dokumentasi:** Bantu perbaiki docs
 
-Lihat [CONTRIBUTING.md](CONTRIBUTING.md) untuk panduan kontribusi.
+Lihat [CONTRIBUTING.md](CONTRIBUTING.md) untuk panduan.
 
 ---
 
 ## 📄 Lisensi
 
-WAGENT dirilis di bawah lisensi **MIT**. Silakan gunakan, modifikasi, dan distribusikan secara bebas.
+WAGENT dirilis di bawah lisensi **MIT**.
 
 ---
 
 ## 🙏 Kredit
 
-- [@whiskeysockets/baileys](https://github.com/WhiskeySockets/Baileys) — Library WhatsApp Web
+- [@whiskeysockets/baileys](https://github.com/WhiskeySockets/Baileys) — WhatsApp Web library
+- [Model Context Protocol](https://modelcontextprotocol.io) — Standard for AI integrations
 - [OpenAI](https://openai.com), [Google Gemini](https://ai.google.dev), [Anthropic Claude](https://anthropic.com), [Ollama](https://ollama.ai) — AI Providers
 - [Bun](https://bun.sh) — Runtime & SQLite engine
-- Semua kontributor open-source yang membuat proyek ini mungkin
+- Semua kontributor open-source
 
 ---
 
 <div align="center">
-  <sub>Dibuat dengan ❤️ untuk customer service Indonesia yang lebih baik</sub>
+  <sub>Dibuat dengan ❤️ untuk bisnis Indonesia yang lebih cerdas</sub>
 </div>
