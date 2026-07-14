@@ -39,6 +39,14 @@ interface ProviderData {
   env?: string[];
   api?: string;
   doc?: string;
+  models?: { [modelId: string]: ModelData };
+}
+
+export interface ModelData {
+  id: string;
+  name: string;
+  description?: string;
+  family?: string;
 }
 
 interface CatalogCache {
@@ -233,6 +241,7 @@ async function refreshCatalog(): Promise<void> {
         env: providerData.env,
         api: providerData.api,
         doc: providerData.doc,
+        models: providerData.models,
       };
     }
     
@@ -267,4 +276,26 @@ function saveCache(data: CatalogCache): void {
 export async function refreshModelCatalog(): Promise<void> {
   cache = null;
   await refreshCatalog();
+}
+
+/**
+ * Dapatkan semua model yang tersedia di catalog
+ */
+export async function getAllModels(): Promise<{ id: string; name: string; provider: string }[]> {
+  const catalog = await loadCatalog();
+  const result: { id: string; name: string; provider: string }[] = [];
+  
+  for (const [providerId, provider] of Object.entries(catalog.providers)) {
+    if (provider.models) {
+      for (const [modelId, model] of Object.entries(provider.models)) {
+        result.push({
+          id: `${providerId}/${modelId}`,
+          name: model.name || modelId,
+          provider: providerId,
+        });
+      }
+    }
+  }
+  
+  return result;
 }
