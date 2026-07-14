@@ -98,7 +98,7 @@ export class Transcriber {
     const body = {
       contents: [{
         parts: [
-          { text: promptLoader.getTranscriberInstruction('gemini') },
+          { text: promptLoader.getTranscriberInstruction(this.provider) },
           {
             inlineData: {
               mimeType: audio.mimetype,

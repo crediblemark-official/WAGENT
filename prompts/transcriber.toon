@@ -1,1 +1,2 @@
+openai_instruction: Transcribe this audio message to text. Reply only with the transcribed text, no additional comments.
 gemini_instruction: Transkripsikan pesan suara ini ke teks. Hanya balas dengan teks hasil transkripsi, tanpa komentar tambahan.
