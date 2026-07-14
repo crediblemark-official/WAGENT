@@ -22,11 +22,45 @@ fi
 
 echo "✓ Bun $(bun --version)"
 
-# ── Clone ──────────────────────────────────────────────────────
+# ── Clone atau Update ──────────────────────────────────────────
 if [ -d "$INSTALL_DIR" ]; then
-  echo "⚠️  WAGENT already installed at $INSTALL_DIR"
-  echo "   Run 'rm -rf $INSTALL_DIR $WAGENT_BIN' to remove it first."
-  exit 1
+  echo "✓ WAGENT sudah terinstall di $INSTALL_DIR"
+
+  # Cek versi lokal vs remote
+  LOCAL_VERSION="$(cat "$INSTALL_DIR/package.json" 2>/dev/null | grep '"version"' | head -1 | sed 's/.*"version": *"\([^"]*\)".*/\1/' || echo 'unknown')"
+  echo "  Versi lokal  : v$LOCAL_VERSION"
+
+  cd "$INSTALL_DIR"
+  git fetch origin main --quiet 2>/dev/null || true
+
+  LOCAL_COMMIT="$(git rev-parse HEAD 2>/dev/null || echo '')"
+  REMOTE_COMMIT="$(git rev-parse origin/main 2>/dev/null || echo '')"
+
+  if [ -z "$LOCAL_COMMIT" ] || [ -z "$REMOTE_COMMIT" ]; then
+    echo "⚠️  Tidak bisa cek versi remote. Jalankan 'wagent update' secara manual."
+    exit 1
+  fi
+
+  if [ "$LOCAL_COMMIT" = "$REMOTE_COMMIT" ]; then
+    REMOTE_VERSION="$(git show origin/main:package.json 2>/dev/null | grep '"version"' | head -1 | sed 's/.*"version": *"\([^"]*\)".*/\1/' || echo "$LOCAL_VERSION")"
+    echo "  Versi remote : v$REMOTE_VERSION"
+    echo ""
+    echo "✅ WAGENT sudah up-to-date! (v$LOCAL_VERSION)"
+    echo ""
+    echo "  Start:  wagent start"
+    echo "  Update: wagent update"
+    echo "  Help:   wagent --help"
+    echo ""
+    exit 0
+  fi
+
+  REMOTE_VERSION="$(git show origin/main:package.json 2>/dev/null | grep '"version"' | head -1 | sed 's/.*"version": *"\([^"]*\)".*/\1/' || echo 'latest')"
+  echo "  Versi remote : v$REMOTE_VERSION"
+  echo ""
+  echo "🆕 Ada versi baru! Menjalankan update otomatis..."
+  echo ""
+  bash "$INSTALL_DIR/update.sh"
+  exit 0
 fi
 
 echo "📥 Cloning WAGENT..."

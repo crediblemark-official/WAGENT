@@ -26,7 +26,19 @@ const program = new Command();
 program
   .name('wagent')
   .description('🤖 WAGENT - WhatsApp AI Agent')
-  .version(pkg.version);
+  .version(
+    [
+      '',
+      color.bold(color.cyan('🤖 WAGENT - WhatsApp AI Agent')),
+      `  Versi    : ${color.green('v' + pkg.version)}`,
+      `  Runtime  : Bun ${process.versions.bun || 'unknown'} / Node ${process.version}`,
+      `  Platform : ${process.platform} ${process.arch}`,
+      `  Install  : ${color.dim(join(process.execPath, '../..'))}`,
+      '',
+    ].join('\n'),
+    '-v, --version',
+    'Tampilkan versi WAGENT'
+  );
 
 // ── init ────────────────────────────────────────────────────────
 
@@ -62,12 +74,25 @@ program
     console.log(color.bold(color.cyan('╔══════════════════════════════════════╗')));
     console.log(color.bold(color.cyan('║      🤖 WAGENT WhatsApp AI Agent     ║')));
     console.log(color.bold(color.cyan('╚══════════════════════════════════════╝')));
+    console.log(`  Versi   : ${color.green('v' + pkg.version)}`);
+    console.log(`  Runtime : Bun ${process.versions.bun || process.version}`);
     console.log('');
 
     const config = await await loadConfig();
     ensureDirectories(config);
 
     const logger = getLogger();
+
+    // Log konfigurasi aktif
+    const modelInfo = config.resolvedModel
+      ? `${config.resolvedModel.provider} / ${config.resolvedModel.model}`
+      : config.aiProvider;
+    logger.info({ version: pkg.version, provider: modelInfo }, 'WAGENT starting');
+    console.log(`  AI Model: ${color.yellow(modelInfo)}`);
+    if (config.dashboardPort && options.dashboard !== false) {
+      console.log(`  Dashboard: http://localhost:${config.dashboardPort}`);
+    }
+    console.log('');
 
     // Override port from CLI
     if (options.port) {

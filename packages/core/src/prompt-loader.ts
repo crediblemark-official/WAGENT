@@ -50,7 +50,7 @@ export class PromptLoader {
       const content = readFileSync(filePath, 'utf-8').trim();
       const parsed = decode(content);
       this.cache.set(filename, parsed);
-      getLogger().info(`Loaded prompt file: ${filePath}`);
+      getLogger().debug(`Loaded prompt file: ${filePath}`);
       return parsed;
     } catch (error) {
       getLogger().error(`Failed to parse ${filename}: ${error}`);
