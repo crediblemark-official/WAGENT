@@ -198,6 +198,16 @@ export async function setupWizard(): Promise<void> {
   if (isCancel(session)) process.exit(0);
   config.session = session as string;
 
+  // Tawari scan QR WA sekarang
+  const scanNow = await confirm({
+    message: 'Scan QR WhatsApp sekarang? (bisa juga dilakukan otomatis saat service start)',
+    initialValue: true,
+  }) as boolean;
+
+  if (!isCancel(scanNow) && scanNow) {
+    await scanWhatsAppQR(config.session);
+  }
+
   // ── Step 5: Welcome Message ─────────────────────────────────────
   const welcomeMessage = await text({
     message: 'Welcome message untuk chat baru:',
@@ -359,110 +369,123 @@ async function scanWhatsAppQR(sessionName: string): Promise<void> {
   try {
     const { join, dirname, resolve } = await import('path');
     const { fileURLToPath } = await import('url');
-    const { rmSync, existsSync } = await import('fs');
-    const qrcode = await import('qrcode-terminal') as any;
+    const { writeFileSync, existsSync, rmSync } = await import('fs');
 
-    // Resolve baileys dari whatsapp package
     const tuiDir = dirname(fileURLToPath(import.meta.url));
-    const baileysPath = resolve(tuiDir, '../../whatsapp/node_modules/@whiskeysockets/baileys/lib/index.js');
-    const { default: makeWASocket, useMultiFileAuthState } =
-      await import(baileysPath) as any;
-
-    // Session dir sama persis dengan yang dipakai core/config.ts → join(cwd, '.sessions')
     const sessionDir = join(process.cwd(), '.sessions', sessionName);
 
-    const s = spinner();
+    // Create a Node.js script for QR scan (Bun WebSocket doesn't support Baileys)
+    const scriptPath = join(tuiDir, '_qr-scan.mjs');
+    const baileysPath = resolve(tuiDir, '../../whatsapp/node_modules/@whiskeysockets/baileys/lib/index.js');
 
-    // Fungsi koneksi — max 1x retry setelah session reset
-    const connectAndWait = async (retryCount = 0): Promise<void> => {
-      const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
+    const script = `
+import { makeWASocket, useMultiFileAuthState, DisconnectReason } from '${baileysPath}';
+import qrcode from 'qrcode-terminal';
+import { existsSync, rmSync } from 'fs';
 
-      return new Promise<void>((resolve) => {
-        let qrShown = false;
-        let resolved = false;
+const sessionDir = ${JSON.stringify(sessionDir)};
+let retryCount = 0;
 
-        const safeResolve = () => {
-          if (!resolved) {
-            resolved = true;
-            clearTimeout(timeout);
-            resolve();
-          }
-        };
+async function connect() {
+  const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
 
-        const timeout = setTimeout(() => {
-          console.log('');
-          console.log(color.yellow('  ⏱ Timeout — QR tidak di-scan dalam 2 menit.'));
-          console.log(color.dim('  Scan bisa dilakukan saat service pertama start.'));
-          sock.end(undefined);
-          safeResolve();
-        }, 120_000);
+  const sock = makeWASocket({
+    auth: state,
+    printQRInTerminal: false,
+    logger: { level: 'silent', info: () => {}, warn: () => {}, error: () => {}, debug: () => {}, trace: () => {}, fatal: () => {}, child: () => ({ level: 'silent', info: () => {}, warn: () => {}, error: () => {}, debug: () => {}, trace: () => {}, fatal: () => {}, child: () => ({}) }) },
+  });
 
-        const sock = makeWASocket({
-          auth: state,
-          printQRInTerminal: false,
-          logger: makeSilentLogger(),
-        });
+  sock.ev.on('creds.update', saveCreds);
 
-        sock.ev.on('creds.update', saveCreds);
+  sock.ev.on('connection.update', async (update) => {
+    const { connection, qr } = update;
 
-        sock.ev.on('connection.update', async (update: any) => {
-          if (resolved) return;
-          const { connection, qr } = update;
+    if (qr) {
+      console.log('');
+      qrcode.generate(qr, { small: true });
+      console.log('  Scan QR di atas dengan WhatsApp...');
+    }
 
-          if (qr) {
-            qrShown = true;
-            console.log('');
-            qrcode.generate(qr, { small: true });
-            console.log(color.dim('  Scan QR di atas dengan WhatsApp...'));
-          }
+    if (connection === 'open') {
+      if (existsSync(sessionDir)) {
+        // Save creds by ending gracefully
+        sock.end(undefined);
+      }
+      console.log(JSON.stringify({ status: 'connected' }));
+      process.exit(0);
+    }
 
-          if (connection === 'open') {
-            if (qrShown) {
-              s.start('Tersambung! Menyimpan session...');
-              await saveCreds();
-              s.stop(color.green('✔ Session WhatsApp tersimpan!'));
-            } else {
-              console.log(color.green('  ✔ WhatsApp sudah terhubung (session aktif).'));
-            }
-            sock.end(undefined);
-            safeResolve();
-          }
+    if (connection === 'close') {
+      const reason = update.lastDisconnect?.error?.output?.statusCode;
+      if (reason === DisconnectReason.loggedOut || retryCount > 0) {
+        if (existsSync(sessionDir)) rmSync(sessionDir, { recursive: true, force: true });
+        console.log(JSON.stringify({ status: 'reset' }));
+        process.exit(0);
+      }
+      retryCount++;
+      // Reset and retry
+      if (existsSync(sessionDir)) rmSync(sessionDir, { recursive: true, force: true });
+      console.log(JSON.stringify({ status: 'retrying' }));
+      setTimeout(connect, 1000);
+    }
+  });
+}
 
-          if (connection === 'close') {
-            if (!qrShown) {
-              sock.end(undefined);
+connect();
 
-              if (retryCount === 0) {
-                // Reset session lama, coba sekali lagi
-                if (existsSync(sessionDir)) {
-                  rmSync(sessionDir, { recursive: true, force: true });
-                }
-                console.log(color.yellow('  ⚠ Session tidak valid, direset. Memuat QR...'));
-                safeResolve();
-                // Retry after a short delay
-                setTimeout(() => {
-                  connectAndWait(1).then(resolve);
-                }, 2000);
-              } else {
-                // Sudah retry 1x → skip, service akan handle
-                console.log(color.dim('  Tidak bisa tampilkan QR sekarang. Scan saat service start.'));
-                safeResolve();
-              }
-            } else {
-              // QR sudah muncul tapi connection close — resolve saja
-              safeResolve();
-            }
-          }
-        });
+// Timeout after 2 minutes
+setTimeout(() => {
+  console.log(JSON.stringify({ status: 'timeout' }));
+  process.exit(0);
+}, 120_000);
+`;
+    writeFileSync(scriptPath, script);
+
+    // Spawn Node.js process (not Bun) — Baileys needs proper WebSocket
+    const { execSync } = await import('child_process');
+    let output = '';
+    try {
+      output = execSync(`node ${scriptPath}`, {
+        encoding: 'utf-8',
+        timeout: 130_000, // 2 min + buffer
+        stdio: ['pipe', 'pipe', 'pipe'],
       });
-    };
+    } catch (err: any) {
+      // execSync throws on non-zero exit, but our script outputs JSON before exit
+      output = err.stdout || '';
+      const stderr = err.stderr || '';
+      // If no JSON output, show error
+      if (!output.includes('"status"')) {
+        console.log(color.yellow(`  ⚠ QR scan error: ${stderr || err.message}`));
+        console.log(color.dim('  Scan bisa dilakukan saat service start.'));
+        return;
+      }
+    }
 
-    await connectAndWait();
+    // Parse result
+    const lastLine = output.trim().split('\n').pop() || '';
+    try {
+      const result = JSON.parse(lastLine);
+      if (result.status === 'connected') {
+        console.log(color.green('  ✔ Session WhatsApp tersimpan!'));
+      } else if (result.status === 'reset') {
+        console.log(color.dim('  Session direset. Jalankan wagent start untuk scan QR.'));
+      } else if (result.status === 'timeout') {
+        console.log(color.yellow('  ⏱ Timeout — QR tidak di-scan dalam 2 menit.'));
+        console.log(color.dim('  Scan bisa dilakukan saat service start.'));
+      } else {
+        console.log(color.dim('  Scan bisa dilakukan saat service start.'));
+      }
+    } catch {
+      console.log(color.dim('  Scan bisa dilakukan saat service start.'));
+    }
 
+    // Cleanup temp script
+    try { rmSync(scriptPath); } catch {}
 
   } catch (err: any) {
-    console.log(color.yellow(`  ⚠ Tidak bisa scan QR saat ini: ${err?.message || err}`));
-    console.log(color.dim('  Session akan dibuat saat service pertama kali dijalankan.'));
+    console.log(color.yellow(`  ⚠ Tidak bisa scan QR: ${err?.message || err}`));
+    console.log(color.dim('  Scan bisa dilakukan saat service start.'));
   }
 }
 
