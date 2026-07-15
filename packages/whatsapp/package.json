@@ -1,6 +1,6 @@
 {
   "name": "@crediblemark/whatsapp",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "WAGENT WhatsApp - Baileys integration",
   "type": "module",
   "main": "./dist/index.js",
