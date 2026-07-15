@@ -105,11 +105,11 @@ export async function startCommand(options: { port?: string; dashboard?: boolean
     let dashboard: any = undefined;
     if (options.dashboard !== false && config.dashboardPort) {
       try {
-        // Path relatif dari cli/dist/ → packages/dashboard/dist/server.js
+        // Path dari cli/dist/commands/start.js → naik 3 level ke packages/ lalu masuk dashboard
         const { resolve, dirname } = await import('path');
         const { fileURLToPath } = await import('url');
         const cliDistDir = dirname(fileURLToPath(import.meta.url));
-        const dashboardPath = resolve(cliDistDir, '../../dashboard/dist/server.js');
+        const dashboardPath = resolve(cliDistDir, '../../../dashboard/dist/server.js');
         const mod = await import(dashboardPath);
         const { DashboardServer } = mod;
         if (!DashboardServer) throw new Error('DashboardServer tidak ditemukan di modul');
@@ -118,6 +118,9 @@ export async function startCommand(options: { port?: string; dashboard?: boolean
         logger.warn('Dashboard module not available, running headless: %s', err?.message);
       }
     }
+
+    // Redam QR dari qrcode-terminal — kita tampilkan sendiri lewat event bus
+    process.env.WAGENT_DASHBOARD = '1';
 
     // Load skills untuk AI agent
     const skillLoader = new SkillLoader();
