@@ -5,7 +5,7 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['src/__tests__/**/*.test.ts'],
-    exclude: ['src/__tests__/storage.test.ts', 'src/__tests__/scheduler.test.ts', 'src/__tests__/e2e.test.ts', 'src/__tests__/gateway.test.ts', 'src/__tests__/knowledge-store.test.ts', 'src/__tests__/agent.test.ts'],
+    exclude: ['src/__tests__/e2e.test.ts'],
     testTimeout: 30000,
     hookTimeout: 30000,
     coverage: {
