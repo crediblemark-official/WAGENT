@@ -1,7 +1,10 @@
 import { readFileSync, existsSync } from 'fs';
-import { join } from 'path';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import { decode } from '@toon-format/toon';
 import { getLogger } from './logger.js';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 /**
  * PromptLoader loads and parses TOON prompt files.
