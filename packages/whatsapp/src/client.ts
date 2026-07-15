@@ -40,6 +40,16 @@ export class BaileysAdapter implements WhatsAppAdapter {
   private reconnectCount = 0;
   private lastQrTime = 0;
   private static readonly MAX_RECONNECT = 3;
+  private messageCache = new Map<string, any>();
+
+  private cacheMessage(id: string, message: any) {
+    if (!id || !message) return;
+    this.messageCache.set(id, message);
+    if (this.messageCache.size > 500) {
+      const firstKey = this.messageCache.keys().next().value;
+      if (firstKey) this.messageCache.delete(firstKey);
+    }
+  }
 
   constructor(config: WAgentConfig, numberId?: string) {
     this.numberId = numberId || 'default';
@@ -125,6 +135,16 @@ export class BaileysAdapter implements WhatsAppAdapter {
       browser: ['WAGENT', 'Chrome', '145.0'],
       syncFullHistory: false,
       markOnlineOnConnect: false,
+      getMessage: async (key) => {
+        if (key.id) {
+          const cached = this.messageCache.get(key.id);
+          if (cached) return cached;
+        }
+        // Fallback untuk memicu retry request agar negosiasi ulang session key berhasil
+        return {
+          conversation: 'WAGENT_RETRY_FALLBACK'
+        };
+      }
     });
 
     // Handle QR & connection updates
@@ -246,6 +266,11 @@ export class BaileysAdapter implements WhatsAppAdapter {
       for (const msg of upsert.messages) {
         const key = msg.key;
         if (!key || !key.remoteJid) continue;
+
+        // Cache raw message untuk keperluan retry dekripsi
+        if (key.id && msg.message) {
+          this.cacheMessage(key.id, msg.message);
+        }
 
         // Check for voice note first
         if (this.isVoiceNote(msg)) {
@@ -418,6 +443,10 @@ export class BaileysAdapter implements WhatsAppAdapter {
     }
 
     const sent = await this.sock.sendMessage(to, { text: content });
+
+    if (sent?.key?.id && sent.message) {
+      this.cacheMessage(sent.key.id, sent.message);
+    }
 
     return {
       id: sent?.key?.id || `${Date.now()}`,
