@@ -70,46 +70,41 @@ export function serviceInstall(): boolean {
   ];
   const templatePath = possibleTemplates.find(p => existsSync(p));
 
-  let serviceContent = '';
-  if (templatePath) {
-    serviceContent = readFileSync(templatePath, 'utf-8');
-  } else {
-    // Generate inline template dinamis
-    // Dapatkan path binary wagent yang sedang berjalan
-    let wagentBin = 'wagent';
-    try {
-      const whichResult = execSync('which wagent', { encoding: 'utf-8' }).trim();
-      if (whichResult) {
-        wagentBin = whichResult;
-      }
-    } catch {
-      // Fallback ke default global bun/npm path
-      wagentBin = join(home, '.bun', 'bin', 'wagent');
+  // Generate inline template dinamis secara langsung agar ExecStart adaptif
+  // Dapatkan path binary wagent aktual di sistem user
+  let wagentBin = 'wagent';
+  try {
+    const whichResult = execSync('which wagent', { encoding: 'utf-8' }).trim();
+    if (whichResult) {
+      wagentBin = whichResult;
     }
-
-    serviceContent = [
-      '[Unit]',
-      'Description=WAGENT WhatsApp AI Agent',
-      'After=network-online.target',
-      'Wants=network-online.target',
-      '',
-      '[Service]',
-      'Type=simple',
-      'WorkingDirectory=%h',
-      `ExecStart=${wagentBin} start`,
-      'Restart=on-failure',
-      'RestartSec=10',
-      'StandardOutput=journal',
-      'StandardError=journal',
-      'Environment=HOME=%h',
-      'Environment=NVM_DIR=%h/.nvm',
-      'Environment=PATH=%h/.local/bin:%h/.bun/bin:/usr/local/bin:/usr/bin:/bin',
-      '',
-      '[Install]',
-      'WantedBy=default.target',
-      ''
-    ].join('\n');
+  } catch {
+    // Fallback ke default global bun/npm path
+    wagentBin = join(home, '.bun', 'bin', 'wagent');
   }
+
+  const serviceContent = [
+    '[Unit]',
+    'Description=WAGENT WhatsApp AI Agent',
+    'After=network-online.target',
+    'Wants=network-online.target',
+    '',
+    '[Service]',
+    'Type=simple',
+    'WorkingDirectory=%h',
+    `ExecStart=${wagentBin} start`,
+    'Restart=on-failure',
+    'RestartSec=10',
+    'StandardOutput=journal',
+    'StandardError=journal',
+    'Environment=HOME=%h',
+    'Environment=NVM_DIR=%h/.nvm',
+    'Environment=PATH=%h/.local/bin:%h/.bun/bin:/usr/local/bin:/usr/bin:/bin',
+    '',
+    '[Install]',
+    'WantedBy=default.target',
+    ''
+  ].join('\n');
 
   try {
     mkdirSync(serviceDir, { recursive: true });

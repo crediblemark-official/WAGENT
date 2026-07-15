@@ -1,6 +1,6 @@
 {
   "name": "@wagent/tui",
-  "version": "0.2.20",
+  "version": "0.2.21",
   "description": "WAGENT TUI - Terminal User Interface for setup & management",
   "type": "module",
   "main": "./dist/index.js",
