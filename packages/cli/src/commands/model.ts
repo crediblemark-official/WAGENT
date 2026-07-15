@@ -3,7 +3,7 @@ import { join } from 'path';
 import color from 'picocolors';
 
 export async function resolveModelCommand(modelId: string): Promise<void> {
-  const { resolveModel } = await import('@wagent/core');
+  const { resolveModel } = await import('@crediblemark/core');
   const resolved = await resolveModel(modelId);
 
   console.log('');
@@ -30,7 +30,7 @@ export async function resolveModelCommand(modelId: string): Promise<void> {
 }
 
 export async function listModels(): Promise<void> {
-  const { refreshModelCatalog } = await import('@wagent/core');
+  const { refreshModelCatalog } = await import('@crediblemark/core');
   await refreshModelCatalog();
 
   const cacheFile = join(process.env.HOME || '~', '.wagent', 'models.json');
@@ -58,7 +58,7 @@ export async function listModels(): Promise<void> {
 }
 
 export async function refreshModels(): Promise<void> {
-  const { refreshModelCatalog } = await import('@wagent/core');
+  const { refreshModelCatalog } = await import('@crediblemark/core');
   
   console.log('');
   console.log(color.bold('🔄 Refreshing model catalog...'));

@@ -1,5 +1,5 @@
 {
-  "name": "@wagent/cli",
+  "name": "@crediblemark/cli",
   "version": "0.2.3",
   "description": "WAGENT CLI - Command-line interface",
   "type": "module",
@@ -14,10 +14,10 @@
     "start": "node ./dist/index.js"
   },
   "dependencies": {
-    "@wagent/core": "*",
-    "@wagent/whatsapp": "*",
-    "@wagent/tui": "*",
-    "@wagent/dashboard": "*",
+    "@crediblemark/core": "*",
+    "@crediblemark/whatsapp": "*",
+    "@crediblemark/tui": "*",
+    "@crediblemark/dashboard": "*",
     "commander": "^13.1.0",
     "picocolors": "^1.1.1",
     "pino": "^9.6.0"

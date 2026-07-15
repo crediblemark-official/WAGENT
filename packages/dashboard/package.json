@@ -1,5 +1,5 @@
 {
-  "name": "@wagent/dashboard",
+  "name": "@crediblemark/dashboard",
   "version": "0.2.3",
   "description": "WAGENT Dashboard - Web Panel",
   "type": "module",
@@ -19,7 +19,7 @@
     "dev": "vite"
   },
   "dependencies": {
-    "@wagent/core": "*",
+    "@crediblemark/core": "*",
     "express": "^5.1.0",
     "ws": "^8.18.0",
     "pino": "^9.6.0"

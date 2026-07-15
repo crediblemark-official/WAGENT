@@ -14,9 +14,9 @@ import {
   Chat,
   ConnectionStatus,
   WhatsAppNumberConfig,
-} from '@wagent/core';
-import type { Gateway } from '@wagent/core';
-import { getLogger } from '@wagent/core';
+} from '@crediblemark/core';
+import type { Gateway } from '@crediblemark/core';
+import { getLogger } from '@crediblemark/core';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 

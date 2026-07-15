@@ -1,5 +1,5 @@
 {
-  "name": "wagent",
+  "name": "@crediblemark/wagent",
   "version": "0.2.3",
   "description": "WAGENT - WhatsApp AI Agent Platform",
   "type": "module",
@@ -31,11 +31,11 @@
     "packages/*"
   ],
   "dependencies": {
-    "@wagent/core": "*",
-    "@wagent/cli": "*",
-    "@wagent/whatsapp": "*",
-    "@wagent/tui": "*",
-    "@wagent/dashboard": "*"
+    "@crediblemark/core": "*",
+    "@crediblemark/cli": "*",
+    "@crediblemark/whatsapp": "*",
+    "@crediblemark/tui": "*",
+    "@crediblemark/dashboard": "*"
   },
   "keywords": [
     "whatsapp",

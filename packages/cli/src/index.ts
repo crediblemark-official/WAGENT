@@ -64,7 +64,7 @@ program
   .command('init')
   .description('Setup wizard untuk konfigurasi WAGENT')
   .action(async () => {
-    const { setupConfigWizard } = await import('@wagent/tui');
+    const { setupConfigWizard } = await import('@crediblemark/tui');
     await setupConfigWizard();
   });
 
@@ -72,7 +72,7 @@ program
   .command('setup-prompts')
   .description('AI-guided setup untuk generate prompt files (system, personality, messages, skills)')
   .action(async () => {
-    const { setupPromptWizard } = await import('@wagent/tui');
+    const { setupPromptWizard } = await import('@crediblemark/tui');
     await setupPromptWizard();
   });
 

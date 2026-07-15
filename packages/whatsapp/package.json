@@ -1,5 +1,5 @@
 {
-  "name": "@wagent/whatsapp",
+  "name": "@crediblemark/whatsapp",
   "version": "0.2.3",
   "description": "WAGENT WhatsApp - Baileys integration",
   "type": "module",
@@ -16,7 +16,7 @@
     "dev": "tsc --watch"
   },
   "dependencies": {
-    "@wagent/core": "*",
+    "@crediblemark/core": "*",
     "@whiskeysockets/baileys": "^6.7.16",
     "@hapi/boom": "^10.0.1",
     "qrcode-terminal": "^0.12.0",

@@ -2,8 +2,8 @@ import { writeFileSync } from 'fs';
 import { intro, outro, text, select, confirm, isCancel, cancel } from '@clack/prompts';
 import color from 'picocolors';
 import qrcode from 'qrcode-terminal';
-import { WAgentConfig, AIProviderType, resolveModel } from '@wagent/core';
-import { getLogger } from '@wagent/core';
+import { WAgentConfig, AIProviderType, resolveModel } from '@crediblemark/core';
+import { getLogger } from '@crediblemark/core';
 
 export async function setupWizard(): Promise<Partial<WAgentConfig>> {
   console.clear();
