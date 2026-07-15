@@ -264,10 +264,66 @@ export class PromptGenerator {
    */
   async generateWithAI(answers: SetupAnswers): Promise<void> {
     const prompt = this.buildAIPrompt(answers);
-    
-    // TODO: Call AI provider to generate prompts
-    // For now, use template-based generation
-    await this.generateAll(answers);
+
+    // Try AI generation, fall back to template if unavailable
+    try {
+      const resolved = this.config.resolvedModel;
+      if (!resolved?.apiKey) {
+        this.logger.warn('No AI model configured, falling back to template generation');
+        await this.generateAll(answers);
+        return;
+      }
+
+      const baseUrl = resolved.baseUrl || 'https://api.openai.com/v1';
+      const cleanUrl = baseUrl.endsWith('/chat/completions') ? baseUrl : `${baseUrl.replace(/\/$/, '')}/chat/completions`;
+
+      const response = await fetch(cleanUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${resolved.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: resolved.model,
+          messages: [
+            { role: 'system', content: 'Kamu adalah AI yang membuat prompt files untuk customer service. Balas HANYA dengan JSON yang berisi 4 key: "system", "personality", "messages", "skills". Setiap value adalah string TOON format. Tidak ada penjelasan, tidak ada markdown.' },
+            { role: 'user', content: prompt },
+          ],
+          temperature: 0.7,
+          max_tokens: 4000,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`AI API error: ${response.status}`);
+      }
+
+      const data = await response.json() as any;
+      const content = data.choices?.[0]?.message?.content;
+
+      if (!content) {
+        throw new Error('Empty AI response');
+      }
+
+      // Parse JSON response
+      const parsed = JSON.parse(content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim());
+
+      // Ensure prompts directory exists
+      if (!existsSync(this.promptsDir)) {
+        mkdirSync(this.promptsDir, { recursive: true });
+      }
+
+      // Write AI-generated files
+      if (parsed.system) writeFileSync(join(this.promptsDir, 'system.toon'), parsed.system, 'utf-8');
+      if (parsed.personality) writeFileSync(join(this.promptsDir, 'personality.toon'), parsed.personality, 'utf-8');
+      if (parsed.messages) writeFileSync(join(this.promptsDir, 'messages.toon'), parsed.messages, 'utf-8');
+      if (parsed.skills) writeFileSync(join(this.promptsDir, 'skills.toon'), parsed.skills, 'utf-8');
+
+      this.logger.info('Generated prompt files using AI');
+    } catch (err: any) {
+      this.logger.warn({ error: err.message }, 'AI generation failed, falling back to template');
+      await this.generateAll(answers);
+    }
   }
 
   private buildAIPrompt(answers: SetupAnswers): string {

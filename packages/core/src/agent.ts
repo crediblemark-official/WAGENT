@@ -485,6 +485,13 @@ export class Agent {
   }
 
   /**
+   * Set the scheduler for tool context (called after construction since scheduler is created later).
+   */
+  setScheduler(scheduler: import('./scheduler.js').Scheduler): void {
+    this._scheduler = scheduler;
+  }
+
+  /**
    * Build the context for an incoming message.
    * Uses v2 sub-components when enabled, falls back to v1 behavior.
    */

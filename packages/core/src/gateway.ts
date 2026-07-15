@@ -137,6 +137,7 @@ export class Gateway {
     });
 
     this.proactiveScheduler = new ProactiveScheduler({
+      db,
       approvalQueue: this.approvalQueue,
       onActionTrigger: async (action) => {
         this.logger.info({ id: action.id }, 'Executing proactive action: %s', action.title);
@@ -146,6 +147,9 @@ export class Gateway {
 
     this.scheduler = new Scheduler(db, whatsapp, this.eventBus);
     this.transcriber = new Transcriber(config);
+
+    // Wire scheduler to agent for tool context (send_message, create_reminder)
+    this.agent.setScheduler(this.scheduler);
 
     // Initialize TelegramBot (pass self as adapter)
     this.telegramBot = new TelegramBot(config, this as TelegramGatewayAdapter, db);
