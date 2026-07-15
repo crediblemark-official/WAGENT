@@ -189,14 +189,30 @@ export async function setupWizard(): Promise<void> {
 
 
   // ── Step 4: WhatsApp Session Name ────────────────────────────
-  const session = await text({
-    message: 'Nama session WhatsApp:',
-    placeholder: 'wagent-session',
-    defaultValue: config.session,
-  });
+  // Cek apakah session sudah ada
+  const sessionDir = join(process.cwd(), '.sessions', config.session);
+  const hasExistingSession = existsSync(sessionDir);
 
-  if (isCancel(session)) process.exit(0);
-  config.session = session as string;
+  let skipSession = false;
+  if (hasExistingSession) {
+    // Ada session — tampilkan status dan tanya apakah mau ubah
+    const changeSession = await confirm({
+      message: `WhatsApp session ${color.green('✔')} ${color.bold(config.session)} ${color.green('sudah terhubung')}. Ganti nama session? ${color.dim('(session lama akan dihapus)')}`,
+      initialValue: false,
+    }) as boolean;
+    if (isCancel(changeSession)) process.exit(0);
+    skipSession = !changeSession;
+  }
+
+  if (!skipSession) {
+    const session = await text({
+      message: 'Nama session WhatsApp:',
+      placeholder: 'wagent-session',
+      defaultValue: config.session,
+    });
+    if (isCancel(session)) process.exit(0);
+    config.session = session as string;
+  }
 
   // ── Step 5: Welcome Message ─────────────────────────────────────
   const welcomeMessage = await text({
@@ -212,9 +228,10 @@ export async function setupWizard(): Promise<void> {
   const hasTelegramConfig = !!(config.escalation.telegramBotToken && config.escalation.telegramChatId);
   const enableEscalation = await confirm({
     message: hasTelegramConfig
-      ? `Telegram sudah terkonfigurasi ${color.green('✔')}. Update konfigurasi eskalasi Telegram (Human Takeover)?`
+      ? `Telegram ${color.green('✔')} sudah terkonfigurasi. Update konfigurasi eskalasi Telegram?`
       : 'Aktifkan eskalasi ke Telegram untuk Human Takeover? (opsional)',
-    initialValue: hasTelegramConfig,
+    // Jika sudah ada, default skip (false) — user harus aktif pilih untuk update
+    initialValue: false,
   }) as boolean;
 
   if (enableEscalation) {
@@ -237,9 +254,10 @@ export async function setupWizard(): Promise<void> {
       telegramChatId: chatId,
     };
   } else if (!hasTelegramConfig) {
-    // Tidak dikonfigurasi
+    // Tidak dikonfigurasi dan tidak diaktifkan
     config.escalation = { telegramBotToken: '', telegramChatId: '' };
   }
+  // hasTelegramConfig && !enableEscalation → pertahankan config telegram yang ada
 
 
   // ── Step 7: Dashboard ───────────────────────────────────────────
