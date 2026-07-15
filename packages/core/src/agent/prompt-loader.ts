@@ -17,12 +17,15 @@ export class PromptLoader {
 
   private constructor() {
     // Find prompts directory - prefer root prompts/ (has all TOON files)
+    // Saat global install, core bisa nested di dalam @wagent/wagent/node_modules/@wagent/core/dist/agent/
     const possiblePaths = [
-      join(__dirname, '../../../../prompts'),  // from packages/core/src/agent -> root/prompts
-      join(__dirname, '../../../prompts'),     // from packages/core/src -> root/prompts
-      join(__dirname, '../../prompts'),        // from packages/core -> root/prompts (alt layout)
-      join(process.cwd(), 'prompts'),
-      join(__dirname, '../prompts'),           // packages/core/prompts (legacy)
+      join(__dirname, '../../../../prompts'),          // dev: packages/core/src/agent -> root/prompts
+      join(__dirname, '../../../prompts'),             // dev: packages/core/src -> root/prompts
+      join(__dirname, '../../prompts'),                // dev: packages/core -> root/prompts (alt)
+      join(__dirname, '../../../../../prompts'),       // npm global: @wagent/core/dist/agent -> @wagent/wagent/prompts
+      join(__dirname, '../../../../../../prompts'),    // npm global nested: node_modules/@wagent/wagent/node_modules/@wagent/core/dist/agent
+      join(process.cwd(), 'prompts'),                  // cwd fallback
+      join(__dirname, '../prompts'),                   // packages/core/prompts (legacy)
     ];
     
     this.promptsDir = possiblePaths.find(p => existsSync(p)) || possiblePaths[0];
