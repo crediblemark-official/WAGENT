@@ -70,6 +70,6 @@ jobs:
 
       - name: ⚡ Quick test (unit-only, no E2E)
         working-directory: packages/core
-        run: bun --bun x vitest run --reporter=verbose src/scheduler.test.ts src/transcriber.test.ts src/event-bus.test.ts
+        run: bun --bun x vitest run --reporter=verbose src/__tests__/scheduler.test.ts src/__tests__/transcriber.test.ts src/__tests__/event-bus.test.ts
         env:
           NODE_ENV: test

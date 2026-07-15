@@ -31,7 +31,7 @@ echo -e "  ${C}║${N}  ${D}WhatsApp AI Agent · Self-Hosted${N}     ${C}║${N}
 echo -e "  ${C}╚═══════════════════════════════════════╝${N}"
 echo ""
 
-# ── Step 1: Check Node ─────────────────────────────────────────
+# ── Step 1: Check prerequisites ─────────────────────────────
 step "①" "Checking prerequisites..."
 if ! command -v node &>/dev/null; then
   fail "Node.js is required but not installed."
@@ -42,7 +42,19 @@ if ! command -v git &>/dev/null; then
   fail "Git is required but not installed."
   exit 1
 fi
+# Install bun jika belum ada (dipakai untuk install deps, lebih cepat & kompatibel)
+if ! command -v bun &>/dev/null; then
+  info "Installing bun (package manager)..."
+  if curl -fsSL https://bun.sh/install | bash > /dev/null 2>&1; then
+    export PATH="$HOME/.bun/bin:$PATH"
+    ok "Bun $(bun --version) installed"
+  else
+    fail "Bun installation failed. Install manually: https://bun.sh"
+    exit 1
+  fi
+fi
 ok "Node $(node --version)"
+ok "Bun $(bun --version)"
 ok "Git $(git --version | awk '{print $3}')"
 echo ""
 
@@ -95,36 +107,18 @@ echo ""
 # ── Step 3: Install Dependencies ───────────────────────────────
 step "③" "Installing dependencies..."
 cd "$INSTALL_DIR"
-# npm v12+ menonaktifkan git dependency secara default, aktifkan dulu
-npm config set allow-git all > /dev/null 2>&1 || true
-if npm install --silent --no-fund --no-audit > /dev/null 2>&1; then
-  # Approve install scripts yang dibutuhkan
-  npm install-scripts approve @whiskeysockets/baileys > /dev/null 2>&1 || true
-  npm install-scripts approve better-sqlite3 > /dev/null 2>&1 || true
-  npm install-scripts approve esbuild > /dev/null 2>&1 || true
-  npm install-scripts approve protobufjs > /dev/null 2>&1 || true
+export PATH="$HOME/.bun/bin:$PATH"
+if bun install --frozen-lockfile > /dev/null 2>&1; then
   ok "Dependencies installed"
 else
-  # npm v12 workspace dedup bisa crash pada perubahan dependency — retry
-  # setelah hapus node_modules.
-  echo -e "  ${Y}⚠ Retrying with clean install...${N}"
-  rm -rf node_modules packages/*/node_modules
-  if npm install --silent --no-fund --no-audit > /dev/null 2>&1; then
-    npm install-scripts approve @whiskeysockets/baileys > /dev/null 2>&1 || true
-    npm install-scripts approve better-sqlite3 > /dev/null 2>&1 || true
-    npm install-scripts approve esbuild > /dev/null 2>&1 || true
-    npm install-scripts approve protobufjs > /dev/null 2>&1 || true
-    ok "Dependencies installed"
-  else
-    fail "npm install failed"
-    exit 1
-  fi
+  fail "bun install failed"
+  exit 1
 fi
 echo ""
 
-# ── Step 4: Build ──────────────────────────────────────────────
+# ── Step 4: Build ──────────────────────────────────────────
 step "④" "Building packages..."
-if FRESH_INSTALL=1 npm run build --silent >/dev/null 2>&1; then
+if FRESH_INSTALL=1 bun run build > /dev/null 2>&1; then
   ok "Build complete"
 else
   fail "Build failed"

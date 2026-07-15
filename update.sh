@@ -48,37 +48,24 @@ if [ "${WAGENT_UPDATED:-}" != "1" ]; then
   exec bash "$0"
 fi
 
-# ── Reinstall deps ─────────────────────────────────────────────
+# ── Reinstall deps ───────────────────────────────────────────────────────────
 step "📦 Installing dependencies..."
-# npm v12+ menonaktifkan git dependency secara default, aktifkan dulu
-npm config set allow-git all > /dev/null 2>&1 || true
-if npm install --silent --no-fund --no-audit > /dev/null 2>&1; then
-  # Approve install scripts yang dibutuhkan
-  npm install-scripts approve @whiskeysockets/baileys > /dev/null 2>&1 || true
-  npm install-scripts approve better-sqlite3 > /dev/null 2>&1 || true
-  npm install-scripts approve esbuild > /dev/null 2>&1 || true
-  npm install-scripts approve protobufjs > /dev/null 2>&1 || true
+export PATH="$HOME/.bun/bin:$PATH"
+if bun install --frozen-lockfile > /dev/null 2>&1; then
   ok "Dependencies ready"
 else
-  # npm v12 workspace dedup bisa crash pada perubahan dependency — retry
-  # setelah hapus node_modules.
-  echo -e "  ${Y}⚠ Retrying with clean install...${N}"
-  rm -rf node_modules packages/*/node_modules
-  if npm install --silent --no-fund --no-audit > /dev/null 2>&1; then
-    npm install-scripts approve @whiskeysockets/baileys > /dev/null 2>&1 || true
-    npm install-scripts approve better-sqlite3 > /dev/null 2>&1 || true
-    npm install-scripts approve esbuild > /dev/null 2>&1 || true
-    npm install-scripts approve protobufjs > /dev/null 2>&1 || true
+  echo -e "  ${Y}⚠ Retrying without frozen lockfile...${N}"
+  if bun install > /dev/null 2>&1; then
     ok "Dependencies ready"
   else
-    echo -e "  ❌ npm install failed"
+    echo -e "  ❌ bun install failed"
     exit 1
   fi
 fi
 
-# ── Rebuild ────────────────────────────────────────────────────
+# ── Rebuild ──────────────────────────────────────────────────────────────────
 step "🔨 Building packages..."
-if npm run build --silent >/dev/null 2>&1; then
+if bun run build > /dev/null 2>&1; then
   ok "Build complete"
 else
   echo -e "  ❌ Build failed"
