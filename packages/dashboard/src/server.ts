@@ -546,7 +546,12 @@ export class DashboardServer implements DashboardAdapter {
 
       // SPA fallback — gunakan regex agar kompatibel semua versi path-to-regexp
       this.app.get(/.*/, (_req, res) => {
-        res.sendFile(resolve(publicDir, 'index.html'));
+        const indexPath = resolve(publicDir, 'index.html');
+        if (existsSync(indexPath)) {
+          res.sendFile(indexPath);
+        } else {
+          res.status(404).json({ error: 'Dashboard not built' });
+        }
       });
     }
   }
