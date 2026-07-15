@@ -188,7 +188,7 @@ export async function setupWizard(): Promise<void> {
   // Jika skip, config.model tetap menggunakan nilai dari existingConfig
 
 
-  // ── Step 4: WhatsApp Session Name & QR Scan ────────────────────
+  // ── Step 4: WhatsApp Session Name ────────────────────────────
   const session = await text({
     message: 'Nama session WhatsApp:',
     placeholder: 'wagent-session',
@@ -197,16 +197,6 @@ export async function setupWizard(): Promise<void> {
 
   if (isCancel(session)) process.exit(0);
   config.session = session as string;
-
-  // Tawari scan QR WA sekarang
-  const scanNow = await confirm({
-    message: 'Scan QR WhatsApp sekarang? (bisa juga dilakukan otomatis saat service start)',
-    initialValue: true,
-  }) as boolean;
-
-  if (!isCancel(scanNow) && scanNow) {
-    await scanWhatsAppQR(config.session);
-  }
 
   // ── Step 5: Welcome Message ─────────────────────────────────────
   const welcomeMessage = await text({
@@ -330,6 +320,7 @@ export async function setupWizard(): Promise<void> {
 
   console.log('');
   console.log(color.bold('Gunakan:'));
+  console.log(color.dim('  wagent start            → scan QR & mulai service'));
   console.log(color.dim('  wagent service status   → cek status'));
   console.log(color.dim('  wagent service logs     → lihat log'));
   if (config.dashboard.enabled) {
