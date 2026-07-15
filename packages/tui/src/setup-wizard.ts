@@ -10,7 +10,7 @@ import { join } from 'path';
 import { spawnSync } from 'child_process';
 import { intro, outro, text, select, confirm, isCancel, cancel, spinner } from '@clack/prompts';
 import color from 'picocolors';
-import { getCatalogProviders, getModelsForProviderCatalog } from '@crediblemark/core';
+import { getCatalogProviders, getModelsForProviderCatalog } from '@wagent/core';
 
 // ── Types ───────────────────────────────────────────────────────
 

@@ -8,9 +8,9 @@ import {
   Database,
   SkillLoader,
   MultiWhatsAppAdapter
-} from '@crediblemark/core';
-import { BaileysAdapter } from '@crediblemark/whatsapp';
-import { renderQRToString } from '@crediblemark/tui';
+} from '@wagent/core';
+import { BaileysAdapter } from '@wagent/whatsapp';
+import { renderQRToString } from '@wagent/tui';
 import { isServiceRunning, serviceStart } from './service.js';
 
 // Helper: cek port

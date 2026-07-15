@@ -1,4 +1,4 @@
-# @crediblemark/dashboard
+# @wagent/dashboard
 
 WAGENT Web Dashboard Server & Client — Halaman admin berbasis web (React + Express) untuk memonitor, mengonfigurasi, dan berinteraksi secara visual dengan AI Agent WAGENT.
 
@@ -12,5 +12,5 @@ WAGENT Web Dashboard Server & Client — Halaman admin berbasis web (React + Exp
 
 ## Instalasi
 ```bash
-npm install @crediblemark/dashboard
+npm install @wagent/dashboard
 ```

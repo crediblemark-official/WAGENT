@@ -1,4 +1,4 @@
-# @crediblemark/core
+# @wagent/core
 
 WAGENT Core Engine — Modul inti yang mengelola jalannya AI Agent, RAG Knowledge Base, database SQLite/Postgres, antrean persetujuan, scheduler, dan plugin/skill sistem.
 
@@ -10,5 +10,5 @@ WAGENT Core Engine — Modul inti yang mengelola jalannya AI Agent, RAG Knowledg
 
 ## Instalasi
 ```bash
-npm install @crediblemark/core
+npm install @wagent/core
 ```

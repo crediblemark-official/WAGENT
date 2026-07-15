@@ -1,4 +1,4 @@
-# @crediblemark/whatsapp
+# @wagent/whatsapp
 
 WAGENT WhatsApp Adapter — Adapter komunikasi yang mengintegrasikan bot WAGENT dengan server WhatsApp menggunakan library Baileys.
 
@@ -9,5 +9,5 @@ WAGENT WhatsApp Adapter — Adapter komunikasi yang mengintegrasikan bot WAGENT 
 
 ## Instalasi
 ```bash
-npm install @crediblemark/whatsapp
+npm install @wagent/whatsapp
 ```

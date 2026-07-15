@@ -1,4 +1,4 @@
-# @crediblemark/tui
+# @wagent/tui
 
 WAGENT Terminal User Interface (TUI) — Panel visual di dalam terminal yang digunakan untuk konfigurasi instan wizard dan penayangan status koneksi QR Code.
 
@@ -8,5 +8,5 @@ WAGENT Terminal User Interface (TUI) — Panel visual di dalam terminal yang dig
 
 ## Instalasi
 ```bash
-npm install @crediblemark/tui
+npm install @wagent/tui
 ```

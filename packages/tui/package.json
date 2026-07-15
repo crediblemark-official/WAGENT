@@ -1,6 +1,6 @@
 {
-  "name": "@crediblemark/tui",
-  "version": "0.2.8",
+  "name": "@wagent/tui",
+  "version": "0.2.9",
   "description": "WAGENT TUI - Terminal User Interface for setup & management",
   "type": "module",
   "main": "./dist/index.js",
@@ -19,7 +19,7 @@
     "dev": "tsc --watch"
   },
   "dependencies": {
-    "@crediblemark/core": "*",
+    "@wagent/core": "*",
     "@clack/prompts": "^0.10.0",
     "@inkjs/ui": "^2.0.0",
     "ink": "^7.1.0",

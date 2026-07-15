@@ -1,6 +1,6 @@
 {
-  "name": "@crediblemark/cli",
-  "version": "0.2.8",
+  "name": "@wagent/cli",
+  "version": "0.2.9",
   "description": "WAGENT CLI - Command-line interface",
   "type": "module",
   "main": "./dist/bootstrap.js",
@@ -17,10 +17,10 @@
     "start": "node ./dist/bootstrap.js"
   },
   "dependencies": {
-    "@crediblemark/core": "*",
-    "@crediblemark/whatsapp": "*",
-    "@crediblemark/tui": "*",
-    "@crediblemark/dashboard": "*",
+    "@wagent/core": "*",
+    "@wagent/whatsapp": "*",
+    "@wagent/tui": "*",
+    "@wagent/dashboard": "*",
     "commander": "^13.1.0",
     "picocolors": "^1.1.1",
     "pino": "^9.6.0"

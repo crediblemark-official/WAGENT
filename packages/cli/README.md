@@ -1,4 +1,4 @@
-# @crediblemark/cli
+# @wagent/cli
 
 WAGENT Command Line Interface (CLI) — Utilitas terminal interaktif untuk menjalankan, mengelola, dan mengonfigurasi platform WAGENT.
 
@@ -12,6 +12,6 @@ WAGENT Command Line Interface (CLI) — Utilitas terminal interaktif untuk menja
 
 ## Instalasi
 ```bash
-npm install -g @crediblemark/wagent
+npm install -g @wagent/wagent
 ```
-*(CLI dibundel secara global di dalam package utama `@crediblemark/wagent`)*
+*(CLI dibundel secara global di dalam package utama `@wagent/wagent`)*

@@ -5,11 +5,11 @@
     "": {
       "name": "wagent",
       "dependencies": {
-        "@crediblemark/cli": "*",
-        "@crediblemark/core": "*",
-        "@crediblemark/dashboard": "*",
-        "@crediblemark/tui": "*",
-        "@crediblemark/whatsapp": "*",
+        "@wagent/cli": "*",
+        "@wagent/core": "*",
+        "@wagent/dashboard": "*",
+        "@wagent/tui": "*",
+        "@wagent/whatsapp": "*",
       },
       "devDependencies": {
         "@types/react": "^19.2.17",
@@ -18,16 +18,16 @@
       },
     },
     "packages/cli": {
-      "name": "@crediblemark/cli",
-      "version": "0.2.3",
+      "name": "@wagent/cli",
+      "version": "0.2.9",
       "bin": {
-        "wagent": "./dist/index.js",
+        "wagent": "./dist/bootstrap.js",
       },
       "dependencies": {
-        "@crediblemark/core": "*",
-        "@crediblemark/dashboard": "*",
-        "@crediblemark/tui": "*",
-        "@crediblemark/whatsapp": "*",
+        "@wagent/core": "*",
+        "@wagent/dashboard": "*",
+        "@wagent/tui": "*",
+        "@wagent/whatsapp": "*",
         "commander": "^13.1.0",
         "picocolors": "^1.1.1",
         "pino": "^9.6.0",
@@ -38,8 +38,8 @@
       },
     },
     "packages/core": {
-      "name": "@crediblemark/core",
-      "version": "0.2.3",
+      "name": "@wagent/core",
+      "version": "0.2.9",
       "dependencies": {
         "@toon-format/toon": "^2.3.0",
         "better-sqlite3": "^12.11.1",
@@ -66,10 +66,10 @@
       ],
     },
     "packages/dashboard": {
-      "name": "@crediblemark/dashboard",
-      "version": "0.2.3",
+      "name": "@wagent/dashboard",
+      "version": "0.2.9",
       "dependencies": {
-        "@crediblemark/core": "*",
+        "@wagent/core": "*",
         "express": "^5.1.0",
         "pino": "^9.6.0",
         "ws": "^8.18.0",
@@ -89,12 +89,12 @@
       },
     },
     "packages/tui": {
-      "name": "@crediblemark/tui",
-      "version": "0.2.3",
+      "name": "@wagent/tui",
+      "version": "0.2.9",
       "dependencies": {
         "@clack/prompts": "^0.10.0",
-        "@crediblemark/core": "*",
         "@inkjs/ui": "^2.0.0",
+        "@wagent/core": "*",
         "ink": "^7.1.0",
         "picocolors": "^1.1.1",
         "pino": "^9.6.0",
@@ -111,11 +111,11 @@
       },
     },
     "packages/whatsapp": {
-      "name": "@crediblemark/whatsapp",
-      "version": "0.2.3",
+      "name": "@wagent/whatsapp",
+      "version": "0.2.9",
       "dependencies": {
-        "@crediblemark/core": "*",
         "@hapi/boom": "^10.0.1",
+        "@wagent/core": "*",
         "@whiskeysockets/baileys": "^7.0.0-rc13",
         "pino": "^9.6.0",
         "qrcode-terminal": "^0.12.0",
@@ -183,16 +183,6 @@
     "@clack/core": ["@clack/core@0.4.2", "", { "dependencies": { "picocolors": "^1.0.0", "sisteransi": "^1.0.5" } }, "sha512-NYQfcEy8MWIxrT5Fj8nIVchfRFA26yYKJcvBS7WlUIlw2OmQOY9DhGGXMovyI5J5PpxrCPGkgUi207EBrjpBvg=="],
 
     "@clack/prompts": ["@clack/prompts@0.10.1", "", { "dependencies": { "@clack/core": "0.4.2", "picocolors": "^1.0.0", "sisteransi": "^1.0.5" } }, "sha512-Q0T02vx8ZM9XSv9/Yde0jTmmBQufZhPJfYAg2XrrrxWWaZgq1rr8nU8Hv710BQ1dhoP8rtY7YUdpGej2Qza/cw=="],
-
-    "@crediblemark/cli": ["@crediblemark/cli@workspace:packages/cli"],
-
-    "@crediblemark/core": ["@crediblemark/core@workspace:packages/core"],
-
-    "@crediblemark/dashboard": ["@crediblemark/dashboard@workspace:packages/dashboard"],
-
-    "@crediblemark/tui": ["@crediblemark/tui@workspace:packages/tui"],
-
-    "@crediblemark/whatsapp": ["@crediblemark/whatsapp@workspace:packages/whatsapp"],
 
     "@emnapi/runtime": ["@emnapi/runtime@1.11.2", "", { "dependencies": { "tslib": "^2.4.0" } }, "sha512-kyOl3X0DuTiT1h2ft8r2fYO8JYtU9a9Xis/zBSiGArNaagCOWx90N1k2wxp18czFDH+OgcWGb5ZP/XMt3dcyPA=="],
 
@@ -487,6 +477,16 @@
     "@vitest/spy": ["@vitest/spy@4.1.10", "", {}, "sha512-PLf/Ugvoq5wO/b4rwYCR1h2PSIdXz7wnkQFMiUpLdtM7l6pqVFcQIBEHyT1+l+cj7mNwAfZHzqXqDyjvOuwbDw=="],
 
     "@vitest/utils": ["@vitest/utils@4.1.10", "", { "dependencies": { "@vitest/pretty-format": "4.1.10", "convert-source-map": "^2.0.0", "tinyrainbow": "^3.1.0" } }, "sha512-fy9am/HWxbaGt/Sawrp90vt6Y6jQwf1RX77cz3uwoJwJVMli/e1IEwRPnMNJ7vKfPTwo0diXifkpPvwH9v7nGA=="],
+
+    "@wagent/cli": ["@wagent/cli@workspace:packages/cli"],
+
+    "@wagent/core": ["@wagent/core@workspace:packages/core"],
+
+    "@wagent/dashboard": ["@wagent/dashboard@workspace:packages/dashboard"],
+
+    "@wagent/tui": ["@wagent/tui@workspace:packages/tui"],
+
+    "@wagent/whatsapp": ["@wagent/whatsapp@workspace:packages/whatsapp"],
 
     "@whiskeysockets/baileys": ["@whiskeysockets/baileys@7.0.0-rc13", "", { "dependencies": { "@cacheable/node-cache": "^1.4.0", "@hapi/boom": "^9.1.3", "async-mutex": "^0.5.0", "libsignal": "^6.0.0", "lru-cache": "^11.1.0", "music-metadata": "^11.12.3", "p-queue": "^9.0.0", "pino": "^9.6", "protobufjs": "^7.5.6", "whatsapp-rust-bridge": "0.5.4", "ws": "^8.13.0" }, "peerDependencies": { "audio-decode": "^2.1.3", "jimp": "^1.6.1", "link-preview-js": "^3.0.0", "sharp": "*" }, "optionalPeers": ["audio-decode", "jimp", "link-preview-js"] }, "sha512-8JPc8gaaCRykkjW2jxLGQ7/RZGrc7awO7WU+QJocf58eSUI9jAdcuYLynzhAbyU4UWvJJsHImZ+5E/JaZj5ypA=="],
 

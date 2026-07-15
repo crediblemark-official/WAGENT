@@ -23,8 +23,8 @@ import {
   getEncryptionKey,
   decryptDirectory,
   encryptDirectory,
-} from '@crediblemark/core';
-import { getLogger } from '@crediblemark/core';
+} from '@wagent/core';
+import { getLogger } from '@wagent/core';
 
 export class BaileysAdapter implements WhatsAppAdapter {
   public readonly numberId: string;
