@@ -95,14 +95,25 @@ echo ""
 # ── Step 3: Install Dependencies ───────────────────────────────
 step "③" "Installing dependencies..."
 cd "$INSTALL_DIR"
-if npm install --silent --no-fund --no-audit >/dev/null 2>&1; then
+# npm v12+ menonaktifkan git dependency secara default, aktifkan dulu
+npm config set allow-git all > /dev/null 2>&1 || true
+if npm install --silent --no-fund --no-audit > /dev/null 2>&1; then
+  # Approve install scripts yang dibutuhkan
+  npm install-scripts approve @whiskeysockets/baileys > /dev/null 2>&1 || true
+  npm install-scripts approve better-sqlite3 > /dev/null 2>&1 || true
+  npm install-scripts approve esbuild > /dev/null 2>&1 || true
+  npm install-scripts approve protobufjs > /dev/null 2>&1 || true
   ok "Dependencies installed"
 else
-  # npm v11 workspace dedup can crash on dependency changes — retry
-  # after wiping node_modules.
+  # npm v12 workspace dedup bisa crash pada perubahan dependency — retry
+  # setelah hapus node_modules.
   echo -e "  ${Y}⚠ Retrying with clean install...${N}"
   rm -rf node_modules packages/*/node_modules
-  if npm install --silent --no-fund --no-audit >/dev/null 2>&1; then
+  if npm install --silent --no-fund --no-audit > /dev/null 2>&1; then
+    npm install-scripts approve @whiskeysockets/baileys > /dev/null 2>&1 || true
+    npm install-scripts approve better-sqlite3 > /dev/null 2>&1 || true
+    npm install-scripts approve esbuild > /dev/null 2>&1 || true
+    npm install-scripts approve protobufjs > /dev/null 2>&1 || true
     ok "Dependencies installed"
   else
     fail "npm install failed"
