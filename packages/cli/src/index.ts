@@ -31,15 +31,14 @@ program
   .version(
     [
       '',
-      color.bold(color.cyan('🤖 WAGENT - WhatsApp AI Agent')),
-      `  Versi    : ${color.green('v' + pkg.version)}`,
-      `  Runtime  : ${process.versions.bun ? 'Bun ' + process.versions.bun : 'Node ' + process.version}`,
-      `  Platform : ${process.platform} ${process.arch}`,
-      `  Install  : ${color.dim(join(process.execPath, '../..'))}`,
+      color.bold(color.cyan('  WAGENT - WhatsApp AI Agent')),
+      color.dim(`  Version  : v${pkg.version}`),
+      color.dim(`  Runtime  : ${process.versions.bun ? 'Bun ' + process.versions.bun : 'Node ' + process.version}`),
+      color.dim(`  Platform : ${process.platform} ${process.arch}`),
       '',
     ].join('\n'),
     '-v, --version',
-    'Tampilkan versi WAGENT'
+    'Show WAGENT version'
   );
 
 // ── init ────────────────────────────────────────────────────────
@@ -80,11 +79,11 @@ program
       // Cek apakah service systemd sudah running (hanya untuk user manual)
       if (isServiceRunning()) {
         console.log('');
-        console.log(color.yellow('⚠  WAGENT service sudah berjalan di background.'));
-        console.log(color.dim('   Gunakan:'));
-        console.log(color.dim('     wagent service status   → cek status'));
-        console.log(color.dim('     wagent service restart  → restart'));
-        console.log(color.dim('     wagent service logs     → lihat log'));
+        console.log(color.yellow('  ⚠  WAGENT service is already running in background.'));
+        console.log('');
+        console.log(`  ${color.dim('Status:')}  wagent service status`);
+        console.log(`  ${color.dim('Restart:')} wagent service restart`);
+        console.log(`  ${color.dim('Logs:')}    wagent service logs`);
         console.log('');
         process.exit(0);
       }
@@ -94,8 +93,8 @@ program
       const portInUse = await checkPort(targetPort);
       if (portInUse) {
         console.log('');
-        console.log(color.yellow(`⚠  Port ${targetPort} sudah dipakai.`));
-        console.log(color.dim('   WAGENT mungkin sudah berjalan. Cek dengan: wagent service status'));
+        console.log(color.yellow(`  ⚠  Port ${targetPort} is already in use.`));
+        console.log(color.dim('  WAGENT may already be running. Check with: wagent service status'));
         console.log('');
         process.exit(0);
       }
@@ -103,11 +102,18 @@ program
 
 
     console.log('');
-    console.log(color.bold(color.cyan('╔══════════════════════════════════════╗')));
-    console.log(color.bold(color.cyan('║      🤖 WAGENT WhatsApp AI Agent     ║')));
-    console.log(color.bold(color.cyan('╚══════════════════════════════════════╝')));
-    console.log(`  Versi   : ${color.green('v' + pkg.version)}`);
-    console.log(`  Runtime : ${process.versions.bun ? 'Bun ' + process.versions.bun : 'Node ' + process.version}`);
+    console.log(color.bold(color.cyan('  ╔═══════════════════════════════════════════╗')));
+    console.log(color.bold(color.cyan('  ║                                           ║')));
+    console.log(color.bold(color.cyan('  ║')) + color.bold('   ██╗    ██╗███████╗ █████╗ ████████╗') + color.bold(color.cyan('   ║')));
+    console.log(color.bold(color.cyan('  ║')) + color.bold('   ██║    ██║██╔════╝██╔══██╗╚══██╔══╝') + color.bold(color.cyan('   ║')));
+    console.log(color.bold(color.cyan('  ║')) + color.bold('   ██║ █╗ ██║█████╗  ███████║   ██║') + color.bold(color.cyan('      ║')));
+    console.log(color.bold(color.cyan('  ║')) + color.bold('   ██║███╗██║██╔══╝  ██╔══██║   ██║') + color.bold(color.cyan('      ║')));
+    console.log(color.bold(color.cyan('  ║')) + color.bold('   ╚███╔███╔╝███████╗██║  ██║   ██║') + color.bold(color.cyan('      ║')));
+    console.log(color.bold(color.cyan('  ║')) + color.bold('    ╚══╝╚══╝ ╚══════╝╚═╝  ╚═╝   ╚═╝') + color.bold(color.cyan('      ║')));
+    console.log(color.bold(color.cyan('  ║                                           ║')));
+    console.log(color.bold(color.cyan('  ║')) + color.dim('   WhatsApp AI Agent · Self-Hosted') + color.bold(color.cyan('        ║')));
+    console.log(color.bold(color.cyan('  ║                                           ║')));
+    console.log(color.bold(color.cyan('  ╚═══════════════════════════════════════════╝')));
     console.log('');
 
     const config = await loadConfig();
@@ -120,9 +126,12 @@ program
       ? `${config.resolvedModel.provider} / ${config.resolvedModel.model}`
       : config.aiProvider;
     logger.info({ version: pkg.version, provider: modelInfo }, 'WAGENT starting');
-    console.log(`  AI Model: ${color.yellow(modelInfo)}`);
+
+    const runtimeInfo = process.versions.bun ? 'Bun ' + process.versions.bun : 'Node ' + process.version;
+    console.log(`  ${color.dim('Version')}   ${color.green('v' + pkg.version)}  ${color.dim(runtimeInfo)}`);
+    console.log(`  ${color.dim('Model')}     ${color.yellow(modelInfo)}`);
     if (config.dashboardPort && options.dashboard !== false) {
-      console.log(`  Dashboard: http://localhost:${config.dashboardPort}`);
+      console.log(`  ${color.dim('Dashboard')} ${color.cyan(`http://localhost:${config.dashboardPort}`)}`);
     }
     console.log('');
 
@@ -176,9 +185,11 @@ program
 
       // Handle graceful shutdown
       const shutdown = async () => {
-        console.log(color.yellow('\n⏳ Shutting down WAGENT...'));
+        console.log('');
+        console.log(color.yellow('  ⏳ Shutting down WAGENT...'));
         await gateway.stop();
         db.close();
+        console.log(color.green('  ✓ Stopped.'));
         process.exit(0);
       };
 
@@ -188,11 +199,16 @@ program
       // Start gateway
       await gateway.start();
 
-      console.log(color.green('\n✓ WAGENT running!'));
+      console.log('');
+      console.log(color.bold(color.green('  ┌─────────────────────────────────────────┐')));
+      console.log(color.bold(color.green('  │')) + color.bold('           ✓ WAGENT is running!          ') + color.bold(color.green('│')));
+      console.log(color.bold(color.green('  └─────────────────────────────────────────┘')));
+      console.log('');
       if (dashboard) {
-        console.log(color.cyan(`  Dashboard: http://localhost:${config.dashboardPort}`));
+        console.log(`  ${color.dim('Dashboard')}  ${color.cyan(`http://localhost:${config.dashboardPort}`)}`);
       }
-      console.log(color.dim('  Press Ctrl+C to stop\n'));
+      console.log(`  ${color.dim('Stop')}       ${color.yellow('Ctrl+C')}`);
+      console.log('');
 
       // Keep process alive
       await new Promise(() => {}); // Never resolves, relies on SIGINT
@@ -208,27 +224,29 @@ program
 
 program
   .command('config')
-  .description('Lihat konfigurasi saat ini')
+  .description('Show current configuration')
   .action(async () => {
     const config = await loadConfig();
     console.log('');
-    console.log(color.bold('Current Configuration:'));
-    console.log('──────────────────────────────');
-    console.log(`  WhatsApp Session : ${config.whatsappSessionName}`);
-    console.log(`  AI Provider      : ${config.aiProvider}`);
-    console.log(`  System Prompt    : ${config.systemPrompt.substring(0, 50)}...`);
-    console.log(`  Dashboard Port   : ${config.dashboardPort}`);
-    console.log(`  Database         : ${config.databaseType} (${config.databaseUrl})`);
+    console.log(color.bold(color.cyan('  Current Configuration')));
+    console.log(color.dim('  ───────────────────────────────────'));
+    console.log(`  ${color.dim('Session')}      ${config.whatsappSessionName}`);
+    console.log(`  ${color.dim('AI Provider')}  ${config.aiProvider}`);
+    console.log(`  ${color.dim('Prompt')}       ${config.systemPrompt.substring(0, 50)}...`);
+    console.log(`  ${color.dim('Dashboard')}    ${config.dashboardPort || 'disabled'}`);
+    console.log(`  ${color.dim('Database')}     ${config.databaseType} (${config.databaseUrl})`);
     console.log('');
 
     if (config.resolvedModel) {
-      console.log(`  Model Provider   : ${config.resolvedModel.provider} (${config.resolvedModel.name || ''})`);
-      console.log(`  Model Name       : ${config.resolvedModel.model}`);
+      console.log(color.bold(color.cyan('  Model')));
+      console.log(color.dim('  ───────────────────────────────────'));
+      console.log(`  ${color.dim('Provider')}  ${config.resolvedModel.provider} (${config.resolvedModel.name || ''})`);
+      console.log(`  ${color.dim('Model')}     ${config.resolvedModel.model}`);
       if (config.resolvedModel.baseUrl) {
-        console.log(`  Base URL         : ${config.resolvedModel.baseUrl}`);
+        console.log(`  ${color.dim('Base URL')}  ${config.resolvedModel.baseUrl}`);
       }
       if (config.resolvedModel.apiKey) {
-        console.log(`  API Key          : ${config.resolvedModel.apiKey.substring(0, 8)}...`);
+        console.log(`  ${color.dim('API Key')}   ${config.resolvedModel.apiKey.substring(0, 8)}...`);
       }
     }
     console.log('');
@@ -238,9 +256,8 @@ program
 
 program
   .command('status')
-  .description('Cek status koneksi WhatsApp')
+  .description('Check WhatsApp connection status')
   .action(async () => {
-    // For simplicity, we check if session files exist
     const config = await loadConfig();
     const sessionDir = join(
       config.whatsappSessionDir || join(process.cwd(), '.sessions'),
@@ -251,15 +268,15 @@ program
     if (existsSync(sessionDir)) {
       const files = readdirSync(sessionDir);
       const hasCreds = files.some(f => f.includes('creds'));
-      console.log(color.green('✓ Session folder ditemukan'));
-      console.log(color.cyan(`  Location: ${sessionDir}`));
+      console.log(color.green('  ✓ Session folder found'));
+      console.log(`  ${color.dim('Location:')} ${sessionDir}`);
       if (hasCreds) {
-        console.log(color.green('✓ Credentials tersimpan (pernah login)'));
+        console.log(color.green('  ✓ Credentials saved (previously logged in)'));
       } else {
-        console.log(color.yellow('! Belum pernah login, scan QR code diperlukan'));
+        console.log(color.yellow('  ⚠ Not yet logged in — scan QR code required'));
       }
     } else {
-      console.log(color.yellow('! Belum ada session. Jalankan "wagent start"'));
+      console.log(color.yellow('  ⚠ No session found. Run "wagent start" to begin.'));
     }
     console.log('');
   });

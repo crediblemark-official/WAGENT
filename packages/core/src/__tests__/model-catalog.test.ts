@@ -1,9 +1,16 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { resolveModel, refreshModelCatalog, clearCatalogCache } from '../model-catalog.js';
+
+let consoleSpy: ReturnType<typeof vi.spyOn>;
 
 beforeEach(async () => {
   clearCatalogCache();
   vi.restoreAllMocks();
+  consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+});
+
+afterEach(() => {
+  consoleSpy.mockRestore();
 });
 
 describe('model-catalog', () => {
@@ -139,11 +146,18 @@ describe('model-catalog', () => {
 
   describe('refreshModelCatalog', () => {
     it('should refresh cache from models.dev', async () => {
+      const mockCatalog = {
+        newprovider: { name: 'New Provider', api: 'https://api.new.com/v1' },
+        openai: { name: 'OpenAI', npm: '@ai-sdk/openai', env: ['OPENAI_API_KEY'] },
+        anthropic: { name: 'Anthropic', npm: '@ai-sdk/anthropic', env: ['ANTHROPIC_API_KEY'] },
+        google: { name: 'Google', npm: '@ai-sdk/google', env: ['GOOGLE_API_KEY'] },
+        groq: { name: 'Groq', npm: '@ai-sdk/groq', env: ['GROQ_API_KEY'] },
+        deepseek: { name: 'DeepSeek', npm: '@ai-sdk/openai-compatible', env: ['DEEPSEEK_API_KEY'] },
+      };
+
       vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
         ok: true,
-        json: async () => ({
-          newprovider: { name: 'New Provider', api: 'https://api.new.com/v1' },
-        }),
+        json: async () => mockCatalog,
       }));
 
       await refreshModelCatalog();

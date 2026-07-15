@@ -1,25 +1,26 @@
 /**
- * wagent service — Kelola systemd user service untuk WAGENT
+ * wagent service — Manage WAGENT systemd user service
  *
- * Subcommand:
- *   wagent service status   → status service
+ * Subcommands:
+ *   wagent service status   → check service status
  *   wagent service start    → start service
  *   wagent service stop     → stop service
  *   wagent service restart  → restart service
- *   wagent service logs     → tail log service
- *   wagent service enable   → aktifkan autostart saat boot
- *   wagent service disable  → nonaktifkan autostart
- *   wagent service install  → install service file (dipakai install.sh)
+ *   wagent service logs     → tail service logs
+ *   wagent service enable   → enable autostart on boot
+ *   wagent service disable  → disable autostart
+ *   wagent service install  → install service file (used by install.sh)
  */
 
 import { execSync, spawnSync } from 'child_process';
 import { existsSync, mkdirSync, writeFileSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
+import color from 'picocolors';
 
 const SERVICE_NAME = 'wagent';
 
-// ── Deteksi apakah systemd tersedia ─────────────────────────────
+// ── Detect systemd availability ─────────────────────────────────
 
 function hasSystemd(): boolean {
   try {
@@ -33,7 +34,7 @@ function hasSystemd(): boolean {
   }
 }
 
-// ── Jalankan systemctl ──────────────────────────────────────────
+// ── Run systemctl ────────────────────────────────────────────────
 
 function ctl(...args: string[]): { ok: boolean; output: string } {
   const result = spawnSync('systemctl', ['--user', ...args], {
@@ -46,11 +47,11 @@ function ctl(...args: string[]): { ok: boolean; output: string } {
   };
 }
 
-// ── Install service file ────────────────────────────────────────
+// ── Install service file ─────────────────────────────────────────
 
 export function serviceInstall(): boolean {
   if (!hasSystemd()) {
-    console.log('⚠  systemd tidak tersedia — lewati install service.');
+    console.log(color.dim('  ⚠  systemd not available — skipping service install.'));
     return false;
   }
 
@@ -58,25 +59,23 @@ export function serviceInstall(): boolean {
   const serviceDir = join(home, '.config', 'systemd', 'user');
   const serviceFile = join(serviceDir, `${SERVICE_NAME}.service`);
 
-  // Baca template dari direktori instalasi
   const installDir = join(home, '.wagent');
   const templatePath = join(installDir, 'bin', `${SERVICE_NAME}.service`);
 
   if (!existsSync(templatePath)) {
-    console.error(`✗ Template service tidak ditemukan: ${templatePath}`);
+    console.error(color.red(`  ✗ Service template not found: ${templatePath}`));
     return false;
   }
 
   mkdirSync(serviceDir, { recursive: true });
   writeFileSync(serviceFile, readFileSync(templatePath, 'utf-8'));
-  console.log(`✔ Service file diinstall: ${serviceFile}`);
+  console.log(color.green(`  ✓ Service file installed: ${serviceFile}`));
 
-  // Reload daemon
   ctl('daemon-reload');
   return true;
 }
 
-// ── Subcommand handlers ─────────────────────────────────────────
+// ── Subcommand handlers ──────────────────────────────────────────
 
 export function serviceStatus(): void {
   if (!hasSystemd()) { printNoSystemd(); return; }
@@ -88,9 +87,9 @@ export function serviceStart(): void {
   if (!hasSystemd()) { printNoSystemd(); return; }
   const r = ctl('start', SERVICE_NAME);
   if (r.ok) {
-    console.log(`✔ ${SERVICE_NAME} service dimulai.`);
+    console.log(color.green(`  ✓ ${SERVICE_NAME} service started.`));
   } else {
-    console.error(`✗ Gagal start service:\n${r.output}`);
+    console.error(color.red(`  ✗ Failed to start service:\n${r.output}`));
     process.exit(1);
   }
 }
@@ -99,9 +98,9 @@ export function serviceStop(): void {
   if (!hasSystemd()) { printNoSystemd(); return; }
   const r = ctl('stop', SERVICE_NAME);
   if (r.ok) {
-    console.log(`✔ ${SERVICE_NAME} service dihentikan.`);
+    console.log(color.green(`  ✓ ${SERVICE_NAME} service stopped.`));
   } else {
-    console.error(`✗ Gagal stop service:\n${r.output}`);
+    console.error(color.red(`  ✗ Failed to stop service:\n${r.output}`));
     process.exit(1);
   }
 }
@@ -110,23 +109,22 @@ export function serviceRestart(): void {
   if (!hasSystemd()) { printNoSystemd(); return; }
   const r = ctl('restart', SERVICE_NAME);
   if (r.ok) {
-    console.log(`✔ ${SERVICE_NAME} service di-restart.`);
+    console.log(color.green(`  ✓ ${SERVICE_NAME} service restarted.`));
   } else {
-    console.error(`✗ Gagal restart service:\n${r.output}`);
+    console.error(color.red(`  ✗ Failed to restart service:\n${r.output}`));
     process.exit(1);
   }
 }
 
 export function serviceLogs(): void {
   if (!hasSystemd()) { printNoSystemd(); return; }
-  // Jalankan langsung untuk streaming output
   const result = spawnSync(
     'journalctl',
     ['--user', '-u', SERVICE_NAME, '-f', '--no-pager', '-n', '50'],
     { stdio: 'inherit' }
   );
   if (result.status !== 0) {
-    console.error('Gagal membaca log. Pastikan journald aktif.');
+    console.error(color.red('  ✗ Failed to read logs. Is journald active?'));
   }
 }
 
@@ -134,9 +132,9 @@ export function serviceEnable(): void {
   if (!hasSystemd()) { printNoSystemd(); return; }
   const r = ctl('enable', SERVICE_NAME);
   if (r.ok) {
-    console.log(`✔ ${SERVICE_NAME} akan otomatis start saat login/boot.`);
+    console.log(color.green(`  ✓ ${SERVICE_NAME} will autostart on login/boot.`));
   } else {
-    console.error(`✗ Gagal enable service:\n${r.output}`);
+    console.error(color.red(`  ✗ Failed to enable service:\n${r.output}`));
   }
 }
 
@@ -144,20 +142,20 @@ export function serviceDisable(): void {
   if (!hasSystemd()) { printNoSystemd(); return; }
   const r = ctl('disable', SERVICE_NAME);
   if (r.ok) {
-    console.log(`✔ Autostart ${SERVICE_NAME} dinonaktifkan.`);
+    console.log(color.green(`  ✓ Autostart for ${SERVICE_NAME} disabled.`));
   } else {
-    console.error(`✗ Gagal disable service:\n${r.output}`);
+    console.error(color.red(`  ✗ Failed to disable service:\n${r.output}`));
   }
 }
 
-// ── Helper ──────────────────────────────────────────────────────
+// ── Helper ───────────────────────────────────────────────────────
 
 function printNoSystemd(): void {
-  console.log('⚠  systemd tidak tersedia di sistem ini.');
-  console.log('   Gunakan: wagent start  untuk menjalankan secara manual.');
+  console.log(color.yellow('  ⚠  systemd is not available on this system.'));
+  console.log(color.dim('     Use: wagent start  to run manually.'));
 }
 
-// ── Cek apakah service sudah running ───────────────────────────
+// ── Check if service is running ──────────────────────────────────
 
 export function isServiceRunning(): boolean {
   if (!hasSystemd()) return false;

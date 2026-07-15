@@ -187,10 +187,12 @@ export function saveConfigToEnv(config: Partial<WAgentConfig>, envPath: string):
 
 export function showQRInTUI(qr: string): void {
   console.log('');
-  console.log(color.bgGreen(color.black(' Scan QR Code ini dengan WhatsApp Anda ')));
+  console.log(color.bold(color.cyan('  ┌─────────────────────────────────────────┐')));
+  console.log(color.bold(color.cyan('  │')) + color.bold('         📱 Scan QR Code with WhatsApp    ') + color.bold(color.cyan('│')));
+  console.log(color.bold(color.cyan('  └─────────────────────────────────────────┘')));
   console.log('');
   qrcode.generate(qr, { small: false });
   console.log('');
-  console.log(color.dim('Atau buka WhatsApp > Linked Devices > Link a Device'));
+  console.log(color.dim('  Open WhatsApp → Linked Devices → Link a Device'));
   console.log('');
 }

@@ -24,7 +24,8 @@
     "dev": "./bin/wagent start --no-dashboard",
     "test": "cd packages/core && npx vitest run",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf packages/*/dist node_modules"
+    "clean": "rm -rf packages/*/dist node_modules",
+    "prepare": "husky"
   },
   "workspaces": [
     "packages/*"
@@ -56,6 +57,7 @@
   },
   "devDependencies": {
     "@types/react": "^19.2.17",
-    "@types/react-dom": "^19.2.3"
+    "@types/react-dom": "^19.2.3",
+    "husky": "^9.1.7"
   }
 }
