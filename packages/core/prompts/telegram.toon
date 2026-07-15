@@ -1,0 +1,31 @@
+status_paused: Agent is already paused. Use /resume to resume.
+status_paused_done: Agent PAUSED. AI will not auto-reply to messages. Use /resume to enable again.
+status_active: Agent is already active. Use /pause to pause.
+status_active_done: Agent RESUMED. AI will now auto-reply to messages.
+
+approve_usage: Usage: /approve <request_id> [note]
+approve_not_found: Could not approve. Request not found or already resolved. Use /pending to see active requests.
+approve_done: Approved
+
+reject_usage: Usage: /reject <request_id> [reason]
+reject_not_found: Could not reject. Request not found or already resolved.
+reject_done: Rejected
+
+pending_empty: No pending approval requests.
+pending_header: Pending Approvals
+
+contacts_empty: No contacts yet.
+contacts_header: Contacts
+
+logs_empty: No recent activity.
+logs_header: Recent Activity
+
+help_header: WAGENT Bot Commands
+help_status: Status and Control
+help_approval: Approval
+help_information: Information
+
+unknown_command: Unknown command
+
+add_contact_usage: Usage: /add_contact <name> <relationship>
+add_contact_example: Example: /add_contact Budi Santoso Teman kuliah

@@ -1,0 +1,69 @@
+flow: setup-prompts
+description: AI-guided setup untuk generate prompt files
+
+# ── Use Case ────────────────────────────────────────────────────────
+use_case:
+  question: Mau pakai WAGENT untuk apa?
+  options:
+    - business: Bisnis / Customer Service
+    - personal: Personal Assistant
+    - hybrid: Bisnis + Personal
+
+# ── Identity (Business) ─────────────────────────────────────────────
+business_info:
+  question_1: Apa nama bisnis/usaha kamu?
+  question_2: Jenis bisnis apa? (contoh: toko online, klinik, restaurant, salon, laundry, dll)
+  question_3: Jelaskan produk/jasa yang ditawarkan (1-2 kalimat)
+  question_4: Siapa target customer kamu? (contoh: anak muda, ibu rumah tangga, profesional, dll)
+
+# ── Identity (Personal) ─────────────────────────────────────────────
+personal_info:
+  question_1: Nama kamu (atau nama AI assistant)?
+  question_2: Konteks penggunaan sehari-hari? (contoh: bantu kerjaan kantor, atur jadwal, reminder)
+
+# ── AI Personality ──────────────────────────────────────────────────
+personality:
+  question_1: Gaya bicara AI seperti apa? (santai, formal, profesional, ramah)
+  question_2: Apakah boleh pakai emoji? (tidak pernah, sesekali, sering)
+  question_3: Bahasa yang digunakan? (Indonesia, Inggris, campuran)
+  question_4: Ada ungkapan/sapaan khusus yang sering dipakai? (contoh: "Halo Kak", "Selamat pagi")
+
+# ── Common Topics ───────────────────────────────────────────────────
+common_topics:
+  question_1: Apa pertanyaan/topik yang paling sering ditanyakan?
+  business_only:
+    question_2: Bagaimana cara pesan/beli produk?
+    question_3: Apa saja metode pembayaran yang diterima?
+    question_4: Berapa lama proses pengiriman?
+    question_5: Apa kebijakan retur/garansi?
+
+# ── Rules & Boundaries ─────────────────────────────────────────────
+rules:
+  question_1: Apa yang TIDAK BOLEH AI lakukan? (contoh: kasih diskon, janji palsu, minta data sensitif)
+  question_2: Kapan harus eskalasi ke manusia? (contoh: komplain, pertanyaan teknis, negosiasi harga)
+  question_3: Jam operasional/ketersediaan? (contoh: 08:00-17:00, 24 jam)
+
+# ── Features ────────────────────────────────────────────────────────
+features:
+  business:
+    - hitung_ongkir: Hitung ongkos kirim
+    - bayar: Proses pembayaran
+    - cek_pesanan: Cek status pesanan
+    - buat_pesanan: Buat pesanan baru
+    - jadwal: Booking/jadwal appointment
+    - inventori: Cek stok barang
+    - web_search: Cari informasi online
+    - reminder: Reminder/Alarm
+  personal:
+    - web_search: Cari informasi online
+    - reminder: Reminder/Alarm
+    - calendar: Atur jadwal
+    - notes: Buat catatan
+    - calculator: Kalkulator
+    - translate: Terjemahkan teks
+
+# ── Messages ────────────────────────────────────────────────────────
+messages:
+  question_1: Pesan sambutan? (atau biarkan default)
+  question_2: Pesan saat AI tidak bisa menjawab? (atau biarkan default)
+  question_3: Pesan saat di luar jam operasional? (atau biarkan default)
