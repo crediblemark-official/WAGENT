@@ -325,6 +325,25 @@ export async function setupWizard(): Promise<void> {
     console.log(color.green('✅ Setup selesai!'));
     console.log(color.dim('  Gateway akan dimulai oleh installer...'));
     console.log('');
+  } else if (skipSession) {
+    // Session WhatsApp di-skip (sudah ada sebelumnya).
+    // Restart systemd service di background agar memuat konfigurasi baru tanpa memunculkan QR Code di terminal.
+    console.log(color.cyan('\n⚙ Melakukan restart wagent service di latar belakang...'));
+    spawnSync('systemctl', ['--user', 'daemon-reload'], { encoding: 'utf-8', stdio: 'pipe' });
+    const res = spawnSync('systemctl', ['--user', 'restart', 'wagent'], { encoding: 'utf-8', stdio: 'pipe' });
+    
+    console.log('');
+    console.log(color.green('✅ Setup selesai!'));
+    if (res.status === 0) {
+      console.log(color.green('✓ WAGENT service berhasil dijalankan di latar belakang (background).'));
+      console.log(color.dim('  Gunakan: wagent service status   untuk memeriksa status.'));
+      console.log(color.dim('  Gunakan: wagent service logs     untuk melihat log aktivitas.'));
+    } else {
+      console.log(color.yellow('⚠ WAGENT service tidak dapat diaktifkan otomatis di background.'));
+      console.log(color.dim('  Jalankan manual di background dengan: wagent service start'));
+    }
+    console.log('');
+    process.exit(0);
   } else {
     // Manual run — start gateway in foreground so QR appears
     spawnSync('systemctl', ['--user', 'stop', 'wagent'], { encoding: 'utf-8', stdio: 'pipe' });
