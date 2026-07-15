@@ -12,8 +12,8 @@ import {
   KnowledgeEntry,
   KnowledgeSearchResult
 } from '../types.js';
-import { getLogger } from '../logger.js';
-import { isEncryptionAvailable, getEncryptionKey, decryptFile, encryptFile } from '../crypto.js';
+import { getLogger } from '../utils/logger.js';
+import { isEncryptionAvailable, getEncryptionKey, decryptFile, encryptFile } from '../utils/crypto.js';
 
 // Impor sub-modul fungsional
 import * as messaging from './messaging.js';

@@ -3,7 +3,7 @@
  */
 
 import { Logger } from 'pino';
-import { getLogger } from '../logger.js';
+import { getLogger } from '../utils/logger.js';
 import { ToolDefinition, ToolContext } from '../types.js';
 
 export interface MCPServerConfig {

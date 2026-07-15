@@ -208,11 +208,11 @@ export interface ToolDefinition {
 
 export interface ToolContext {
   logger: Logger;
-  db: import('./storage.js').Database;
+  db: import('./storage/index.js').Database;
   config: WAgentConfig;
   contactId: string;
-  knowledgeStore?: import('./knowledge-store.js').KnowledgeStore;
-  scheduler?: import('./scheduler.js').Scheduler;
+  knowledgeStore?: import('./rag/knowledge-store.js').KnowledgeStore;
+  scheduler?: import('./services/scheduler.js').Scheduler;
   pendingMessages?: PendingMessage[];
 }
 

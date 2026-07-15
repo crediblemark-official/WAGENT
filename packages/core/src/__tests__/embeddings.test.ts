@@ -5,7 +5,7 @@ import {
   getModelsByCategory,
   getModelsByProvider,
   getDefaultModel,
-} from '../embeddings.js';
+} from '../rag/embeddings.js';
 
 describe('embeddings helpers', () => {
   describe('getModelsByCategory', () => {

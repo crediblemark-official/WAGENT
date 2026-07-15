@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { Summarizer, SummarizerConfig } from '../summarizer.js';
+import { Summarizer, SummarizerConfig } from '../agent/summarizer.js';
 import { MemoryEntry } from '../types.js';
 
 vi.mock('../logger.js', () => ({
@@ -15,7 +15,7 @@ vi.mock('../logger.js', () => ({
   }),
 }));
 
-vi.mock('../prompt-loader.js', () => ({
+vi.mock('../agent/prompt-loader.js', () => ({
   promptLoader: {
     getSummarizerPrompt: () => 'Summarize in ${maxLength} words.',
     getSummarizerProviderInstruction: (provider: string) => `You are a ${provider} summarizer.`,

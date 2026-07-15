@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { existsSync, mkdirSync, rmSync, readFileSync } from 'fs';
 import { join } from 'path';
-import { PromptGenerator } from '../prompt-generator.js';
+import { PromptGenerator } from '../agent/prompt-generator.js';
 import { WAgentConfig } from '../types.js';
 
 vi.mock('../logger.js', () => ({

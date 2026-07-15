@@ -9,7 +9,7 @@ import {
   ScheduleRepeat,
   ScheduledMessageStatus
 } from '../types.js';
-import { getLogger } from '../logger.js';
+import { getLogger } from '../utils/logger.js';
 
 // ── Helper Row Converters ──────────────────────────────────────────
 

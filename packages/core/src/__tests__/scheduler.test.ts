@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { Scheduler } from '../scheduler.js';
+import { Scheduler } from '../services/scheduler.js';
 import { ScheduledMessage } from '../types.js';
 
-vi.mock('../logger.js', () => ({
+vi.mock('../utils/logger.js', () => ({
   getLogger: () => ({
     child: () => ({
       info: vi.fn(),

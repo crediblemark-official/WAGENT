@@ -23,7 +23,7 @@ vi.mock('../crypto.js', () => ({
   decryptFile: vi.fn(),
 }));
 
-import { Database } from '../storage.js';
+import { Database } from '../storage/index.js';
 
 let db: Database;
 let dbPath: string;

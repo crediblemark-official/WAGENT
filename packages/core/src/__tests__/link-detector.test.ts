@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { LinkDetector, LinkInfo } from '../link-detector.js';
+import { LinkDetector, LinkInfo } from '../utils/link-detector.js';
 
 vi.mock('../logger.js', () => ({
   getLogger: () => ({

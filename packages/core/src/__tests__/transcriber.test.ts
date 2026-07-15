@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { Transcriber } from '../transcriber.js';
+import { Transcriber } from '../services/transcriber.js';
 import type { WAgentConfig } from '../types.js';
 
-vi.mock('../logger.js', () => ({
+vi.mock('../utils/logger.js', () => ({
   getLogger: () => ({
     child: () => ({
       info: vi.fn(),
@@ -13,7 +13,7 @@ vi.mock('../logger.js', () => ({
   }),
 }));
 
-vi.mock('../prompt-loader.js', () => ({
+vi.mock('../agent/prompt-loader.js', () => ({
   promptLoader: {
     getTranscriberInstruction: () => 'Transcribe the audio',
   },

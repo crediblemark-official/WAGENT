@@ -17,7 +17,7 @@ vi.mock('../logger.js', () => ({
 }));
 
 // Mock promptLoader
-vi.mock('../prompt-loader.js', () => ({
+vi.mock('../agent/prompt-loader.js', () => ({
   promptLoader: {
     getWelcomeMessage: () => 'Selamat datang!',
     getRateLimitMessage: () => 'Mohon tunggu sebentar.',
@@ -26,7 +26,7 @@ vi.mock('../prompt-loader.js', () => ({
 }));
 
 // Mock resolveModel
-vi.mock('../model-catalog.js', () => ({
+vi.mock('../agent/model-catalog.js', () => ({
   resolveModel: vi.fn().mockResolvedValue({
     input: 'openai/gpt-4o',
     provider: 'openai',
@@ -40,8 +40,8 @@ import {
   createDefaultConfig,
   ensureDirectories,
   type WAgentJsonConfig,
-} from '../config.js';
-import { resolveModel } from '../model-catalog.js';
+} from '../utils/config.js';
+import { resolveModel } from '../agent/model-catalog.js';
 
 const TMP = join(import.meta.dirname, '_config_test_tmp');
 

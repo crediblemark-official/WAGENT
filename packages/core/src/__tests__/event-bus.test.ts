@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { EventBus } from '../event-bus.js';
+import { EventBus } from '../utils/event-bus.js';
 import { GatewayEvent } from '../types.js';
 
 describe('EventBus', () => {

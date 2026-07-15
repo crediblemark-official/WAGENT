@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { resolveModel, clearCatalogCache } from '../model-catalog.js';
+import { resolveModel, clearCatalogCache } from '../agent/model-catalog.js';
 
 let consoleSpy: ReturnType<typeof vi.spyOn>;
 

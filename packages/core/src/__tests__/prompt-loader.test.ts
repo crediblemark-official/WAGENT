@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { PromptLoader } from '../prompt-loader.js';
+import { PromptLoader } from '../agent/prompt-loader.js';
 
 describe('PromptLoader', () => {
   let loader: PromptLoader;

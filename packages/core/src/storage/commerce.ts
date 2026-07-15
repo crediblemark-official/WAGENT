@@ -1,6 +1,6 @@
 import BetterSqlite3 from 'better-sqlite3';
 import { DailyStats } from '../types.js';
-import { getLogger } from '../logger.js';
+import { getLogger } from '../utils/logger.js';
 
 // ── Helper Row Converter ──────────────────────────────────────────
 
