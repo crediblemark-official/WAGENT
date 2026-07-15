@@ -144,28 +144,42 @@ export class BaileysAdapter implements WhatsAppAdapter {
         const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode;
         const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
 
+        // badSession (500) — session data corrupted, reset immediately
+        if (statusCode === 500) {
+          this.logger.warn('Bad session (500), resetting for fresh QR scan');
+          try {
+            const { rmSync } = await import('fs');
+            if (existsSync(this.sessionDir)) {
+              rmSync(this.sessionDir, { recursive: true, force: true });
+            }
+          } catch { /* ignore cleanup errors */ }
+          this.status = 'disconnected';
+          this.reconnectCount = 0;
+          this.emit({ type: 'connection:update', status: 'disconnected' });
+          return;
+        }
+
         if (shouldReconnect) {
           this.reconnectCount++;
 
           if (this.reconnectCount > BaileysAdapter.MAX_RECONNECT) {
             this.logger.warn(
               { attempts: this.reconnectCount, statusCode },
-              'Max reconnect attempts reached, stopping',
+              'Max reconnect attempts reached, resetting session',
             );
-            this.status = 'disconnected';
-            this.emit({ type: 'connection:update', status: 'disconnected' });
 
-            // Clean up invalid session so user can re-scan QR on next start
+            // Always clean up session so next start generates fresh QR
             try {
               const { readdirSync, rmSync } = await import('fs');
-              const sessionFiles = readdirSync(this.sessionDir);
-              const hasCreds = sessionFiles.some((f: string) => f.includes('creds'));
-              if (!hasCreds) {
-                this.logger.warn('Removing empty/invalid session directory');
+              if (existsSync(this.sessionDir)) {
+                this.logger.warn('Removing invalid session directory for fresh QR scan');
                 rmSync(this.sessionDir, { recursive: true, force: true });
               }
             } catch { /* ignore cleanup errors */ }
 
+            this.status = 'disconnected';
+            this.reconnectCount = 0;
+            this.emit({ type: 'connection:update', status: 'disconnected' });
             return;
           }
 
@@ -180,10 +194,17 @@ export class BaileysAdapter implements WhatsAppAdapter {
           await new Promise((r) => setTimeout(r, 2000 * this.reconnectCount));
           await this.connect();
         } else {
+          // loggedOut — credentials invalid/expired, reset session for fresh QR
+          this.logger.warn('Logged out (statusCode=%d), resetting session for fresh QR scan', statusCode);
+          try {
+            const { rmSync } = await import('fs');
+            if (existsSync(this.sessionDir)) {
+              rmSync(this.sessionDir, { recursive: true, force: true });
+            }
+          } catch { /* ignore cleanup errors */ }
           this.status = 'disconnected';
           this.reconnectCount = 0;
           this.emit({ type: 'connection:update', status: 'disconnected' });
-          this.logger.warn('Logged out, please re-scan QR code');
         }
       } else if (connection === 'open') {
         this.status = 'connected';
