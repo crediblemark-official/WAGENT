@@ -4,6 +4,7 @@ import { Command } from 'commander';
 import { readFileSync, writeFileSync, existsSync, readdirSync, mkdirSync, unlinkSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { createServer } from 'net';
 import color from 'picocolors';
 
 import { loadConfig, ensureDirectories, getLogger, Gateway, Database, WhatsAppNumberConfig, SkillLoader, isEncryptionAvailable, getEncryptionKey, generateEncryptionKey, encryptFile, decryptFile, encryptDirectory, decryptDirectory, encryptEnvFile, decryptEnvFile, getEncryptionStatus, KnowledgeStore } from '@wagent/core';
@@ -1462,8 +1463,7 @@ serviceCmd
 
 async function checkPort(port: number): Promise<boolean> {
   return new Promise((resolve) => {
-    const net = require('net');
-    const server = net.createServer();
+    const server = createServer();
     server.listen(port, '127.0.0.1', () => {
       server.close(() => resolve(false)); // port bebas
     });
