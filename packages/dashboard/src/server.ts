@@ -15,6 +15,7 @@ import {
   ConnectionStatus,
   WhatsAppNumberConfig,
   promptLoader,
+  getAllModels,
 } from '@wagent/core';
 import type { Gateway } from '@wagent/core';
 import { getLogger } from '@wagent/core';
@@ -407,6 +408,17 @@ export class DashboardServer implements DashboardAdapter {
       }
       this.db.deleteKnowledgeEntry(id);
       res.json({ success: true });
+    });
+
+    // Get dynamic models from models.dev
+    this.app.get('/api/models', async (_req, res) => {
+      try {
+        const models = await getAllModels();
+        res.json({ models });
+      } catch (err: any) {
+        this.logger.error({ error: err.message }, 'Failed to fetch catalog models');
+        res.status(500).json({ error: err.message });
+      }
     });
 
     // Health check

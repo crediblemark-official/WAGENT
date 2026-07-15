@@ -1,5 +1,11 @@
 import React, { useState, useEffect } from 'react';
 
+interface CatalogModel {
+  id: string;
+  name: string;
+  provider: string;
+}
+
 export function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);
@@ -24,17 +30,30 @@ export function SettingsPage() {
   // Raw config placeholder untuk preserve field lain
   const [rawConfig, setRawConfig] = useState<any>({});
 
-  // Load settings dari backend
+  // Dynamic Catalog dari models.dev
+  const [catalogModels, setCatalogModels] = useState<CatalogModel[]>([]);
+  const [selectedProvider, setSelectedProvider] = useState('google');
+
+  // Load settings & models catalog dari backend
   useEffect(() => {
-    fetch('/api/settings')
-      .then(res => res.json())
-      .then(data => {
-        const cfg = data.config || {};
+    Promise.all([
+      fetch('/api/settings').then(res => res.json()),
+      fetch('/api/models').then(res => res.json()).catch(() => ({ models: [] }))
+    ])
+      .then(([settingsData, modelsData]) => {
+        const cfg = settingsData.config || {};
         setRawConfig(cfg);
 
         // Map values ke state
-        if (cfg.model) setModel(cfg.model);
-        if (data.systemPrompt) setSystemPrompt(data.systemPrompt);
+        if (cfg.model) {
+          setModel(cfg.model);
+          // Auto-detect provider dari model ID (contoh: "google/gemini" -> "google")
+          const parts = cfg.model.split('/');
+          if (parts.length > 0) {
+            setSelectedProvider(parts[0]);
+          }
+        }
+        if (settingsData.systemPrompt) setSystemPrompt(settingsData.systemPrompt);
         if (cfg.agent?.welcomeMessage) setWelcomeMessage(cfg.agent.welcomeMessage);
         
         // Map API keys
@@ -47,12 +66,36 @@ export function SettingsPage() {
         // Map toggles
         if (cfg.groupChat?.enabled !== undefined) setGroupChatEnabled(cfg.groupChat.enabled);
         if (cfg.agent?.autoReply !== undefined) setAutoReply(cfg.agent.autoReply);
+
+        // Map Catalog Models
+        if (modelsData?.models) {
+          setCatalogModels(modelsData.models);
+        }
       })
       .catch((err) => {
         setError('Gagal memuat konfigurasi dari backend');
       })
       .finally(() => setLoading(false));
   }, []);
+
+  // Filter models berdasarkan provider terpilih
+  const filteredModels = catalogModels.filter(m => m.provider === selectedProvider);
+
+  // Daftar provider unik dari catalog (fallback ke list dasar jika kosong)
+  const availableProviders = catalogModels.length > 0 
+    ? Array.from(new Set(catalogModels.map(m => m.provider))).sort()
+    : ['google', 'openai', 'anthropic', 'groq', 'deepseek', 'ollama'];
+
+  const handleProviderChange = (prov: string) => {
+    setSelectedProvider(prov);
+    // Pilih model pertama dari provider baru tersebut sebagai default
+    const firstModel = catalogModels.find(m => m.provider === prov);
+    if (firstModel) {
+      setModel(firstModel.id);
+    } else {
+      setModel(`${prov}/`);
+    }
+  };
 
   const handleSave = async () => {
     setError(null);
@@ -122,7 +165,7 @@ export function SettingsPage() {
   return (
     <div style={{
       padding: '16px 20px',
-      maxWidth: 800,
+      maxWidth: 850,
       overflowY: 'auto',
       height: '100%',
       backgroundColor: '#0b141a',
@@ -132,7 +175,7 @@ export function SettingsPage() {
       <div style={{ marginBottom: 20 }}>
         <h2 style={{ fontSize: 18, fontWeight: 600, color: '#e9edef', margin: 0 }}>Pengaturan WAGENT</h2>
         <p style={{ fontSize: 12, color: '#8696a0', marginTop: 4, margin: 0 }}>
-          Konfigurasi model AI, kredensial provider API, dan respon WhatsApp Anda.
+          Konfigurasi model AI dari models.dev, kredensial provider API, dan respon WhatsApp Anda.
         </p>
       </div>
 
@@ -147,21 +190,62 @@ export function SettingsPage() {
       )}
 
       {/* Grid Layout untuk Compact View */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 16, marginBottom: 16 }}>
         
-        {/* Kolom Kiri: AI & Model */}
+        {/* Kolom Kiri: AI & Model (models.dev integration) */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           
-          <Section title="Pilih Model AI" description="ID Model yang aktif digunakan (format: provider/model-id)">
-            <input
-              type="text"
-              value={model}
-              onChange={(e) => setModel(e.target.value)}
-              placeholder="Contoh: google/gemini-3.1-flash-lite"
-              style={styles.input}
-            />
-            <div style={{ fontSize: 11, color: '#8696a0', marginTop: 6 }}>
-              Rekomendasi: <code style={{ color: '#00a884' }}>google/gemini-3.1-flash-lite</code> atau <code style={{ color: '#00a884' }}>openai/gpt-4o-mini</code>
+          <Section title="Pilih Model AI (models.dev)" description="Pilih provider dan model secara dinamis dari database models.dev">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              
+              {/* Dropdown Provider */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                <label style={{ fontSize: 12, color: '#e9edef', minWidth: 100 }}>AI Provider</label>
+                <select
+                  value={selectedProvider}
+                  onChange={(e) => handleProviderChange(e.target.value)}
+                  style={{ ...styles.input, width: '100%', maxWidth: 260, cursor: 'pointer' }}
+                >
+                  {availableProviders.map(prov => (
+                    <option key={prov} value={prov}>
+                      {prov.charAt(0).toUpperCase() + prov.slice(1)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Dropdown Model */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                <label style={{ fontSize: 12, color: '#e9edef', minWidth: 100 }}>Model AI</label>
+                <select
+                  value={model}
+                  onChange={(e) => setModel(e.target.value)}
+                  style={{ ...styles.input, width: '100%', maxWidth: 260, cursor: 'pointer' }}
+                >
+                  {filteredModels.length > 0 ? (
+                    filteredModels.map(m => (
+                      <option key={m.id} value={m.id}>
+                        {m.name} ({m.id.split('/')[1]})
+                      </option>
+                    ))
+                  ) : (
+                    <option value={model}>{model || 'Tulis manual di bawah...'}</option>
+                  )}
+                </select>
+              </div>
+
+              {/* Input Manual / Edit Model ID */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, borderTop: '1px solid #222e35', paddingTop: 10, marginTop: 4 }}>
+                <label style={{ fontSize: 11, color: '#8696a0', minWidth: 100 }}>Model ID Aktif</label>
+                <input
+                  type="text"
+                  value={model}
+                  onChange={(e) => setModel(e.target.value)}
+                  placeholder="ID Model aktif"
+                  style={{ ...styles.input, padding: '5px 8px', fontSize: 11, width: '100%', maxWidth: 260 }}
+                />
+              </div>
+
             </div>
           </Section>
 
@@ -281,7 +365,7 @@ function InputRow({ label, value, onChange, placeholder, type = 'text' }: { labe
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        style={{ ...styles.input, padding: '6px 10px', fontSize: 12, width: '100%', maxWidth: 220 }}
+        style={{ ...styles.input, padding: '6px 10px', fontSize: 12, width: '100%', maxWidth: 260 }}
       />
     </div>
   );
