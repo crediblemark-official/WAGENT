@@ -1,4 +1,5 @@
-import BetterSqlite3 from 'better-sqlite3';
+import type BetterSqlite3 from 'better-sqlite3';
+import { SqliteDatabase } from './sqlite.js';
 import { join, dirname } from 'path';
 import { existsSync, mkdirSync } from 'fs';
 import {
@@ -44,7 +45,7 @@ export class Database {
       this.encryptionKey = Buffer.from(getEncryptionKey()!, 'hex');
     }
 
-    this.db = new BetterSqlite3(resolvedPath);
+    this.db = new SqliteDatabase(resolvedPath);
     this.db.exec('PRAGMA journal_mode = WAL');
     this.db.exec('PRAGMA foreign_keys = ON');
     this.initialize();
