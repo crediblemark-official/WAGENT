@@ -89,6 +89,18 @@ class OpenAIProvider implements AIProvider {
 
 // ── Google Gemini Provider ──────────────────────────────────────
 
+function cleanSchemaForGemini(schema: any): any {
+  if (!schema || typeof schema !== 'object') return schema;
+  const clean = Array.isArray(schema) ? [...schema] : { ...schema };
+  if ('additionalProperties' in clean) {
+    delete clean.additionalProperties;
+  }
+  for (const key of Object.keys(clean)) {
+    clean[key] = cleanSchemaForGemini(clean[key]);
+  }
+  return clean;
+}
+
 class GeminiProvider implements AIProvider {
   name = 'Gemini';
 
@@ -121,7 +133,7 @@ class GeminiProvider implements AIProvider {
         functionDeclarations: tools.map(t => ({
           name: t.name,
           description: t.description,
-          parameters: t.parameters,
+          parameters: cleanSchemaForGemini(t.parameters),
         })),
       }];
     }
