@@ -12,15 +12,14 @@ echo "║      🤖 WAGENT Installer            ║"
 echo "╚══════════════════════════════════════╝"
 echo ""
 
-# ── Check Bun ──────────────────────────────────────────────────
-if ! command -v bun &>/dev/null; then
-  echo "📦 Installing Bun..."
-  curl -fsSL https://bun.sh/install | bash
-  export BUN_INSTALL="$HOME/.bun"
-  export PATH="$BUN_INSTALL/bin:$PATH"
+# ── Check Node ──────────────────────────────────────────────────
+if ! command -v node &>/dev/null; then
+  echo "❌ Node.js is required but not installed."
+  echo "   Install: https://nodejs.org"
+  exit 1
 fi
 
-echo "✓ Bun $(bun --version)"
+echo "✓ Node $(node --version)"
 
 # ── Clone atau Update ──────────────────────────────────────────
 if [ -d "$INSTALL_DIR" ]; then
@@ -69,8 +68,8 @@ git clone --depth 1 "$REPO" "$INSTALL_DIR"
 # ── Build ──────────────────────────────────────────────────────
 echo "🔨 Building..."
 cd "$INSTALL_DIR"
-bun install
-bun run build
+npm install
+npm run build
 
 # ── Link ───────────────────────────────────────────────────────
 mkdir -p "$BIN_DIR"

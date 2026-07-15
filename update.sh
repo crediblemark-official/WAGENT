@@ -34,11 +34,11 @@ git pull origin main --ff-only || {
 
 # ── Reinstall deps ─────────────────────────────────────────────
 echo "📦 Installing dependencies..."
-bun install
+npm install
 
 # ── Rebuild ────────────────────────────────────────────────────
 echo "🔨 Building..."
-bun run build
+npm run build
 
 # ── Restore .env ───────────────────────────────────────────────
 if [ -f ".env.backup" ]; then
