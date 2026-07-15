@@ -14,11 +14,13 @@
 
 import { execSync, spawnSync } from 'child_process';
 import { existsSync, mkdirSync, writeFileSync, readFileSync } from 'fs';
-import { join } from 'path';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 import { homedir } from 'os';
 import color from 'picocolors';
 
 const SERVICE_NAME = 'wagent';
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // ── Detect systemd availability ─────────────────────────────────
 
