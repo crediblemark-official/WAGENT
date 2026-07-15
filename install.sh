@@ -78,7 +78,7 @@ git clone --depth 1 "$REPO" "$INSTALL_DIR"
 echo "🔨 Building..."
 cd "$INSTALL_DIR"
 npm install
-npm run build
+FRESH_INSTALL=1 npm run build
 
 # ── Install bin/wagent ─────────────────────────────────────────
 mkdir -p "$BIN_DIR"
@@ -111,25 +111,28 @@ if command -v systemctl &>/dev/null && systemctl --user status &>/dev/null 2>&1;
 
   systemctl --user daemon-reload
   systemctl --user enable wagent
-  systemctl --user start wagent
 
   # Aktifkan linger agar service tetap berjalan walau user logout (khusus VPS)
   if command -v loginctl &>/dev/null; then
     loginctl enable-linger "$USER" 2>/dev/null || true
   fi
 
-  echo "✔  WAGENT service aktif dan akan auto-start saat boot."
-  echo "   Gunakan: wagent service status"
+  echo ""
+  echo "✅ WAGENT installed successfully!"
+  echo ""
+  echo "  Step 1:  wagent start      → scan QR code (pairing pertama)"
+  echo "  Step 2:  Ctrl+C            → henti setelah terkoneksi"
+  echo "  Step 3:  wagent service start → jalankan di background"
+  echo ""
+  echo "  Status:  wagent service status"
+  echo "  Log:     wagent service logs"
+  echo "  Help:    wagent --help"
+  echo ""
 else
   echo ""
-  echo "ℹ️  systemd tidak tersedia — jalankan manual dengan: wagent start"
+  echo "✅ WAGENT installed successfully!"
+  echo ""
+  echo "  Jalankan: wagent start     → scan QR code & mulai"
+  echo "  Help:     wagent --help"
+  echo ""
 fi
-
-echo ""
-echo "✅ WAGENT installed successfully!"
-echo ""
-echo "  Setup:   wagent init      → konfigurasi AI, WhatsApp, Telegram"
-echo "  Status:  wagent service status"
-echo "  Log:     wagent service logs"
-echo "  Help:    wagent --help"
-echo ""

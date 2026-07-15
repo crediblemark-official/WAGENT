@@ -297,46 +297,56 @@ export async function setupWizard(): Promise<void> {
   console.log(`  Telegram   : ${config.escalation.telegramBotToken ? color.green('ON (Eskalasi Aktif)') : color.dim('OFF')}`);
   console.log('');
 
-  // ── Start Gateway (foreground) ──────────────────────────────
-  // Stop any existing service first
-  spawnSync('systemctl', ['--user', 'stop', 'wagent'], { encoding: 'utf-8', stdio: 'pipe' });
+  // ── Start Gateway ──────────────────────────────────────────────
+  // Check if running from install.sh (FRESH_INSTALL env) or CLI
+  const freshInstall = process.env.FRESH_INSTALL === '1';
 
-  // Hapus session lama agar Baileys pasti generate QR baru
-  try {
-    const { existsSync: fsExists, rmSync: fsRm } = await import('fs');
-    const { join: pathJoin } = await import('path');
-    const sessionDir = pathJoin(process.cwd(), '.sessions', config.session);
-    if (fsExists(sessionDir)) {
-      fsRm(sessionDir, { recursive: true, force: true });
-      console.log(color.dim(`  Session lama dihapus → QR baru akan muncul`));
+  if (freshInstall) {
+    // Fresh install — don't start here, install.sh will start systemd service
+    console.log('');
+    console.log(color.green('✅ Setup selesai!'));
+    console.log(color.dim('  Gateway akan dimulai oleh installer...'));
+    console.log('');
+  } else {
+    // Manual run — start gateway in foreground so QR appears
+    spawnSync('systemctl', ['--user', 'stop', 'wagent'], { encoding: 'utf-8', stdio: 'pipe' });
+
+    // Hapus session lama agar Baileys pasti generate QR baru
+    try {
+      const { existsSync: fsExists, rmSync: fsRm } = await import('fs');
+      const { join: pathJoin } = await import('path');
+      const sessionDir = pathJoin(process.cwd(), '.sessions', config.session);
+      if (fsExists(sessionDir)) {
+        fsRm(sessionDir, { recursive: true, force: true });
+        console.log(color.dim(`  Session lama dihapus → QR baru akan muncul`));
+      }
+    } catch { /* ignore */ }
+
+    console.log(color.bold('Starting WAGENT...'));
+    console.log(color.dim('  WhatsApp QR code akan muncul di bawah ini.'));
+    console.log(color.dim('  Buka WhatsApp → ⋮ → Perangkat Tertaut → Tautkan Perangkat'));
+    console.log('');
+
+    // Start the gateway directly — QR appears in terminal
+    try {
+      const { resolve, dirname } = await import('path');
+      const { fileURLToPath } = await import('url');
+      const cliDistDir = dirname(fileURLToPath(import.meta.url));
+      const startPath = resolve(cliDistDir, '../../cli/dist/index.js');
+      const { spawn } = await import('child_process');
+      const child = spawn('node', [startPath, 'start'], {
+        stdio: 'inherit',
+        cwd: process.cwd(),
+      });
+      child.on('exit', (code) => {
+        process.exit(code || 0);
+      });
+      // Keep process alive
+      await new Promise(() => {});
+    } catch (err: any) {
+      console.log(color.yellow(`  ⚠ Gagal start: ${err?.message}`));
+      console.log(color.dim('  Jalankan manual: wagent start'));
     }
-  } catch { /* ignore */ }
-
-  console.log(color.bold('Starting WAGENT...'));
-  console.log(color.dim('  WhatsApp QR code akan muncul di bawah ini.'));
-  console.log(color.dim('  Buka WhatsApp → ⋮ → Perangkat Tertaut → Tautkan Perangkat'));
-  console.log('');
-
-  // Start the gateway directly (not via systemd) — QR appears in terminal
-  try {
-    const { resolve, dirname } = await import('path');
-    const { fileURLToPath } = await import('url');
-    const cliDistDir = dirname(fileURLToPath(import.meta.url));
-    const startPath = resolve(cliDistDir, '../../cli/dist/index.js');
-    // Run 'wagent start' in foreground via bun — QR muncul langsung di terminal
-    const { spawn } = await import('child_process');
-    const child = spawn('node', [startPath, 'start'], {
-      stdio: 'inherit',
-      cwd: process.cwd(),
-    });
-    child.on('exit', (code) => {
-      process.exit(code || 0);
-    });
-    // Keep process alive
-    await new Promise(() => {});
-  } catch (err: any) {
-    console.log(color.yellow(`  ⚠ Gagal start: ${err?.message}`));
-    console.log(color.dim('  Jalankan manual: wagent start'));
     process.exit(1);
   }
 }

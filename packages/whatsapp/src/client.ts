@@ -38,6 +38,7 @@ export class BaileysAdapter implements WhatsAppAdapter {
   private onReadyCallback: (() => void) | null = null;
   private encryptionKey: Buffer | null = null;
   private reconnectCount = 0;
+  private lastQrTime = 0;
   private static readonly MAX_RECONNECT = 3;
 
   constructor(config: WAgentConfig, numberId?: string) {
@@ -137,8 +138,12 @@ export class BaileysAdapter implements WhatsAppAdapter {
         this.emit({ type: 'connection:update', status: 'qr' });
         this.emit({ type: 'qr:received', qr });
 
-        // Display QR in terminal
-        qrcode.generate(qr, { small: true });
+        // Debounce QR display — only show once per 10 seconds
+        const now = Date.now();
+        if (!this.lastQrTime || now - this.lastQrTime > 10000) {
+          this.lastQrTime = now;
+          qrcode.generate(qr, { small: true });
+        }
 
         if (this.qrCallback) {
           this.qrCallback(qr);
