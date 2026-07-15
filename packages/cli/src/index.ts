@@ -216,8 +216,34 @@ program
         });
       });
 
+      let shuttingDown = false;
+
+      // Setelah QR di-scan dan connected: stop proses ini, hand-off ke service
+      ui.onConnected?.(() => {
+        // Jalankan service di background, lalu proses ini akan exit via TUI
+        setImmediate(async () => {
+          if (shuttingDown) return;
+          shuttingDown = true;
+          try {
+            await gateway.stop();
+            db.close();
+          } catch { /* abaikan */ }
+          // Beri jeda 500ms supaya socket WA benar-benar released sebelum service start
+          await new Promise(r => setTimeout(r, 500));
+          try {
+            serviceStart();
+          } catch (err: any) {
+            // Jika systemd tidak tersedia, biarkan process exit biasa
+            logger.warn('Tidak bisa start service: %s', err?.message);
+          }
+          process.exit(0);
+        });
+      });
+
       // Clean shutdown used by both SIGINT/SIGTERM and Ink's own exit
       const shutdown = async () => {
+        if (shuttingDown) return;
+        shuttingDown = true;
         ui.stop();
         await gateway.stop();
         db.close();
@@ -231,8 +257,11 @@ program
       await ui.waitUntilExit();
 
       // Ink closed — make sure gateway is stopped and process exits
-      await gateway.stop();
-      db.close();
+      if (!shuttingDown) {
+        shuttingDown = true;
+        await gateway.stop();
+        db.close();
+      }
       process.exit(0);
 
     } catch (err: any) {

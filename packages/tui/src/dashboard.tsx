@@ -8,6 +8,8 @@ export interface DashboardController {
   addMessage: (msg: Message) => void;
   stop: () => void;
   waitUntilExit: () => Promise<void>;
+  /** Dipanggil ketika QR berhasil di-scan dan status connected */
+  onConnected?: (callback: () => void) => void;
 }
 
 export type ConnectionStatus = 'connecting' | 'qr' | 'connected' | 'disconnected';
@@ -24,6 +26,8 @@ export interface DashboardProps {
   model: string;
   dashboardUrl?: string;
   sessionName: string;
+  /** Callback dipanggil saat QR berhasil di-scan dan status menjadi connected */
+  onConnected?: () => void;
 }
 
 const STATUS_COLORS: Record<ConnectionStatus, string> = {
@@ -146,11 +150,13 @@ function useUptime(running: boolean): string {
   return `${mins}m ${secs}s`;
 }
 
-export function Dashboard({ version, model, dashboardUrl, sessionName }: DashboardProps) {
+export function Dashboard({ version, model, dashboardUrl, sessionName, onConnected }: DashboardProps) {
   const [status, setStatusState] = useState<ConnectionStatus>('connecting');
   const [qrCode, setQrCode] = useState<string | undefined>(undefined);
   const [messages, setMessages] = useState<Message[]>([]);
   const [stats, setStats] = useState({ total: 0, today: 0 });
+  // Lacak apakah QR pernah ditampilkan (artinya ini fresh pairing session)
+  const qrWasShown = React.useRef(false);
   const { exit } = useApp();
 
   useInput((input, key) => {
@@ -162,8 +168,21 @@ export function Dashboard({ version, model, dashboardUrl, sessionName }: Dashboa
   // Expose control API via module-level ref
   useEffect(() => {
     if (controllerRef.current) {
-      controllerRef.current.setStatus = (s) => setStatusState(s);
-      controllerRef.current.setQRCode = (q) => setQrCode(q);
+      controllerRef.current.setStatus = (s) => {
+        setStatusState(s);
+        // Saat connected setelah QR di-scan, trigger onConnected lalu exit TUI
+        if (s === 'connected' && qrWasShown.current && onConnected) {
+          // Beri jeda singkat supaya UI sempat render status connected
+          setTimeout(() => {
+            onConnected();
+            exit();
+          }, 1500);
+        }
+      };
+      controllerRef.current.setQRCode = (q) => {
+        qrWasShown.current = true;
+        setQrCode(q);
+      };
       controllerRef.current.addMessage = (m) => {
         setMessages(prev => [m, ...prev].slice(0, 50));
         setStats(prev => ({ total: prev.total + 1, today: prev.today + 1 }));
@@ -203,7 +222,14 @@ export function renderDashboard(props: DashboardProps): DashboardController {
   const localController: Partial<DashboardController> = {};
   controllerRef.current = localController;
 
-  const instance = render(<Dashboard {...props} />);
+  let connectedCallback: (() => void) | undefined;
+
+  const instance = render(
+    <Dashboard
+      {...props}
+      onConnected={() => { connectedCallback?.(); }}
+    />
+  );
 
   const controller: DashboardController = {
     setStatus: (s) => { localController.setStatus?.(s); },
@@ -211,6 +237,7 @@ export function renderDashboard(props: DashboardProps): DashboardController {
     addMessage: (m) => { localController.addMessage?.(m); },
     stop: () => { instance.unmount(); },
     waitUntilExit: () => instance.waitUntilExit() as Promise<void>,
+    onConnected: (cb) => { connectedCallback = cb; },
   };
   return controller;
 }
