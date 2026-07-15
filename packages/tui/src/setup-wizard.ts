@@ -297,36 +297,37 @@ export async function setupWizard(): Promise<void> {
   console.log(`  Telegram   : ${config.escalation.telegramBotToken ? color.green('ON (Eskalasi Aktif)') : color.dim('OFF')}`);
   console.log('');
 
-  // ── Auto-start service ──────────────────────────────────────
-  const svc = spawnSync('systemctl', ['--user', 'is-active', 'wagent'], { encoding: 'utf-8' });
-  const svcActive = svc.stdout?.trim() === 'active';
+  // ── Start Gateway (foreground) ──────────────────────────────
+  // Stop any existing service first
+  spawnSync('systemctl', ['--user', 'stop', 'wagent'], { encoding: 'utf-8', stdio: 'pipe' });
 
-  if (svcActive) {
-    const rs = spawnSync('systemctl', ['--user', 'restart', 'wagent'], { encoding: 'utf-8' });
-    if (rs.status === 0) {
-      console.log(color.green('  ✔ WAGENT service di-restart dengan konfigurasi baru.'));
-    } else {
-      console.log(color.yellow('  ⚠ Gagal restart service otomatis. Jalankan: wagent service restart'));
-    }
-  } else {
-    // Coba start service jika tidak aktif
-    const st = spawnSync('systemctl', ['--user', 'start', 'wagent'], { encoding: 'utf-8' });
-    if (st.status === 0) {
-      console.log(color.green('  ✔ WAGENT service dimulai di background.'));
-    } else {
-      console.log(color.dim('  Service systemd belum aktif.'));
-    }
-  }
+  console.log(color.bold('Starting WAGENT...'));
+  console.log(color.dim('  WhatsApp QR code akan muncul di bawah ini.'));
+  console.log(color.dim('  Buka WhatsApp → ⋮ → Perangkat Tertaut → Tautkan Perangkat'));
+  console.log('');
 
-  console.log('');
-  console.log(color.bold('Gunakan:'));
-  console.log(color.dim('  wagent start            → scan QR & mulai service'));
-  console.log(color.dim('  wagent service status   → cek status'));
-  console.log(color.dim('  wagent service logs     → lihat log'));
-  if (config.dashboard.enabled) {
-    console.log(color.dim(`  Dashboard: `) + color.cyan(`http://localhost:${config.dashboard.port}`));
+  // Start the gateway directly (not via systemd) — QR appears in terminal
+  try {
+    const { resolve, dirname } = await import('path');
+    const { fileURLToPath } = await import('url');
+    const cliDistDir = dirname(fileURLToPath(import.meta.url));
+    const startPath = resolve(cliDistDir, '../../cli/dist/index.js');
+    // Run 'wagent start' in foreground via Node.js
+    const { spawn } = await import('child_process');
+    const child = spawn('node', [startPath, 'start'], {
+      stdio: 'inherit',
+      cwd: process.cwd(),
+    });
+    child.on('exit', (code) => {
+      process.exit(code || 0);
+    });
+    // Keep process alive
+    await new Promise(() => {});
+  } catch (err: any) {
+    console.log(color.yellow(`  ⚠ Gagal start: ${err?.message}`));
+    console.log(color.dim('  Jalankan manual: wagent start'));
+    process.exit(1);
   }
-  console.log('');
 }
 
 // ── WhatsApp QR Scan (saat init) ────────────────────────────────
