@@ -436,47 +436,91 @@ setTimeout(() => {
 `;
     writeFileSync(scriptPath, script);
 
-    // Spawn Node.js process (not Bun) — Baileys needs proper WebSocket
-    const { execSync } = await import('child_process');
-    let output = '';
-    try {
-      output = execSync(`node ${scriptPath}`, {
-        encoding: 'utf-8',
-        timeout: 130_000, // 2 min + buffer
+    // Spawn Node.js process async — agar QR real-time tampil di terminal
+    // stdout di-stream langsung ke process.stdout, sambil intercept JSON status
+    const { spawn } = await import('child_process');
+
+    await new Promise<void>((resolve) => {
+      const child = spawn('node', [scriptPath], {
         stdio: ['pipe', 'pipe', 'pipe'],
       });
-    } catch (err: any) {
-      // execSync throws on non-zero exit, but our script outputs JSON before exit
-      output = err.stdout || '';
-      const stderr = err.stderr || '';
-      // If no JSON output, show error
-      if (!output.includes('"status"')) {
-        console.log(color.yellow(`  ⚠ QR scan error: ${stderr || err.message}`));
-        console.log(color.dim('  Scan bisa dilakukan saat service start.'));
-        return;
-      }
-    }
 
-    // Parse result
-    const lastLine = output.trim().split('\n').pop() || '';
-    try {
-      const result = JSON.parse(lastLine);
-      if (result.status === 'connected') {
-        console.log(color.green('  ✔ Session WhatsApp tersimpan!'));
-      } else if (result.status === 'reset') {
-        console.log(color.dim('  Session direset. Jalankan wagent start untuk scan QR.'));
-      } else if (result.status === 'timeout') {
-        console.log(color.yellow('  ⏱ Timeout — QR tidak di-scan dalam 2 menit.'));
-        console.log(color.dim('  Scan bisa dilakukan saat service start.'));
-      } else {
-        console.log(color.dim('  Scan bisa dilakukan saat service start.'));
-      }
-    } catch {
-      console.log(color.dim('  Scan bisa dilakukan saat service start.'));
-    }
+      let statusResult = '';
+      let stderrBuf = '';
+      let lineBuffer = '';
 
-    // Cleanup temp script
-    try { rmSync(scriptPath); } catch {}
+      // Stream stdout: tampilkan ke terminal tapi intercept baris JSON status
+      child.stdout.on('data', (chunk: Buffer) => {
+        const text = chunk.toString();
+        lineBuffer += text;
+
+        // Proses per baris
+        const lines = lineBuffer.split('\n');
+        lineBuffer = lines.pop() ?? ''; // sisa yang belum newline
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          // Cek apakah baris ini JSON status
+          if (trimmed.startsWith('{"status"')) {
+            try {
+              const parsed = JSON.parse(trimmed);
+              statusResult = parsed.status;
+              // Jangan print baris JSON ini ke user
+            } catch {
+              process.stdout.write(line + '\n');
+            }
+          } else {
+            // Tampilkan langsung ke terminal (QR code, pesan, dll)
+            process.stdout.write(line + '\n');
+          }
+        }
+      });
+
+      child.stderr.on('data', (chunk: Buffer) => {
+        stderrBuf += chunk.toString();
+      });
+
+      child.on('close', () => {
+        // Flush sisa buffer
+        if (lineBuffer.trim()) {
+          const trimmed = lineBuffer.trim();
+          if (!trimmed.startsWith('{"status"')) {
+            process.stdout.write(lineBuffer + '\n');
+          } else {
+            try { statusResult = JSON.parse(trimmed).status; } catch {}
+          }
+        }
+
+        // Tampilkan hasil
+        if (statusResult === 'connected') {
+          console.log(color.green('  ✔ Session WhatsApp tersimpan!'));
+        } else if (statusResult === 'reset') {
+          console.log(color.dim('  Session direset. Jalankan wagent start untuk scan QR.'));
+        } else if (statusResult === 'timeout') {
+          console.log(color.yellow('  ⏱ Timeout — QR tidak di-scan dalam 2 menit.'));
+          console.log(color.dim('  Scan bisa dilakukan saat service start.'));
+        } else if (statusResult === '') {
+          // Tidak ada JSON → error
+          if (stderrBuf) {
+            console.log(color.yellow(`  ⚠ QR scan error: ${stderrBuf.split('\n')[0]}`));
+          }
+          console.log(color.dim('  Scan bisa dilakukan saat service start.'));
+        } else {
+          console.log(color.dim('  Scan bisa dilakukan saat service start.'));
+        }
+
+        // Cleanup temp script
+        try { rmSync(scriptPath); } catch {}
+        resolve();
+      });
+
+      child.on('error', (err) => {
+        console.log(color.yellow(`  ⚠ Tidak bisa jalankan node: ${err.message}`));
+        console.log(color.dim('  Scan bisa dilakukan saat service start.'));
+        try { rmSync(scriptPath); } catch {}
+        resolve();
+      });
+    });
 
   } catch (err: any) {
     console.log(color.yellow(`  ⚠ Tidak bisa scan QR: ${err?.message || err}`));
