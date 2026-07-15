@@ -183,19 +183,30 @@ export class DashboardServer implements DashboardAdapter {
 
       // ── Multi-Number ───────────────────────────────────
 
-      case 'get:numbers':
-        ws.send(JSON.stringify({
-          type: 'numbers:list',
-          numbers: this.numbers,
-        }));
+      case 'get:numbers': {
+        const adapter = this.gateway?.getWhatsAppAdapter();
+        if (adapter && 'getNumbers' in adapter) {
+          const liveNumbers = (adapter as any).getNumbers();
+          ws.send(JSON.stringify({ type: 'numbers:list', numbers: liveNumbers }));
+        } else {
+          ws.send(JSON.stringify({ type: 'numbers:list', numbers: this.numbers }));
+        }
         break;
+      }
 
       case 'number:add': {
         const num = msg.number as WhatsAppNumberConfig;
         if (num && num.id && num.sessionName) {
-          // Store in memory — actual adapter creation happens at CLI level
           this.numbers.push(num);
           this.persistNumbers();
+          
+          const adapter = this.gateway?.getWhatsAppAdapter();
+          if (adapter && 'addNumber' in adapter) {
+            await (adapter as any).addNumber(num).catch((err: any) => {
+              this.logger.error({ error: err.message }, 'Failed to add number to adapter');
+            });
+          }
+          
           ws.send(JSON.stringify({ type: 'number:update', number: { ...num, status: 'disconnected' } }));
         }
         break;
@@ -207,7 +218,14 @@ export class DashboardServer implements DashboardAdapter {
         if (numToConnect) {
           numToConnect.enabled = true;
           this.persistNumbers();
-          this.broadcast({ type: 'connection:update', status: 'connected' } as any);
+          
+          const adapter = this.gateway?.getWhatsAppAdapter();
+          if (adapter && 'connectNumber' in adapter) {
+            await (adapter as any).connectNumber(connectId).catch((err: any) => {
+              this.logger.error({ error: err.message }, 'Failed to connect number adapter');
+            });
+          }
+          
           this.logger.info({ numberId: connectId }, 'Number connected via dashboard');
         } else {
           ws.send(JSON.stringify({ type: 'error', error: `Number ${connectId} not found` }));
@@ -221,7 +239,14 @@ export class DashboardServer implements DashboardAdapter {
         if (numToDisconnect) {
           numToDisconnect.enabled = false;
           this.persistNumbers();
-          this.broadcast({ type: 'connection:update', status: 'disconnected' } as any);
+          
+          const adapter = this.gateway?.getWhatsAppAdapter();
+          if (adapter && 'disconnectNumber' in adapter) {
+            await (adapter as any).disconnectNumber(disconnectId).catch((err: any) => {
+              this.logger.error({ error: err.message }, 'Failed to disconnect number adapter');
+            });
+          }
+          
           this.logger.info({ numberId: disconnectId }, 'Number disconnected via dashboard');
         }
         break;
@@ -231,6 +256,14 @@ export class DashboardServer implements DashboardAdapter {
         const removeId = msg.numberId || msg.id;
         this.numbers = this.numbers.filter(n => n.id !== removeId);
         this.persistNumbers();
+        
+        const adapter = this.gateway?.getWhatsAppAdapter();
+        if (adapter && 'removeNumber' in adapter) {
+          await (adapter as any).removeNumber(removeId).catch((err: any) => {
+            this.logger.error({ error: err.message }, 'Failed to remove number adapter');
+          });
+        }
+        
         ws.send(JSON.stringify({ type: 'numbers:list', numbers: this.numbers }));
         this.logger.info({ numberId: removeId }, 'Number removed via dashboard');
         break;

@@ -191,6 +191,7 @@ export class Gateway {
   getProactiveScheduler(): ProactiveScheduler { return this.proactiveScheduler; }
   getToolSandbox(): ToolSandbox { return this.toolSandbox; }
   getTelegramBot(): TelegramBot { return this.telegramBot; }
+  getWhatsAppAdapter(): WhatsAppAdapter { return this.whatsapp; }
 
   /** Whether auto-reply is paused */
   isPaused(): boolean { return this._paused; }

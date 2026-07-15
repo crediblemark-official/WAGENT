@@ -6,7 +6,8 @@ import {
   getLogger,
   Gateway,
   Database,
-  SkillLoader
+  SkillLoader,
+  MultiWhatsAppAdapter
 } from '@crediblemark/core';
 import { BaileysAdapter } from '@crediblemark/whatsapp';
 import { renderQRToString } from '@crediblemark/tui';
@@ -98,8 +99,35 @@ export async function startCommand(options: { port?: string; dashboard?: boolean
     // Initialize database
     const db = new Database(config.databaseUrl);
 
+    // Load numbers from numbers.json
+    const { join } = await import('path');
+    const { existsSync, readFileSync, writeFileSync, mkdirSync } = await import('fs');
+    const numbersFilePath = join(process.cwd(), 'data', 'numbers.json');
+    let initialNumbers: any[] = [];
+    if (existsSync(numbersFilePath)) {
+      try {
+        initialNumbers = JSON.parse(readFileSync(numbersFilePath, 'utf-8'));
+      } catch {}
+    }
+    
+    if (initialNumbers.length === 0) {
+      initialNumbers = [{
+        id: 'default',
+        sessionName: config.whatsappSessionName || 'default',
+        label: 'Nomor Utama',
+        enabled: true
+      }];
+      const dataDir = join(process.cwd(), 'data');
+      if (!existsSync(dataDir)) mkdirSync(dataDir, { recursive: true });
+      writeFileSync(numbersFilePath, JSON.stringify(initialNumbers, null, 2));
+    }
+
     // Initialize WhatsApp adapter
-    const whatsapp = new BaileysAdapter(config);
+    const whatsapp = new MultiWhatsAppAdapter(
+      config,
+      (cfg, numberId) => new BaileysAdapter(cfg, numberId),
+      initialNumbers
+    );
 
     // Initialize Dashboard (if enabled)
     let dashboard: any = undefined;
