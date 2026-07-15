@@ -72,6 +72,17 @@ else
   exit 1
 fi
 
+# ── Reinstall CLI binary ──────────────────────────────────────────────────────
+BIN_DIR="$HOME/.local/bin"
+WAGENT_BIN="$BIN_DIR/wagent"
+mkdir -p "$BIN_DIR"
+cat > "$WAGENT_BIN" << 'WAGENT_EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+exec node "$HOME/.wagent/packages/cli/dist/index.js" "$@"
+WAGENT_EOF
+chmod +x "$WAGENT_BIN"
+
 # ── Restore .env ───────────────────────────────────────────────
 if [ -f ".env.backup" ]; then
   mv .env.backup .env
