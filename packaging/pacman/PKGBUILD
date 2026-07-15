@@ -1,0 +1,22 @@
+# Maintainer: crediblemark <your@email.com>
+pkgname='wagent-bin'
+pkgver=0.2.0
+pkgrel=1
+pkgdesc='WhatsApp AI Agent Platform - Multi-provider, self-hosted'
+arch=('x86_64' 'aarch64')
+url='https://github.com/crediblemark-official/WAGENT'
+license=('MIT')
+depends=('nodejs' 'npm')
+provides=('wagent')
+conflicts=('wagent')
+
+source_aarch64=("wagent-${pkgver}-aarch64.tar.gz::https://github.com/crediblemark-official/WAGENT/releases/download/v${pkgver}/wagent-linux-arm64.tar.gz")
+source_x86_64=("wagent-${pkgver}-x86_64.tar.gz::https://github.com/crediblemark-official/WAGENT/releases/download/v${pkgver}/wagent-linux-x64.tar.gz")
+
+sha256sums_aarch64=('SKIP')
+sha256sums_x86_64=('SKIP')
+
+package() {
+  # Install via npm global
+  npm install -g --prefix "${pkgdir}/usr" "wagent@${pkgver}"
+}

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
+  <metadata>
+    <id>wagent</id>
+    <version>0.2.0</version>
+    <title>WAGENT</title>
+    <authors>crediblemark</authors>
+    <owners>crediblemark</owners>
+    <description>WhatsApp AI Agent Platform - Multi-provider, self-hosted</description>
+    <projectUrl>https://github.com/crediblemark-official/WAGENT</projectUrl>
+    <projectSourceUrl>https://github.com/crediblemark-official/WAGENT</projectSourceUrl>
+    <licenseUrl>https://github.com/crediblemark-official/WAGENT/blob/main/LICENSE</licenseUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <tags>whatsapp ai chatbot agent automation</tags>
+    <dependencies>
+      <dependency id="nodejs" />
+    </dependencies>
+  </metadata>
+  <files>
+    <file src="tools\**" target="tools" />
+  </files>
+</package>

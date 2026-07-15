@@ -1,0 +1,23 @@
+{
+    "version": "0.2.0",
+    "description": "WAGENT - WhatsApp AI Agent Platform",
+    "homepage": "https://github.com/crediblemark-official/WAGENT",
+    "license": "MIT",
+    "architecture": {
+        "64bit": {
+            "url": "https://github.com/crediblemark-official/WAGENT/releases/download/v0.2.0/wagent-windows-x64.zip",
+            "hash": ""
+        }
+    },
+    "bin": "wagent.exe",
+    "checkver": {
+        "github": "https://github.com/crediblemark-official/WAGENT"
+    },
+    "autoupdate": {
+        "architecture": {
+            "64bit": {
+                "url": "https://github.com/crediblemark-official/WAGENT/releases/download/v$version/wagent-windows-x64.zip"
+            }
+        }
+    }
+}

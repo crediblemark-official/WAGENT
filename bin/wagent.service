@@ -6,7 +6,7 @@ Wants=network-online.target
 [Service]
 Type=simple
 WorkingDirectory=%h
-ExecStart=%h/.local/bin/node %h/.wagent/packages/cli/dist/index.js start
+ExecStart=node %h/.wagent/packages/cli/dist/index.js start
 Restart=on-failure
 RestartSec=10
 StandardOutput=journal

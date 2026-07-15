@@ -75,6 +75,7 @@ const LOCAL_PROVIDERS: { [id: string]: ProviderData } = {
 };
 
 let cache: CatalogCache | null = null;
+let cacheCleared = false;
 
 /**
  * Resolve model ID to provider info
@@ -204,6 +205,12 @@ function createFallback(modelId: string): ResolvedModel {
 async function loadCatalog(): Promise<CatalogCache> {
   if (cache) return cache;
   
+  // If cache was explicitly cleared (for testing), skip file cache
+  if (cacheCleared) {
+    await refreshCatalog();
+    return cache || { timestamp: 0, providers: LOCAL_PROVIDERS };
+  }
+  
   // Try to load from file
   if (existsSync(CACHE_FILE)) {
     try {
@@ -259,6 +266,7 @@ async function refreshCatalog(): Promise<void> {
     }
     
     cache = { timestamp: Date.now(), providers };
+    cacheCleared = false;
     saveCache(cache);
   } catch (error) {
     console.error('Failed to fetch from models.dev:', error);
@@ -289,6 +297,14 @@ function saveCache(data: CatalogCache): void {
 export async function refreshModelCatalog(): Promise<void> {
   cache = null;
   await refreshCatalog();
+}
+
+/**
+ * Clear catalog cache (for testing)
+ */
+export function clearCatalogCache(): void {
+  cache = null;
+  cacheCleared = true;
 }
 
 /**

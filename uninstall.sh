@@ -43,6 +43,16 @@ else
   echo "ℹ️  Tidak ada server WAGENT yang berjalan"
 fi
 
+# ── Stop & disable systemd service ─────────────────────────────
+if command -v systemctl &>/dev/null && systemctl --user status wagent &>/dev/null 2>&1; then
+  echo "⏹️  Stopping systemd service..."
+  systemctl --user stop wagent 2>/dev/null || true
+  systemctl --user disable wagent 2>/dev/null || true
+  rm -f "$HOME/.config/systemd/user/wagent.service"
+  systemctl --user daemon-reload 2>/dev/null || true
+  echo "✓ Systemd service removed"
+fi
+
 # ── Remove bin/wagent ──────────────────────────────────────────
 if [ -f "$WAGENT_BIN" ] || [ -L "$WAGENT_BIN" ]; then
   rm -f "$WAGENT_BIN"

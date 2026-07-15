@@ -11,6 +11,9 @@ coverage/
 *.tsbuildinfo
 data/
 
+# Config (runtime, contains API keys)
+config.jsonc
+
 # OS
 .DS_Store
 Thumbs.db
@@ -31,4 +34,8 @@ packages/core/tmp/
 .sessions/
 **/memory/
 packages/core/vitest.temp.ts
+
+# Legacy
+home/
+bun.lock
 

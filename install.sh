@@ -21,15 +21,6 @@ fi
 
 echo "✓ Node $(node --version)"
 
-# ── Check Node (required) ──────────────────────────────────────
-if ! command -v node &>/dev/null; then
-  echo "❌ Node.js is required but not installed."
-  echo "   Install: https://nodejs.org"
-  exit 1
-fi
-
-echo "✓ Node $(node --version)"
-
 # ── Clone atau Update ──────────────────────────────────────────
 if [ -d "$INSTALL_DIR" ]; then
   echo "✓ WAGENT sudah terinstall di $INSTALL_DIR"
