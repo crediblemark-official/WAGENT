@@ -1,6 +1,6 @@
 {
   "name": "wagent",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "WAGENT - WhatsApp AI Agent Platform",
   "type": "module",
   "main": "packages/cli/dist/index.js",
