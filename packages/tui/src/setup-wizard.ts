@@ -382,73 +382,78 @@ async function scanWhatsAppQR(sessionName: string): Promise<void> {
 
     const s = spinner();
 
-    await new Promise<void>((resolve) => {
-      let qrShown = false;
+    // Fungsi koneksi — bisa dipanggil ulang setelah reset session
+    const connectAndWait = async (): Promise<void> => {
+      const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
 
-      const timeout = setTimeout(() => {
-        console.log('');
-        console.log(color.yellow('  ⏱ Timeout — QR tidak di-scan dalam 2 menit.'));
-        console.log(color.dim('  Scan bisa dilakukan saat service pertama start.'));
-        sock.end(undefined);
-        resolve();
-      }, 120_000);
+      return new Promise<void>((resolve) => {
+        let qrShown = false;
 
-      const sock = makeWASocket({
-        auth: state,
-        printQRInTerminal: false,
-        logger: makeSilentLogger(),
-      });
-
-      sock.ev.on('creds.update', saveCreds);
-
-      sock.ev.on('connection.update', async (update: any) => {
-        const { connection, qr, lastDisconnect } = update;
-
-        if (qr) {
-          qrShown = true;
+        const timeout = setTimeout(() => {
           console.log('');
-          qrcode.generate(qr, { small: true });
-          console.log(color.dim('  Scan QR di atas dengan WhatsApp...'));
-        }
-
-        if (connection === 'open') {
-          clearTimeout(timeout);
-          if (qrShown) {
-            // User baru saja scan — simpan session
-            s.start('Tersambung! Menyimpan session...');
-            await saveCreds();
-            s.stop(color.green('✔ Session WhatsApp tersimpan!'));
-          } else {
-            // Session lama masih valid — langsung connected
-            console.log(color.green('  ✔ WhatsApp sudah terhubung (session aktif).'));
-          }
-          // Disconnect gracefully; service akan reconnect saat start
+          console.log(color.yellow('  ⏱ Timeout — QR tidak di-scan dalam 2 menit.'));
+          console.log(color.dim('  Scan bisa dilakukan saat service pertama start.'));
           sock.end(undefined);
           resolve();
-        }
+        }, 120_000);
 
-        if (connection === 'close') {
-          const code = (lastDisconnect?.error as any)?.output?.statusCode;
-          if (!qrShown) {
-            // Close terjadi sebelum QR sempat muncul = session stale/invalid
+        const sock = makeWASocket({
+          auth: state,
+          printQRInTerminal: false,
+          logger: makeSilentLogger(),
+        });
+
+        sock.ev.on('creds.update', saveCreds);
+
+        sock.ev.on('connection.update', async (update: any) => {
+          const { connection, qr, lastDisconnect } = update;
+
+          if (qr) {
+            qrShown = true;
+            console.log('');
+            qrcode.generate(qr, { small: true });
+            console.log(color.dim('  Scan QR di atas dengan WhatsApp...'));
+          }
+
+          if (connection === 'open') {
             clearTimeout(timeout);
-            const { rmSync, existsSync } = await import('fs');
-            if (existsSync(sessionDir)) {
-              rmSync(sessionDir, { recursive: true, force: true });
-              console.log(color.yellow('  ⚠ Session lama tidak valid, direset.'));
-              console.log(color.dim('  Reconnect untuk tampilkan QR baru...'));
-              // Biarkan service reconnect dan minta QR saat start
+            if (qrShown) {
+              s.start('Tersambung! Menyimpan session...');
+              await saveCreds();
+              s.stop(color.green('✔ Session WhatsApp tersimpan!'));
+            } else {
+              console.log(color.green('  ✔ WhatsApp sudah terhubung (session aktif).'));
             }
-            resolve();
-          } else if (code === 401) {
-            // Logged out — tidak resolve, biarkan timeout atau QR baru muncul
-          } else {
-            clearTimeout(timeout);
+            sock.end(undefined);
             resolve();
           }
-        }
+
+          if (connection === 'close') {
+            const code = (lastDisconnect?.error as any)?.output?.statusCode;
+            if (!qrShown) {
+              // Close sebelum QR = session stale, reset dan reconnect
+              clearTimeout(timeout);
+              sock.end(undefined);
+              const { rmSync, existsSync } = await import('fs');
+              if (existsSync(sessionDir)) {
+                rmSync(sessionDir, { recursive: true, force: true });
+                console.log(color.yellow('  ⚠ Session lama tidak valid, direset. Menampilkan QR baru...'));
+              }
+              // Reconnect dengan session bersih
+              resolve(connectAndWait());
+            } else if (code === 401) {
+              // Logged out — tunggu timeout
+            } else {
+              clearTimeout(timeout);
+              resolve();
+            }
+          }
+        });
       });
-    });
+    };
+
+    await connectAndWait();
+
 
   } catch (err: any) {
     console.log(color.yellow(`  ⚠ Tidak bisa scan QR saat ini: ${err?.message || err}`));
