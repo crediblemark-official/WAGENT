@@ -178,11 +178,13 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     height: '100vh',
     overflow: 'hidden',
+    backgroundColor: '#0b141a', // WhatsApp Web Chat Background Dark
+    fontFamily: 'Segoe UI, Helvetica Neue, Helvetica, Lucida Grande, Arial, Ubuntu, Cantarell, sans-serif',
   },
   sidebar: {
-    width: 240,
-    backgroundColor: '#161822',
-    borderRight: '1px solid #1e2030',
+    width: 230,
+    backgroundColor: '#111b21', // WhatsApp Web Sidebar Dark
+    borderRight: '1px solid #222e35',
     display: 'flex',
     flexDirection: 'column',
     flexShrink: 0,
@@ -190,51 +192,55 @@ const styles: Record<string, React.CSSProperties> = {
   logo: {
     display: 'flex',
     alignItems: 'center',
-    gap: 10,
-    padding: '20px 20px',
-    borderBottom: '1px solid #1e2030',
-    color: '#8b5cf6',
+    gap: 8,
+    padding: '16px 16px',
+    borderBottom: '1px solid #222e35',
+    color: '#00a884', // WhatsApp Teal
     fontWeight: 700,
-    fontSize: 18,
+    fontSize: 16,
+    letterSpacing: '0.5px',
   },
   logoText: {
-    background: 'linear-gradient(135deg, #8b5cf6, #6366f1)',
+    background: 'linear-gradient(135deg, #00a884, #25d366)', // WhatsApp Green/Teal gradient
     WebkitBackgroundClip: 'text',
     WebkitTextFillColor: 'transparent',
   },
   nav: {
     flex: 1,
-    padding: '12px 8px',
+    padding: '8px 4px',
     display: 'flex',
     flexDirection: 'column',
-    gap: 2,
+    gap: 1,
+    overflowY: 'auto',
   },
   navItem: {
     display: 'flex',
     alignItems: 'center',
-    gap: 12,
-    padding: '10px 14px',
-    borderRadius: 8,
+    gap: 10,
+    padding: '8px 12px',
+    borderRadius: 6,
     border: 'none',
     background: 'transparent',
-    color: '#94a3b8',
-    fontSize: 14,
+    color: '#8696a0', // WhatsApp muted text
+    fontSize: 13,
     cursor: 'pointer',
-    transition: 'all 0.15s ease',
+    transition: 'all 0.1s ease',
     textAlign: 'left' as const,
     width: '100%',
   },
   navItemActive: {
-    backgroundColor: 'rgba(139, 92, 246, 0.1)',
-    color: '#8b5cf6',
-    fontWeight: 500,
+    backgroundColor: '#202c33', // WhatsApp active chat dark
+    color: '#00a884', // WhatsApp Teal
+    fontWeight: 600,
   },
   statusBar: {
-    padding: '12px 16px',
-    borderTop: '1px solid #1e2030',
+    padding: '10px 14px',
+    borderTop: '1px solid #222e35',
+    backgroundColor: '#111b21',
   },
   main: {
     flex: 1,
     overflow: 'hidden',
+    backgroundColor: '#0b141a',
   },
 };

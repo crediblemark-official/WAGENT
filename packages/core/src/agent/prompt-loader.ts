@@ -38,6 +38,14 @@ export class PromptLoader {
     return PromptLoader.instance;
   }
 
+  getPromptsDir(): string {
+    return this.promptsDir;
+  }
+
+  clearCache(): void {
+    this.cache.clear();
+  }
+
   /**
    * Load and parse a TOON file
    */

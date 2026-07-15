@@ -14,6 +14,7 @@ import {
   Chat,
   ConnectionStatus,
   WhatsAppNumberConfig,
+  promptLoader,
 } from '@wagent/core';
 import type { Gateway } from '@wagent/core';
 import { getLogger } from '@wagent/core';
@@ -546,28 +547,115 @@ export class DashboardServer implements DashboardAdapter {
 
     // ── Settings API ───────────────────────────────────────────
 
+    // Helper untuk convert TOON ke prompt string jika formatnya .toon
+    const convertToonToPromptLocal = (toonObj: any): string => {
+      const lines: string[] = [];
+      if (toonObj.role) lines.push(`Role: ${toonObj.role}`);
+      if (toonObj.language) lines.push(`Language: ${toonObj.language}`);
+      if (toonObj.style) lines.push(`Style: ${toonObj.style}`);
+      lines.push('');
+      
+      const sections: { [key: string]: string[] } = {
+        'personality': toonObj.personality || [],
+        'speaking-style': toonObj['speaking-style'] || [],
+        'rules': toonObj.rules || [],
+        'format': toonObj.format || [],
+      };
+      
+      for (const [sectionName, items] of Object.entries(sections)) {
+        if (items.length > 0) {
+          const title = sectionName.split('-').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+          lines.push(`## ${title}`);
+          items.forEach((item: string) => lines.push(`- ${item}`));
+          lines.push('');
+        }
+      }
+      if (toonObj.reminder) lines.push(toonObj.reminder);
+      return lines.join('\n');
+    };
+
     this.app.get('/api/settings', (_req, res) => {
       const settingsPath = join(process.cwd(), 'config.jsonc');
+      let configData = {};
+      let systemPrompt = 'Kamu adalah customer service AI yang ramah dan profesional.';
+
+      // 1. Baca config.jsonc
       try {
         if (existsSync(settingsPath)) {
           const raw = readFileSync(settingsPath, 'utf-8');
-          // Strip JSONC comments for parsing
           const cleaned = raw.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
-          res.json(JSON.parse(cleaned));
-        } else {
-          res.json({});
+          configData = JSON.parse(cleaned);
         }
-      } catch {
-        res.json({});
+      } catch (err) {
+        this.logger.warn({ error: err }, 'Failed to parse config.jsonc');
       }
+
+      // 2. Baca system prompt
+      try {
+        const promptsDir = promptLoader.getPromptsDir();
+        const toonPath = join(promptsDir, 'system.toon');
+        const mdPath = join(promptsDir, 'system.md');
+
+        if (existsSync(toonPath)) {
+          try {
+            const parsed = promptLoader.load('system.toon');
+            if (parsed) {
+              systemPrompt = convertToonToPromptLocal(parsed);
+            } else {
+              systemPrompt = readFileSync(toonPath, 'utf-8').trim();
+            }
+          } catch {
+            systemPrompt = readFileSync(toonPath, 'utf-8').trim();
+          }
+        } else if (existsSync(mdPath)) {
+          systemPrompt = readFileSync(mdPath, 'utf-8').trim();
+        }
+      } catch (err) {
+        this.logger.warn({ error: err }, 'Failed to read system prompt');
+      }
+
+      res.json({
+        config: configData,
+        systemPrompt
+      });
     });
 
     this.app.post('/api/settings', (req, res) => {
+      const { config, systemPrompt } = req.body;
+      const settingsPath = join(process.cwd(), 'config.jsonc');
+
       try {
-        const settingsPath = join(process.cwd(), 'config.jsonc');
-        writeFileSync(settingsPath, JSON.stringify(req.body, null, 2));
+        // 1. Tulis config.jsonc
+        if (config) {
+          writeFileSync(settingsPath, JSON.stringify(config, null, 2), 'utf-8');
+        }
+
+        // 2. Tulis system prompt ke system.md dan singkirkan system.toon lama
+        if (systemPrompt !== undefined) {
+          const promptsDir = promptLoader.getPromptsDir();
+          const toonPath = join(promptsDir, 'system.toon');
+          const mdPath = join(promptsDir, 'system.md');
+
+          // Hapus atau backup system.toon agar system.md diprioritaskan oleh loader
+          if (existsSync(toonPath)) {
+            try {
+              unlinkSync(toonPath);
+            } catch {
+              // Jika gagal hapus, rename saja
+              const bakPath = join(promptsDir, 'system.toon.bak');
+              writeFileSync(bakPath, readFileSync(toonPath));
+              unlinkSync(toonPath);
+            }
+          }
+
+          // Tulis prompt mentah ke system.md
+          writeFileSync(mdPath, systemPrompt.trim(), 'utf-8');
+          promptLoader.clearCache();
+        }
+
         res.json({ success: true });
       } catch (err: any) {
+        this.logger.error({ error: err.message }, 'Failed to save settings');
         res.status(500).json({ error: err.message });
       }
     });
