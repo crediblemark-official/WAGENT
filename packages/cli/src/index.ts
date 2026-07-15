@@ -104,6 +104,34 @@ program
     const config = await loadConfig();
     ensureDirectories(config);
 
+    // Jika dijalankan di terminal interaktif (TTY) dan sesi sudah terhubung (creds.json ada)
+    if (process.stdout.isTTY) {
+      const { join } = await import('path');
+      const { existsSync } = await import('fs');
+      const sessionDir = join(
+        config.whatsappSessionDir || join(process.cwd(), '.sessions'),
+        config.whatsappSessionName
+      );
+      const credsPath = join(sessionDir, 'creds.json');
+
+      if (existsSync(credsPath)) {
+        console.log('');
+        console.log(color.green(`  ✓ Sesi WhatsApp (${config.whatsappSessionName}) terdeteksi sudah aktif.`));
+        console.log(color.cyan('  ⚙ Menjalankan WAGENT di latar belakang (background service)...'));
+        console.log('');
+
+        try {
+          const { serviceStart } = await import('./commands/service.js');
+          serviceStart();
+          process.exit(0);
+        } catch (err: any) {
+          console.error(color.red(`  ✗ Gagal menjalankan service: ${err.message}`));
+          console.log(color.dim('  Mencoba menjalankan secara manual di foreground...'));
+          console.log('');
+        }
+      }
+    }
+
     const logger = getLogger();
 
     const modelInfo = config.resolvedModel
