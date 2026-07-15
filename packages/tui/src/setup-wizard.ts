@@ -388,13 +388,22 @@ async function scanWhatsAppQR(sessionName: string): Promise<void> {
 
       return new Promise<void>((resolve) => {
         let qrShown = false;
+        let resolved = false;
+
+        const safeResolve = () => {
+          if (!resolved) {
+            resolved = true;
+            clearTimeout(timeout);
+            resolve();
+          }
+        };
 
         const timeout = setTimeout(() => {
           console.log('');
           console.log(color.yellow('  ⏱ Timeout — QR tidak di-scan dalam 2 menit.'));
           console.log(color.dim('  Scan bisa dilakukan saat service pertama start.'));
           sock.end(undefined);
-          resolve();
+          safeResolve();
         }, 120_000);
 
         const sock = makeWASocket({
@@ -406,6 +415,7 @@ async function scanWhatsAppQR(sessionName: string): Promise<void> {
         sock.ev.on('creds.update', saveCreds);
 
         sock.ev.on('connection.update', async (update: any) => {
+          if (resolved) return;
           const { connection, qr } = update;
 
           if (qr) {
@@ -416,7 +426,6 @@ async function scanWhatsAppQR(sessionName: string): Promise<void> {
           }
 
           if (connection === 'open') {
-            clearTimeout(timeout);
             if (qrShown) {
               s.start('Tersambung! Menyimpan session...');
               await saveCreds();
@@ -425,12 +434,11 @@ async function scanWhatsAppQR(sessionName: string): Promise<void> {
               console.log(color.green('  ✔ WhatsApp sudah terhubung (session aktif).'));
             }
             sock.end(undefined);
-            resolve();
+            safeResolve();
           }
 
           if (connection === 'close') {
             if (!qrShown) {
-              clearTimeout(timeout);
               sock.end(undefined);
 
               if (retryCount === 0) {
@@ -439,16 +447,19 @@ async function scanWhatsAppQR(sessionName: string): Promise<void> {
                   rmSync(sessionDir, { recursive: true, force: true });
                 }
                 console.log(color.yellow('  ⚠ Session tidak valid, direset. Memuat QR...'));
-                resolve(connectAndWait(1));
+                safeResolve();
+                // Retry after a short delay
+                setTimeout(() => {
+                  connectAndWait(1).then(resolve);
+                }, 2000);
               } else {
                 // Sudah retry 1x → skip, service akan handle
                 console.log(color.dim('  Tidak bisa tampilkan QR sekarang. Scan saat service start.'));
-                resolve();
+                safeResolve();
               }
             } else {
               // QR sudah muncul tapi connection close — resolve saja
-              clearTimeout(timeout);
-              resolve();
+              safeResolve();
             }
           }
         });

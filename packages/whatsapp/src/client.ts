@@ -36,6 +36,8 @@ export class BaileysAdapter implements WhatsAppAdapter {
   private qrCallback: ((qr: string) => void) | null = null;
   private onReadyCallback: (() => void) | null = null;
   private encryptionKey: Buffer | null = null;
+  private reconnectCount = 0;
+  private static readonly MAX_RECONNECT = 3;
 
   constructor(config: WAgentConfig, numberId?: string) {
     this.numberId = numberId || 'default';
@@ -91,6 +93,21 @@ export class BaileysAdapter implements WhatsAppAdapter {
         this.logger.info('Decrypted %d session files before connect', decrypted);
       }
     }
+
+    // Check if session has valid credentials
+    const { readdirSync } = await import('fs');
+    try {
+      const sessionFiles = readdirSync(this.sessionDir);
+      const hasCreds = sessionFiles.some((f: string) => f.includes('creds'));
+      if (!hasCreds) {
+        this.logger.warn('No credentials found in session directory, QR scan required');
+        this.status = 'qr';
+        this.emit({ type: 'connection:update', status: 'qr' });
+      }
+    } catch {
+      // Directory might not exist yet, that's OK
+    }
+
     this.status = 'connecting';
     this.emit({ type: 'connection:update', status: 'connecting' });
 
@@ -111,6 +128,7 @@ export class BaileysAdapter implements WhatsAppAdapter {
 
       if (qr) {
         this.status = 'qr';
+        this.reconnectCount = 0; // Reset counter when QR is shown
         this.emit({ type: 'connection:update', status: 'qr' });
         this.emit({ type: 'qr:received', qr });
 
@@ -123,21 +141,53 @@ export class BaileysAdapter implements WhatsAppAdapter {
       }
 
       if (connection === 'close') {
-        const shouldReconnect =
-          (lastDisconnect?.error as Boom)?.output?.statusCode !== DisconnectReason.loggedOut;
+        const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode;
+        const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
 
         if (shouldReconnect) {
+          this.reconnectCount++;
+
+          if (this.reconnectCount > BaileysAdapter.MAX_RECONNECT) {
+            this.logger.warn(
+              { attempts: this.reconnectCount, statusCode },
+              'Max reconnect attempts reached, stopping',
+            );
+            this.status = 'disconnected';
+            this.emit({ type: 'connection:update', status: 'disconnected' });
+
+            // Clean up invalid session so user can re-scan QR on next start
+            try {
+              const { readdirSync, rmSync } = await import('fs');
+              const sessionFiles = readdirSync(this.sessionDir);
+              const hasCreds = sessionFiles.some((f: string) => f.includes('creds'));
+              if (!hasCreds) {
+                this.logger.warn('Removing empty/invalid session directory');
+                rmSync(this.sessionDir, { recursive: true, force: true });
+              }
+            } catch { /* ignore cleanup errors */ }
+
+            return;
+          }
+
           this.status = 'reconnecting';
           this.emit({ type: 'connection:update', status: 'reconnecting' });
-          this.logger.info('Connection closed, reconnecting...');
+          this.logger.info(
+            { attempt: this.reconnectCount, max: BaileysAdapter.MAX_RECONNECT, statusCode },
+            'Connection closed, reconnecting...',
+          );
+
+          // Delay before reconnecting to avoid tight loop
+          await new Promise((r) => setTimeout(r, 2000 * this.reconnectCount));
           await this.connect();
         } else {
           this.status = 'disconnected';
+          this.reconnectCount = 0;
           this.emit({ type: 'connection:update', status: 'disconnected' });
           this.logger.warn('Logged out, please re-scan QR code');
         }
       } else if (connection === 'open') {
         this.status = 'connected';
+        this.reconnectCount = 0; // Reset counter on successful connection
         this._userJid = this.sock?.user?.id || '';
         this.emit({ type: 'connection:update', status: 'connected' });
         this.logger.info('WhatsApp connected successfully!');
