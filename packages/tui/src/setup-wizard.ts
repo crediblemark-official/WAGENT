@@ -375,13 +375,14 @@ async function scanWhatsAppQR(sessionName: string): Promise<void> {
     const sessionDir = join(process.cwd(), '.sessions', sessionName);
 
     // Create a Node.js script for QR scan (Bun WebSocket doesn't support Baileys)
-    const scriptPath = join(tuiDir, '_qr-scan.mjs');
+    const scriptPath = join(tuiDir, '_qr-scan.js');
     const baileysPath = resolve(tuiDir, '../../whatsapp/node_modules/@whiskeysockets/baileys/lib/index.js');
 
     const script = `
-import { makeWASocket, useMultiFileAuthState, DisconnectReason } from '${baileysPath}';
-import qrcode from 'qrcode-terminal';
-import { existsSync, rmSync } from 'fs';
+const { makeWASocket, useMultiFileAuthState, DisconnectReason } = require(${JSON.stringify(baileysPath)});
+const qrcode = require('qrcode-terminal');
+const { existsSync, rmSync } = require('fs');
+const path = require('path');
 
 const sessionDir = ${JSON.stringify(sessionDir)};
 let retryCount = 0;
@@ -407,10 +408,6 @@ async function connect() {
     }
 
     if (connection === 'open') {
-      if (existsSync(sessionDir)) {
-        // Save creds by ending gracefully
-        sock.end(undefined);
-      }
       console.log(JSON.stringify({ status: 'connected' }));
       process.exit(0);
     }
@@ -423,7 +420,6 @@ async function connect() {
         process.exit(0);
       }
       retryCount++;
-      // Reset and retry
       if (existsSync(sessionDir)) rmSync(sessionDir, { recursive: true, force: true });
       console.log(JSON.stringify({ status: 'retrying' }));
       setTimeout(connect, 1000);
@@ -433,7 +429,6 @@ async function connect() {
 
 connect();
 
-// Timeout after 2 minutes
 setTimeout(() => {
   console.log(JSON.stringify({ status: 'timeout' }));
   process.exit(0);
