@@ -5,9 +5,103 @@ import { SafeShell } from './safe-shell.js';
 import { HTTPClient } from '../utils/http-client.js';
 import { FileManager } from '../rag/file-manager.js';
 import { WebScraper } from '../rag/web-scraper.js';
+import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'fs';
+import { join } from 'path';
+import { getLogger } from '../utils/logger.js';
+
+function updateEnvFile(vars: Record<string, string>): void {
+  const envPath = join(process.cwd(), '.env');
+  let content = '';
+  if (existsSync(envPath)) {
+    content = readFileSync(envPath, 'utf-8');
+  }
+  
+  const lines = content.split('\n');
+  for (const [key, val] of Object.entries(vars)) {
+    let found = false;
+    for (let i = 0; i < lines.length; i++) {
+      const trimmed = lines[i].trim();
+      if (trimmed.startsWith(`${key}=`)) {
+        lines[i] = `${key}=${val}`;
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      lines.push(`${key}=${val}`);
+    }
+  }
+  
+  writeFileSync(envPath, lines.join('\n'), 'utf-8');
+}
 
 export function createBuiltInTools(config: WAgentConfig): ToolDefinition[] {
   const tools: ToolDefinition[] = [
+    {
+      name: 'install_custom_skill',
+      description: 'Instal skill (plugin/tool) baru secara dinamis untuk AI Agent. Tool ini akan menulis file JavaScript berisi kode skill ke direktori "skills/" di server, mengkonfigurasi kredensial (API keys) di file .env, dan me-restart bot untuk mengaktifkan skill baru tersebut.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: {
+            type: 'string',
+            description: 'Nama modul skill dalam format lowercase alphanumeric dan dashes (contoh: "rajaongkir" atau "pos-connector")',
+          },
+          code: {
+            type: 'string',
+            description: 'String JavaScript valid lengkap untuk modul skill. Kode harus memiliki "export default function create...Skill()" yang mereturn object berisi manifest dan tools.',
+          },
+          envVars: {
+            type: 'object',
+            description: 'Object key-value berisi environment variables / credentials (API keys) baru yang ingin disimpan ke file .env. Biarkan kosong jika tidak membutuhkan kredensial baru.',
+            additionalProperties: {
+              type: 'string'
+            }
+          }
+        },
+        required: ['name', 'code'],
+      },
+      handler: async (args: Record<string, unknown>) => {
+        const name = String(args.name).trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+        const code = String(args.code);
+        const envVars = (args.envVars || {}) as Record<string, string>;
+
+        if (!name) {
+          return JSON.stringify({ success: false, error: 'Nama skill tidak valid.' });
+        }
+
+        try {
+          const skillsDir = join(process.cwd(), 'skills');
+          if (!existsSync(skillsDir)) {
+            mkdirSync(skillsDir, { recursive: true });
+          }
+
+          // Tulis file skill JS
+          const filePath = join(skillsDir, `${name}.js`);
+          writeFileSync(filePath, code, 'utf-8');
+
+          // Tulis env variables jika ada
+          if (Object.keys(envVars).length > 0) {
+            updateEnvFile(envVars);
+          }
+
+          // Jadwalkan restart asinkron agar respon bisa dikirim dulu ke user sebelum shutdown
+          setTimeout(() => {
+            getLogger().info({ skillName: name }, 'Skill installed. Requesting process restart...');
+            process.exit(0); // systemd/daemon akan me-restart program secara otomatis
+          }, 1500);
+
+          return JSON.stringify({
+            success: true,
+            message: `Skill "${name}" berhasil diinstal ke ${filePath}. Bot akan otomatis restart dalam 1.5 detik untuk mengaktifkannya.`,
+          });
+
+        } catch (err: any) {
+          return JSON.stringify({ success: false, error: err.message });
+        }
+      },
+    },
+
     {
       name: 'get_customer_info',
       description: 'Dapatkan informasi customer berdasarkan nomor atau nama',
