@@ -192,6 +192,21 @@ program
         ? `http://localhost:${config.dashboardPort}`
         : undefined;
 
+      // Redam log error dekripsi libsignal yang mengotori TUI
+      const originalConsoleError = console.error;
+      console.error = (...args: any[]) => {
+        const msg = args.join(' ');
+        if (
+          msg.includes('Failed to decrypt message') ||
+          msg.includes('Bad MAC') ||
+          msg.includes('libsignal/src/') ||
+          msg.includes('verifyMAC')
+        ) {
+          return;
+        }
+        originalConsoleError(...args);
+      };
+
       const ui = renderDashboard({
         version: pkg.version,
         model: modelInfo,
@@ -244,6 +259,7 @@ program
       const shutdown = async () => {
         if (shuttingDown) return;
         shuttingDown = true;
+        console.error = originalConsoleError; // Restore console.error
         ui.stop();
         await gateway.stop();
         db.close();
@@ -257,6 +273,7 @@ program
       await ui.waitUntilExit();
 
       // Ink closed — make sure gateway is stopped and process exits
+      console.error = originalConsoleError; // Restore console.error
       if (!shuttingDown) {
         shuttingDown = true;
         await gateway.stop();
