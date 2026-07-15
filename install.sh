@@ -103,6 +103,9 @@ if [ -d "$INSTALL_DIR" ]; then
     exit 1
   fi
 
+  # Baca versi dari remote package.json
+  REMOTE_VERSION="$(git show origin/main:package.json 2>/dev/null | grep '"version"' | head -1 | sed 's/.*"version": *"\([^"]*\)".*/\1/' || echo "$LOCAL_VERSION")"
+
   if [ "$LOCAL_COMMIT" = "$REMOTE_COMMIT" ]; then
     echo ""
     hr
@@ -117,7 +120,7 @@ if [ -d "$INSTALL_DIR" ]; then
   fi
 
   echo ""
-  echo -e "  ${Y}↑ New version available! Updating...${N}"
+  echo -e "  ${Y}↑ New version available! (v$LOCAL_VERSION → v$REMOTE_VERSION) Updating...${N}"
   echo ""
   bash "$INSTALL_DIR/update.sh"
   exit 0

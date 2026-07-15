@@ -173,6 +173,7 @@ export async function startCommand(options: { port?: string; dashboard?: boolean
 
     // Listener untuk status koneksi
     bus.on('connection:update', (e: any) => {
+      if (shuttingDown) return; // Jangan cetak status saat proses shutdown
       const status = e.status;
       if (status === 'connected') {
         console.log(color.green('  ✓ WhatsApp terhubung!'));
@@ -187,8 +188,9 @@ export async function startCommand(options: { port?: string; dashboard?: boolean
               await gateway.stop();
               db.close();
             } catch {}
-            // Beri jeda 500ms agar socket WA dirilis sepenuhnya
-            await new Promise(r => setTimeout(r, 500));
+            // Jeda 2s agar Telegram bot foreground benar-benar berhenti
+            // sebelum service baru mulai (hindari 409 Conflict)
+            await new Promise(r => setTimeout(r, 2000));
             try {
               serviceStart();
             } catch (err: any) {
