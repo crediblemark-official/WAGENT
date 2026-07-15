@@ -368,25 +368,28 @@ async function scanWhatsAppQR(sessionName: string): Promise<void> {
   try {
     const { join, dirname, resolve } = await import('path');
     const { fileURLToPath } = await import('url');
-    const { homedir } = await import('os');
     const qrcode = await import('qrcode-terminal') as any;
 
-    // Resolve baileys dari whatsapp package yang pasti punya dependency ini
+    // Resolve baileys dari whatsapp package
     const tuiDir = dirname(fileURLToPath(import.meta.url));
     const baileysPath = resolve(tuiDir, '../../whatsapp/node_modules/@whiskeysockets/baileys/lib/index.js');
     const { default: makeWASocket, useMultiFileAuthState } =
       await import(baileysPath) as any;
 
-    const sessionDir = join(homedir(), '.sessions', sessionName);
+    // Session dir sama persis dengan yang dipakai core/config.ts → join(cwd, '.sessions')
+    const sessionDir = join(process.cwd(), '.sessions', sessionName);
     const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
 
     const s = spinner();
 
-    await new Promise<void>((resolve, reject) => {
+    await new Promise<void>((resolve) => {
+      let qrShown = false;
+
       const timeout = setTimeout(() => {
         console.log('');
         console.log(color.yellow('  ⏱ Timeout — QR tidak di-scan dalam 2 menit.'));
-        console.log(color.dim('  WAGENT akan tetap berjalan; scan bisa dilakukan saat service pertama start.'));
+        console.log(color.dim('  Scan bisa dilakukan saat service pertama start.'));
+        sock.end(undefined);
         resolve();
       }, 120_000);
 
@@ -402,6 +405,7 @@ async function scanWhatsAppQR(sessionName: string): Promise<void> {
         const { connection, qr, lastDisconnect } = update;
 
         if (qr) {
+          qrShown = true;
           console.log('');
           qrcode.generate(qr, { small: true });
           console.log(color.dim('  Scan QR di atas dengan WhatsApp...'));
@@ -409,24 +413,43 @@ async function scanWhatsAppQR(sessionName: string): Promise<void> {
 
         if (connection === 'open') {
           clearTimeout(timeout);
-          s.start('Tersambung! Menyimpan session...');
-          await saveCreds();
-          await sock.logout().catch(() => {});
-          s.stop(color.green('✔ Session WhatsApp tersimpan!'));
-          console.log(color.dim(`  Session: ${sessionDir}`));
+          if (qrShown) {
+            // User baru saja scan — simpan session
+            s.start('Tersambung! Menyimpan session...');
+            await saveCreds();
+            s.stop(color.green('✔ Session WhatsApp tersimpan!'));
+          } else {
+            // Session lama masih valid — langsung connected
+            console.log(color.green('  ✔ WhatsApp sudah terhubung (session aktif).'));
+          }
+          // Disconnect gracefully; service akan reconnect saat start
+          sock.end(undefined);
           resolve();
         }
 
         if (connection === 'close') {
           const code = (lastDisconnect?.error as any)?.output?.statusCode;
-          // Jika logout paksa atau tidak butuh reconnect
-          if (code !== 401) {
+          if (!qrShown) {
+            // Close terjadi sebelum QR sempat muncul = session stale/invalid
+            clearTimeout(timeout);
+            const { rmSync, existsSync } = await import('fs');
+            if (existsSync(sessionDir)) {
+              rmSync(sessionDir, { recursive: true, force: true });
+              console.log(color.yellow('  ⚠ Session lama tidak valid, direset.'));
+              console.log(color.dim('  Reconnect untuk tampilkan QR baru...'));
+              // Biarkan service reconnect dan minta QR saat start
+            }
+            resolve();
+          } else if (code === 401) {
+            // Logged out — tidak resolve, biarkan timeout atau QR baru muncul
+          } else {
             clearTimeout(timeout);
             resolve();
           }
         }
       });
     });
+
   } catch (err: any) {
     console.log(color.yellow(`  ⚠ Tidak bisa scan QR saat ini: ${err?.message || err}`));
     console.log(color.dim('  Session akan dibuat saat service pertama kali dijalankan.'));
