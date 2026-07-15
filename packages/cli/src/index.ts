@@ -33,7 +33,7 @@ program
       '',
       color.bold(color.cyan('🤖 WAGENT - WhatsApp AI Agent')),
       `  Versi    : ${color.green('v' + pkg.version)}`,
-      `  Runtime  : Bun ${process.versions.bun || 'unknown'} / Node ${process.version}`,
+      `  Runtime  : ${process.versions.bun ? 'Bun ' + process.versions.bun : 'Node ' + process.version}`,
       `  Platform : ${process.platform} ${process.arch}`,
       `  Install  : ${color.dim(join(process.execPath, '../..'))}`,
       '',
@@ -107,7 +107,7 @@ program
     console.log(color.bold(color.cyan('║      🤖 WAGENT WhatsApp AI Agent     ║')));
     console.log(color.bold(color.cyan('╚══════════════════════════════════════╝')));
     console.log(`  Versi   : ${color.green('v' + pkg.version)}`);
-    console.log(`  Runtime : Bun ${process.versions.bun || process.version}`);
+    console.log(`  Runtime : ${process.versions.bun ? 'Bun ' + process.versions.bun : 'Node ' + process.version}`);
     console.log('');
 
     const config = await loadConfig();

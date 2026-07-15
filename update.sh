@@ -32,44 +32,13 @@ git pull origin main --ff-only || {
   git reset --hard origin/main
 }
 
-# ── Detect package manager ─────────────────────────────────────
-if command -v bun &>/dev/null; then
-  PKG_MANAGER="bun"
-  echo "✓ Using bun (fast mode)"
-elif command -v pnpm &>/dev/null; then
-  PKG_MANAGER="pnpm"
-  echo "✓ Using pnpm (fast mode)"
-elif command -v yarn &>/dev/null; then
-  PKG_MANAGER="yarn"
-  echo "✓ Using yarn"
-else
-  PKG_MANAGER="npm"
-  echo "✓ Using npm"
-fi
-
 # ── Reinstall deps ─────────────────────────────────────────────
 echo "📦 Installing dependencies..."
-if [ "$PKG_MANAGER" = "bun" ]; then
-  bun install
-elif [ "$PKG_MANAGER" = "pnpm" ]; then
-  pnpm install
-elif [ "$PKG_MANAGER" = "yarn" ]; then
-  yarn install
-else
-  npm install
-fi
+npm install
 
 # ── Rebuild ────────────────────────────────────────────────────
 echo "🔨 Building..."
-if [ "$PKG_MANAGER" = "bun" ]; then
-  bun run build
-elif [ "$PKG_MANAGER" = "pnpm" ]; then
-  pnpm run build
-elif [ "$PKG_MANAGER" = "yarn" ]; then
-  yarn run build
-else
-  npm run build
-fi
+npm run build
 
 # ── Restore .env ───────────────────────────────────────────────
 if [ -f ".env.backup" ]; then
