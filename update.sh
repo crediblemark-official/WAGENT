@@ -3,16 +3,25 @@ set -euo pipefail
 
 INSTALL_DIR="$HOME/.wagent"
 
+# ── Colors ──────────────────────────────────────────────────────
+G='\033[1;32m'
+Y='\033[1;33m'
+D='\033[2m'
+N='\033[0m'
+
+step() { echo -e "  ${D}$1${N}"; }
+ok()   { echo -e "  ${G}✓${N}  $1"; }
+
 echo ""
-echo "╔══════════════════════════════════════╗"
-echo "║      🤖 WAGENT Updater              ║"
-echo "╚══════════════════════════════════════╝"
+echo -e "  ${D}╔══════════════════════════════════════╗${N}"
+echo -e "  ${D}║      🤖 WAGENT Updater              ║${N}"
+echo -e "  ${D}╚══════════════════════════════════════╝${N}"
 echo ""
 
 # ── Check install ──────────────────────────────────────────────
 if [ ! -d "$INSTALL_DIR" ]; then
-  echo "❌ WAGENT not installed."
-  echo "   Run: curl -fsSL https://raw.githubusercontent.com/crediblemark-official/WAGENT/main/install.sh | bash"
+  echo -e "  ❌ WAGENT not installed."
+  echo -e "     Run: curl -fsSL https://raw.githubusercontent.com/crediblemark-official/WAGENT/main/install.sh | bash"
   exit 1
 fi
 
@@ -21,33 +30,43 @@ cd "$INSTALL_DIR"
 # ── Backup .env ────────────────────────────────────────────────
 if [ -f ".env" ]; then
   cp .env .env.backup
-  echo "✓ Backed up .env"
 fi
 
 # ── Pull latest ────────────────────────────────────────────────
-echo "📥 Pulling latest changes..."
-git pull origin main --ff-only || {
-  echo "⚠️  Cannot fast-forward. Force updating..."
-  git fetch origin main
-  git reset --hard origin/main
-}
+step "📥 Pulling latest changes..."
+if git pull origin main --ff-only >/dev/null 2>&1; then
+  ok "Code updated"
+else
+  git fetch origin main --quiet 2>/dev/null
+  git reset --hard origin/main --quiet 2>/dev/null
+  ok "Code updated (forced)"
+fi
 
 # ── Reinstall deps ─────────────────────────────────────────────
-echo "📦 Installing dependencies..."
-npm install
+step "📦 Installing dependencies..."
+if npm install --silent --no-fund --no-audit >/dev/null 2>&1; then
+  ok "Dependencies ready"
+else
+  echo -e "  ❌ npm install failed"
+  exit 1
+fi
 
 # ── Rebuild ────────────────────────────────────────────────────
-echo "🔨 Building..."
-npm run build
+step "🔨 Building packages..."
+if npm run build --silent >/dev/null 2>&1; then
+  ok "Build complete"
+else
+  echo -e "  ❌ Build failed"
+  exit 1
+fi
 
 # ── Restore .env ───────────────────────────────────────────────
 if [ -f ".env.backup" ]; then
   mv .env.backup .env
-  echo "✓ Restored .env"
 fi
 
 echo ""
-echo "✅ WAGENT updated to latest version!"
+echo -e "  ${G}✅ WAGENT updated to latest version!${N}"
 echo ""
-echo "  Restart: wagent start"
+echo -e "  Restart: wagent start"
 echo ""

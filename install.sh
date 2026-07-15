@@ -60,7 +60,6 @@ if [ -d "$INSTALL_DIR" ]; then
   ok "Already installed at $INSTALL_DIR"
 
   LOCAL_VERSION="$(cat "$INSTALL_DIR/package.json" 2>/dev/null | grep '"version"' | head -1 | sed 's/.*"version": *"\([^"]*\)".*/\1/' || echo 'unknown')"
-  info "Local version: v$LOCAL_VERSION"
 
   cd "$INSTALL_DIR"
   git fetch origin main --quiet 2>/dev/null || true
@@ -74,8 +73,6 @@ if [ -d "$INSTALL_DIR" ]; then
   fi
 
   if [ "$LOCAL_COMMIT" = "$REMOTE_COMMIT" ]; then
-    REMOTE_VERSION="$(git show origin/main:package.json 2>/dev/null | grep '"version"' | head -1 | sed 's/.*"version": *"\([^"]*\)".*/\1/' || echo "$LOCAL_VERSION")"
-    info "Remote version: v$REMOTE_VERSION"
     echo ""
     hr
     echo -e "  ${G}Already up-to-date!${N} (v$LOCAL_VERSION)"
@@ -88,17 +85,14 @@ if [ -d "$INSTALL_DIR" ]; then
     exit 0
   fi
 
-  REMOTE_VERSION="$(git show origin/main:package.json 2>/dev/null | grep '"version"' | head -1 | sed 's/.*"version": *"\([^"]*\)".*/\1/' || echo 'latest')"
-  info "Remote version: v$REMOTE_VERSION"
   echo ""
-  echo -e "  ${Y}↑ New version available! Running update...${N}"
+  echo -e "  ${Y}↑ New version available! Updating...${N}"
   echo ""
   bash "$INSTALL_DIR/update.sh"
   exit 0
 fi
 
-info "Cloning from $REPO..."
-if git clone --depth 1 "$REPO" "$INSTALL_DIR" 2>&1 | while IFS= read -r line; do echo -e "  ${D}  $line${N}"; done; then
+if git clone --depth 1 "$REPO" "$INSTALL_DIR" >/dev/null 2>&1; then
   ok "Repository cloned"
 else
   fail "Clone failed"
@@ -109,7 +103,7 @@ echo ""
 # ── Step 3: Install Dependencies ───────────────────────────────
 step "③" "Installing dependencies..."
 cd "$INSTALL_DIR"
-if npm install --silent 2>&1 | while IFS= read -r line; do echo -e "  ${D}  $line${N}"; done; then
+if npm install --silent --no-fund --no-audit >/dev/null 2>&1; then
   ok "Dependencies installed"
 else
   fail "npm install failed"
@@ -119,7 +113,7 @@ echo ""
 
 # ── Step 4: Build ──────────────────────────────────────────────
 step "④" "Building packages..."
-if FRESH_INSTALL=1 npm run build --silent 2>&1 | while IFS= read -r line; do echo -e "  ${D}  $line${N}"; done; then
+if FRESH_INSTALL=1 npm run build --silent >/dev/null 2>&1; then
   ok "Build complete"
 else
   fail "Build failed"
