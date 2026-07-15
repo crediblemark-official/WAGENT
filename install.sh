@@ -95,9 +95,14 @@ else
   npm install && npm run build
 fi
 
-# ── Link ───────────────────────────────────────────────────────
+# ── Install bin/wagent ─────────────────────────────────────────
 mkdir -p "$BIN_DIR"
-ln -sf "$INSTALL_DIR/bin/wagent" "$WAGENT_BIN"
+cat > "$WAGENT_BIN" << 'WAGENT_EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+exec node "$HOME/.wagent/packages/cli/dist/index.js" "$@"
+WAGENT_EOF
+chmod +x "$WAGENT_BIN"
 
 # ── PATH check ─────────────────────────────────────────────────
 if ! echo "$PATH" | grep -q "$BIN_DIR"; then

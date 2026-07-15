@@ -43,9 +43,9 @@ else
   echo "ℹ️  Tidak ada server WAGENT yang berjalan"
 fi
 
-# ── Remove symlink ─────────────────────────────────────────────
-if [ -L "$WAGENT_BIN" ]; then
-  rm "$WAGENT_BIN"
+# ── Remove bin/wagent ──────────────────────────────────────────
+if [ -f "$WAGENT_BIN" ] || [ -L "$WAGENT_BIN" ]; then
+  rm -f "$WAGENT_BIN"
   echo "✓ Removed $WAGENT_BIN"
 fi
 
