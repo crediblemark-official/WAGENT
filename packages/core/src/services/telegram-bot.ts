@@ -57,8 +57,10 @@ export class TelegramBot {
   private botToken: string;
   private authorizedChatId: string;
   private lastUpdateId = 0;
-  private pollTimer: ReturnType<typeof setInterval> | null = null;
-  private readonly pollIntervalMs = 3_000; // Poll every 3 seconds
+  private pollTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly pollIntervalMs = 3_000; // Poll setiap 3 detik
+  private abortController: AbortController | null = null;
+  private stopped = false;
 
   private commands: Map<string, CommandDef> = new Map();
   private gateway: TelegramGatewayAdapter;
@@ -186,17 +188,37 @@ export class TelegramBot {
 
   start(): void {
     if (!this.enabled || this.pollTimer) return;
+    this.stopped = false;
     this.logger.info('Telegram Bot polling started (interval: %dms)', this.pollIntervalMs);
 
-    // Start polling immediately
-    this.poll();
-    this.pollTimer = setInterval(() => this.poll(), this.pollIntervalMs);
+    // Gunakan sequential polling — schedule berikutnya setelah poll selesai
+    // Ini memastikan hanya 1 request getUpdates aktif sekaligus
+    this.scheduleNextPoll();
+  }
+
+  /**
+   * Schedule poll berikutnya setelah delay.
+   * Tidak pakai setInterval karena poll timeout (5s) > interval (3s)
+   * yang menyebabkan overlap request → 409 Conflict.
+   */
+  private scheduleNextPoll(delayMs = 0): void {
+    if (this.stopped) return;
+    this.pollTimer = setTimeout(async () => {
+      await this.poll();
+      this.scheduleNextPoll(this.pollIntervalMs);
+    }, delayMs);
   }
 
   stop(): void {
+    this.stopped = true;
     if (this.pollTimer) {
-      clearInterval(this.pollTimer);
+      clearTimeout(this.pollTimer);
       this.pollTimer = null;
+    }
+    // Abort request long-poll yang sedang berjalan agar tidak conflict 409
+    if (this.abortController) {
+      this.abortController.abort();
+      this.abortController = null;
     }
     this.logger.info('Telegram Bot polling stopped');
   }
@@ -204,27 +226,34 @@ export class TelegramBot {
   // ── Polling ───────────────────────────────────────────────────
 
   private async poll(): Promise<void> {
+    if (this.stopped) return;
     try {
       const updates = await this.fetchUpdates();
       if (!updates || updates.length === 0) return;
 
-      // Process each update in order
+      // Proses setiap update secara berurutan
       for (const update of updates) {
+        if (this.stopped) break;
         await this.processUpdate(update);
         this.lastUpdateId = update.update_id;
       }
 
     } catch (err: any) {
-      // Polling errors are expected (network issues, etc.) — just log
+      // Abort bukan error — skip silently
+      if (err.name === 'AbortError') return;
+      // Polling error wajar (network issue, dll.) — cukup log
       this.logger.debug({ error: err.message }, 'Telegram poll error');
     }
   }
 
   private async fetchUpdates(): Promise<TelegramUpdate[]> {
+    // Buat AbortController baru untuk setiap request
+    this.abortController = new AbortController();
+
     const url = `https://api.telegram.org/bot${this.botToken}/getUpdates` +
       `?offset=${this.lastUpdateId + 1}&timeout=5&allowed_updates=["message"]`;
 
-    const response = await fetch(url);
+    const response = await fetch(url, { signal: this.abortController.signal });
     if (!response.ok) {
       const err = await response.text();
       this.logger.warn({ error: err }, 'Telegram getUpdates failed');
