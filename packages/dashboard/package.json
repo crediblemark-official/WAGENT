@@ -1,6 +1,6 @@
 {
   "name": "@wagent/dashboard",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "WAGENT Dashboard - Web Panel",
   "type": "module",
   "main": "./dist/server.js",
