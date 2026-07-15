@@ -9,7 +9,7 @@ import color from 'picocolors';
 
 import { loadConfig, ensureDirectories, getLogger, Gateway, Database, WhatsAppNumberConfig, SkillLoader, isEncryptionAvailable, getEncryptionKey, generateEncryptionKey, encryptFile, decryptFile, encryptDirectory, decryptDirectory, encryptEnvFile, decryptEnvFile, getEncryptionStatus, KnowledgeStore } from '@wagent/core';
 import { BaileysAdapter } from '@wagent/whatsapp';
-import { setupWizard, saveConfigToEnv } from '@wagent/tui';
+import { setupWizard, saveConfigToEnv, renderDashboard, renderQRToString } from '@wagent/tui';
 import { serviceStatus, serviceStart, serviceStop, serviceRestart, serviceLogs, serviceEnable, serviceDisable, isServiceRunning } from './commands/service.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -101,13 +101,6 @@ program
     }
 
 
-    console.log('');
-    console.log(color.bold(color.cyan('  ╔═══════════════════════════════════════╗')));
-    console.log(color.bold(color.cyan('  ║')) + '  🤖  ' + color.bold('W A G E N T') + color.bold(color.cyan('                   ║')));
-    console.log(color.bold(color.cyan('  ║')) + color.dim('  WhatsApp AI Agent · Self-Hosted     ') + color.bold(color.cyan('║')));
-    console.log(color.bold(color.cyan('  ╚═══════════════════════════════════════╝')));
-    console.log('');
-
     const config = await loadConfig();
     ensureDirectories(config);
 
@@ -116,14 +109,6 @@ program
     const modelInfo = config.resolvedModel
       ? `${config.resolvedModel.provider} / ${config.resolvedModel.model}`
       : config.aiProvider;
-
-    const runtimeInfo = process.versions.bun ? 'Bun ' + process.versions.bun : 'Node ' + process.version;
-    console.log(`  ${color.dim('Version')}   ${color.green('v' + pkg.version)}  ${color.dim(runtimeInfo)}`);
-    console.log(`  ${color.dim('Model')}     ${color.yellow(modelInfo)}`);
-    if (config.dashboardPort && options.dashboard !== false) {
-      console.log(`  ${color.dim('Dashboard')} ${color.cyan(`http://localhost:${config.dashboardPort}`)}`);
-    }
-    console.log('');
 
     // Override port from CLI
     if (options.port) {
@@ -170,35 +155,85 @@ program
         dashboard.setGateway(gateway);
       }
 
-      // Handle graceful shutdown
-      const shutdown = async () => {
+      // Start gateway (emits connection:update + qr:received events)
+      await gateway.start();
+
+      // Full-screen Ink dashboard only when attached to a real terminal.
+      // Under systemd / piped logs there is no TTY, so fall back to the
+      // plain console summary.
+      if (!process.stdout.isTTY) {
         console.log('');
-        console.log(color.yellow('  ⏳ Shutting down WAGENT...'));
+        console.log(color.bold(color.green('  ┌─────────────────────────────────────────┐')));
+        console.log(color.bold(color.green('  │')) + color.bold('           ✓ WAGENT is running!          ') + color.bold(color.green('│')));
+        console.log(color.bold(color.green('  └─────────────────────────────────────────┘')));
+        console.log('');
+        if (config.dashboardPort && options.dashboard !== false) {
+          console.log(`  ${color.dim('Dashboard')}  ${color.cyan(`http://localhost:${config.dashboardPort}`)}`);
+        }
+        console.log(`  ${color.dim('Stop')}       ${color.yellow('Ctrl+C')}`);
+        console.log('');
+
+        const shutdownHeadless = async () => {
+          await gateway.stop();
+          db.close();
+          process.exit(0);
+        };
+        process.on('SIGINT', shutdownHeadless);
+        process.on('SIGTERM', shutdownHeadless);
+
+        await new Promise(() => {}); // keep alive
+        return;
+      }
+
+      // Render Ink dashboard (replaces console output). Tell WhatsApp client
+      // not to print the QR itself — the dashboard renders it.
+      process.env.WAGENT_DASHBOARD = '1';
+      const dashboardUrl = config.dashboardPort
+        ? `http://localhost:${config.dashboardPort}`
+        : undefined;
+
+      const ui = renderDashboard({
+        version: pkg.version,
+        model: modelInfo,
+        dashboardUrl,
+        sessionName: config.whatsappSessionName || 'default',
+      });
+
+      // Drive the Ink dashboard from gateway events
+      const bus = gateway.getEventBus();
+      bus.on('connection:update', (e: any) => {
+        const s = e.status === 'reconnecting' ? 'connecting' : e.status;
+        ui.setStatus(s);
+      });
+      bus.on('qr:received', (e: any) => ui.setQRCode(renderQRToString(e.qr)));
+      bus.on('message:received', (e: any) => {
+        const m = e.message || {};
+        ui.addMessage({
+          from: m.senderName || m.from || 'unknown',
+          content: m.body || m.text || '',
+          time: new Date().toLocaleTimeString(),
+          isAI: false,
+        });
+      });
+
+      // Clean shutdown used by both SIGINT/SIGTERM and Ink's own exit
+      const shutdown = async () => {
+        ui.stop();
         await gateway.stop();
         db.close();
-        console.log(color.green('  ✓ Stopped.'));
         process.exit(0);
       };
 
       process.on('SIGINT', shutdown);
       process.on('SIGTERM', shutdown);
 
-      // Start gateway
-      await gateway.start();
+      // Wait for Ink to exit (Ctrl+C / 'q' inside the TUI)
+      await ui.waitUntilExit();
 
-      console.log('');
-      console.log(color.bold(color.green('  ┌─────────────────────────────────────────┐')));
-      console.log(color.bold(color.green('  │')) + color.bold('           ✓ WAGENT is running!          ') + color.bold(color.green('│')));
-      console.log(color.bold(color.green('  └─────────────────────────────────────────┘')));
-      console.log('');
-      if (dashboard) {
-        console.log(`  ${color.dim('Dashboard')}  ${color.cyan(`http://localhost:${config.dashboardPort}`)}`);
-      }
-      console.log(`  ${color.dim('Stop')}       ${color.yellow('Ctrl+C')}`);
-      console.log('');
-
-      // Keep process alive
-      await new Promise(() => {}); // Never resolves, relies on SIGINT
+      // Ink closed — make sure gateway is stopped and process exits
+      await gateway.stop();
+      db.close();
+      process.exit(0);
 
     } catch (err: any) {
       logger.error({ error: err.message }, 'Fatal error');
