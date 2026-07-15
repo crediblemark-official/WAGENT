@@ -121,11 +121,9 @@ program
 
     const logger = getLogger();
 
-    // Log konfigurasi aktif
     const modelInfo = config.resolvedModel
       ? `${config.resolvedModel.provider} / ${config.resolvedModel.model}`
       : config.aiProvider;
-    logger.info({ version: pkg.version, provider: modelInfo }, 'WAGENT starting');
 
     const runtimeInfo = process.versions.bun ? 'Bun ' + process.versions.bun : 'Node ' + process.version;
     console.log(`  ${color.dim('Version')}   ${color.green('v' + pkg.version)}  ${color.dim(runtimeInfo)}`);
@@ -143,7 +141,6 @@ program
     try {
       // Initialize database
       const db = new Database(config.databaseUrl);
-      logger.info('Database initialized');
 
       // Initialize WhatsApp adapter
       const whatsapp = new BaileysAdapter(config);
@@ -161,7 +158,6 @@ program
           const { DashboardServer } = mod;
           if (!DashboardServer) throw new Error('DashboardServer tidak ditemukan di modul');
           dashboard = new DashboardServer(config, db);
-          logger.info('Dashboard loaded: %s', dashboardPath);
         } catch (err: any) {
           logger.warn('Dashboard module not available, running headless: %s', err?.message);
         }
@@ -173,7 +169,6 @@ program
       const skillLoader = new SkillLoader();
       await skillLoader.loadAll();
       const extraTools = skillLoader.getTools();
-      logger.info('Loaded %d skill tools for AI agent', extraTools.length);
 
       // Create Gateway
       const gateway = new Gateway(config, db, whatsapp, dashboard, extraTools);

@@ -2,10 +2,10 @@ import pino from 'pino';
 
 let _logger: pino.Logger | null = null;
 
-export function createLogger(name: string, level = 'info'): pino.Logger {
+export function createLogger(name: string, level = 'warn'): pino.Logger {
   _logger = pino({
     name,
-    level,
+    level: process.env.LOG_LEVEL || level,
     transport: {
       target: 'pino-pretty',
       options: {
