@@ -1,6 +1,6 @@
 {
   "name": "@crediblemark/wagent",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "description": "WAGENT - WhatsApp AI Agent Platform",
   "type": "module",
   "main": "packages/cli/dist/index.js",
@@ -19,7 +19,6 @@
   "scripts": {
     "build": "cd packages/core && bun run build && cd ../dashboard && bun run build && cd ../tui && bun run build && cd ../whatsapp && bun run build && cd ../cli && bun run build",
     "prepublishOnly": "npm run build",
-    "postinstall": "node packages/whatsapp/scripts/patch-baileys.mjs",
     "start": "./bin/wagent start",
     "dev": "./bin/wagent start --no-dashboard",
     "test": "cd packages/core && npx vitest run",

@@ -16,4 +16,4 @@ if ! command -v node &>/dev/null; then
   fi
 fi
 
-exec node "$PROJECT_DIR/packages/cli/dist/index.js" "$@"
+exec node "$PROJECT_DIR/packages/cli/dist/bootstrap.js" "$@"

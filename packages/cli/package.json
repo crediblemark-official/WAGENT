@@ -1,17 +1,17 @@
 {
   "name": "@crediblemark/cli",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "description": "WAGENT CLI - Command-line interface",
   "type": "module",
-  "main": "./dist/index.js",
+  "main": "./dist/bootstrap.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "wagent": "./dist/index.js"
+    "wagent": "./dist/bootstrap.js"
   },
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "start": "node ./dist/index.js"
+    "start": "node ./dist/bootstrap.js"
   },
   "dependencies": {
     "@crediblemark/core": "*",

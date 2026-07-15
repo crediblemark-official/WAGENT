@@ -1,6 +1,6 @@
 {
   "name": "@crediblemark/dashboard",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "description": "WAGENT Dashboard - Web Panel",
   "type": "module",
   "main": "./dist/server.js",
