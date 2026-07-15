@@ -325,7 +325,7 @@ export async function setupWizard(): Promise<void> {
     const startPath = resolve(cliDistDir, '../../cli/dist/index.js');
     // Run 'wagent start' in foreground via bun — QR muncul langsung di terminal
     const { spawn } = await import('child_process');
-    const child = spawn('bun', [startPath, 'start'], {
+    const child = spawn('node', [startPath, 'start'], {
       stdio: 'inherit',
       cwd: process.cwd(),
     });

@@ -1,4 +1,4 @@
-import { Database as BunDatabase } from 'bun:sqlite';
+import BetterSqlite3 from 'better-sqlite3';
 import { join, dirname } from 'path';
 import { existsSync, mkdirSync, unlinkSync } from 'fs';
 import { Message, Contact, Chat, DailyStats, BroadcastMessage, BroadcastRecipient, ScheduledMessage, ScheduledMessageStatus, ScheduleRepeat, KnowledgeEntry, KnowledgeSearchResult } from './types.js';
@@ -6,7 +6,7 @@ import { getLogger } from './logger.js';
 import { isEncryptionAvailable, getEncryptionKey, encryptFile, decryptFile } from './crypto.js';
 
 export class Database {
-  private db: BunDatabase;
+  private db: BetterSqlite3.Database;
   private dbPath: string;
   private encryptionKey: Buffer | null = null;
 
@@ -29,9 +29,9 @@ export class Database {
       this.encryptionKey = Buffer.from(getEncryptionKey()!, 'hex');
     }
 
-    this.db = new BunDatabase(resolvedPath);
-    this.db.run('PRAGMA journal_mode = WAL');
-    this.db.run('PRAGMA foreign_keys = ON');
+    this.db = new BetterSqlite3(resolvedPath);
+    this.db.exec('PRAGMA journal_mode = WAL');
+    this.db.exec('PRAGMA foreign_keys = ON');
     this.initialize();
   }
 
@@ -274,7 +274,7 @@ export class Database {
   // ── Contacts ──────────────────────────────────────────────────
 
   saveContact(contact: Contact): void {
-    const stmt = this.db.query(`
+    const stmt = this.db.prepare(`
       INSERT INTO contacts (id, name, push_name, number, is_group, avatar, last_seen, tags, notes, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
       ON CONFLICT(id) DO UPDATE SET
@@ -295,17 +295,17 @@ export class Database {
   }
 
   getContact(id: string): Contact | undefined {
-    const row = this.db.query('SELECT * FROM contacts WHERE id = ?').get(id) as any;
+    const row = this.db.prepare('SELECT * FROM contacts WHERE id = ?').get(id) as any;
     return row ? this.rowToContact(row) : undefined;
   }
 
   getAllContacts(): Contact[] {
-    const rows = this.db.query('SELECT * FROM contacts ORDER BY updated_at DESC').all() as any[];
+    const rows = this.db.prepare('SELECT * FROM contacts ORDER BY updated_at DESC').all() as any[];
     return rows.map(this.rowToContact);
   }
 
   searchContacts(query: string): Contact[] {
-    const rows = this.db.query(
+    const rows = this.db.prepare(
       'SELECT * FROM contacts WHERE name LIKE ? OR number LIKE ? OR push_name LIKE ? ORDER BY updated_at DESC'
     ).all(`%${query}%`, `%${query}%`, `%${query}%`) as any[];
     return rows.map(this.rowToContact);
@@ -330,7 +330,7 @@ export class Database {
   // ── Chats ─────────────────────────────────────────────────────
 
   saveChat(chat: Chat): void {
-    const stmt = this.db.query(`
+    const stmt = this.db.prepare(`
       INSERT INTO chats (id, contact_id, contact_name, last_message, last_message_at, unread_count, is_group, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET
@@ -349,14 +349,14 @@ export class Database {
   }
 
   getAllChats(): Chat[] {
-    const rows = this.db.query(
+    const rows = this.db.prepare(
       'SELECT * FROM chats ORDER BY COALESCE(last_message_at, created_at) DESC'
     ).all() as any[];
     return rows.map(this.rowToChat);
   }
 
   getChat(id: string): Chat | undefined {
-    const row = this.db.query('SELECT * FROM chats WHERE id = ?').get(id) as any;
+    const row = this.db.prepare('SELECT * FROM chats WHERE id = ?').get(id) as any;
     return row ? this.rowToChat(row) : undefined;
   }
 
@@ -376,7 +376,7 @@ export class Database {
   // ── Messages ──────────────────────────────────────────────────
 
   saveMessage(msg: Message, chatId: string): void {
-    const stmt = this.db.query(`
+    const stmt = this.db.prepare(`
       INSERT OR IGNORE INTO messages (id, chat_id, from_jid, to_jid, content, message_type, from_me, timestamp, metadata)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
@@ -390,12 +390,12 @@ export class Database {
 
   /** Check if a message with this ID already exists in the database */
   messageExists(id: string): boolean {
-    const row = this.db.query('SELECT 1 FROM messages WHERE id = ?').get(id) as any;
+    const row = this.db.prepare('SELECT 1 FROM messages WHERE id = ?').get(id) as any;
     return !!row;
   }
 
   getMessages(chatId: string, limit = 50, offset = 0): Message[] {
-    const rows = this.db.query(
+    const rows = this.db.prepare(
       'SELECT * FROM messages WHERE chat_id = ? ORDER BY timestamp ASC LIMIT ? OFFSET ?'
     ).all(chatId, limit, offset) as any[];
     return rows.map(this.rowToMessage);
@@ -417,20 +417,20 @@ export class Database {
   // ── Conversation (AI Context) ─────────────────────────────────
 
   addConversation(contactId: string, role: string, content: string, tokenCount = 0): void {
-    this.db.query(
+    this.db.prepare(
       'INSERT INTO conversations (contact_id, role, content, token_count) VALUES (?, ?, ?, ?)'
     ).run(contactId, role, content, tokenCount);
   }
 
   getConversationHistory(contactId: string, limit = 30): { role: string; content: string }[] {
-    const rows = this.db.query(
+    const rows = this.db.prepare(
       'SELECT role, content FROM conversations WHERE contact_id = ? ORDER BY created_at ASC LIMIT ?'
     ).all(contactId, limit) as any[];
     return rows.map(r => ({ role: r.role, content: r.content }));
   }
 
   clearConversation(contactId: string): void {
-    this.db.query('DELETE FROM conversations WHERE contact_id = ?').run(contactId);
+    this.db.prepare('DELETE FROM conversations WHERE contact_id = ?').run(contactId);
   }
 
   /**
@@ -440,7 +440,7 @@ export class Database {
   getStaleConversationContacts(hours: number): string[] {
     const cutoff = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
     // Find contacts whose most recent conversation entry is older than cutoff
-    const rows = this.db.query(
+    const rows = this.db.prepare(
       `SELECT contact_id FROM conversations
        GROUP BY contact_id
        HAVING MAX(created_at) < ?`
@@ -464,13 +464,13 @@ export class Database {
   }
 
   trimConversation(contactId: string, maxEntries = 60): void {
-    const count = this.db.query(
+    const count = this.db.prepare(
       'SELECT COUNT(*) as count FROM conversations WHERE contact_id = ?'
     ).get(contactId) as any;
 
     if (count.count > maxEntries) {
       const excess = count.count - maxEntries;
-      this.db.query(`
+      this.db.prepare(`
         DELETE FROM conversations WHERE contact_id = ? AND created_at IN (
           SELECT created_at FROM conversations WHERE contact_id = ? ORDER BY created_at ASC LIMIT ?
         )
@@ -482,7 +482,7 @@ export class Database {
 
   incrementMessageCount(type: 'incoming' | 'outgoing'): void {
     const today = new Date().toISOString().split('T')[0];
-    this.db.query(`
+    this.db.prepare(`
       INSERT INTO daily_stats (date, total_messages, incoming_messages, outgoing_messages, unique_contacts, ai_response_count, avg_response_time)
       VALUES (?, 1, ?, ?, 0, 0, 0)
       ON CONFLICT(date) DO UPDATE SET
@@ -494,7 +494,7 @@ export class Database {
   }
 
   getStats(days = 7): DailyStats[] {
-    const rows = this.db.query(
+    const rows = this.db.prepare(
       'SELECT * FROM daily_stats ORDER BY date DESC LIMIT ?'
     ).all(days) as any[];
     return rows.map(r => ({
@@ -512,7 +512,7 @@ export class Database {
    * Get top contacts by message count
    */
   getTopContactsByMessageCount(limit = 5): { name: string; messages: number }[] {
-    const rows = this.db.query(`
+    const rows = this.db.prepare(`
       SELECT c.contact_name AS name, COUNT(m.id) AS messages
       FROM messages m
       JOIN chats c ON m.chat_id = c.id
@@ -526,7 +526,7 @@ export class Database {
   // ── Broadcasts ────────────────────────────────────────────────
 
   createBroadcast(broadcast: BroadcastMessage): void {
-    this.db.query(`
+    this.db.prepare(`
       INSERT INTO broadcasts (id, content, target_filter, status, total_contacts, created_at)
       VALUES (?, ?, ?, ?, ?, ?)
     `).run(
@@ -554,11 +554,11 @@ export class Database {
     }
 
     params.push(id);
-    this.db.query(`UPDATE broadcasts SET ${updates.join(', ')} WHERE id = ?`).run(...params);
+    this.db.prepare(`UPDATE broadcasts SET ${updates.join(', ')} WHERE id = ?`).run(...params);
   }
 
   getAllBroadcasts(): BroadcastMessage[] {
-    const rows = this.db.query('SELECT * FROM broadcasts ORDER BY created_at DESC').all() as any[];
+    const rows = this.db.prepare('SELECT * FROM broadcasts ORDER BY created_at DESC').all() as any[];
     return rows.map(r => ({
       id: r.id,
       content: r.content,
@@ -573,7 +573,7 @@ export class Database {
   }
 
   addBroadcastRecipient(recipient: BroadcastRecipient): void {
-    this.db.query(`
+    this.db.prepare(`
       INSERT OR IGNORE INTO broadcast_recipients (broadcast_id, contact_id, status)
       VALUES (?, ?, ?)
     `).run(recipient.broadcastId, recipient.contactId, recipient.status);
@@ -590,11 +590,11 @@ export class Database {
       updates.push('sent_at = datetime(\'now\')');
     }
     params.push(broadcastId, contactId);
-    this.db.query(`UPDATE broadcast_recipients SET ${updates.join(', ')} WHERE broadcast_id = ? AND contact_id = ?`).run(...params);
+    this.db.prepare(`UPDATE broadcast_recipients SET ${updates.join(', ')} WHERE broadcast_id = ? AND contact_id = ?`).run(...params);
   }
 
   getBroadcastRecipients(broadcastId: string): BroadcastRecipient[] {
-    const rows = this.db.query(
+    const rows = this.db.prepare(
       'SELECT * FROM broadcast_recipients WHERE broadcast_id = ?'
     ).all(broadcastId) as any[];
     return rows.map(r => ({
@@ -609,7 +609,7 @@ export class Database {
   // ── Scheduled Messages ───────────────────────────────────────
 
   createScheduledMessage(msg: ScheduledMessage): void {
-    this.db.query(`
+    this.db.prepare(`
       INSERT INTO scheduled_messages (id, contact_id, contact_name, content, scheduled_at, repeat, status, next_run_at, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
@@ -644,26 +644,26 @@ export class Database {
     fields.push("updated_at = datetime('now')");
     params.push(id);
 
-    this.db.query(`UPDATE scheduled_messages SET ${fields.join(', ')} WHERE id = ?`).run(...params);
+    this.db.prepare(`UPDATE scheduled_messages SET ${fields.join(', ')} WHERE id = ?`).run(...params);
   }
 
   deleteScheduledMessage(id: string): void {
-    this.db.query('DELETE FROM scheduled_messages WHERE id = ?').run(id);
+    this.db.prepare('DELETE FROM scheduled_messages WHERE id = ?').run(id);
   }
 
   getScheduledMessage(id: string): ScheduledMessage | undefined {
-    const row = this.db.query('SELECT * FROM scheduled_messages WHERE id = ?').get(id) as any;
+    const row = this.db.prepare('SELECT * FROM scheduled_messages WHERE id = ?').get(id) as any;
     return row ? this.rowToScheduled(row) : undefined;
   }
 
   getAllScheduledMessages(): ScheduledMessage[] {
-    const rows = this.db.query('SELECT * FROM scheduled_messages ORDER BY scheduled_at ASC').all() as any[];
+    const rows = this.db.prepare('SELECT * FROM scheduled_messages ORDER BY scheduled_at ASC').all() as any[];
     return rows.map(this.rowToScheduled);
   }
 
   getDueScheduledMessages(): ScheduledMessage[] {
     const now = new Date().toISOString();
-    const rows = this.db.query(
+    const rows = this.db.prepare(
       `SELECT * FROM scheduled_messages
        WHERE status IN ('pending', 'active')
        AND next_run_at IS NOT NULL
@@ -694,7 +694,7 @@ export class Database {
   // ── Knowledge Base ────────────────────────────────────────────
 
   createKnowledgeEntry(entry: KnowledgeEntry): void {
-    this.db.query(`
+    this.db.prepare(`
       INSERT INTO knowledge_base (id, category, question, answer, keywords, tags, priority, embedding, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
@@ -707,18 +707,18 @@ export class Database {
   }
 
   getKnowledgeEntry(id: string): KnowledgeEntry | undefined {
-    const row = this.db.query('SELECT * FROM knowledge_base WHERE id = ?').get(id) as any;
+    const row = this.db.prepare('SELECT * FROM knowledge_base WHERE id = ?').get(id) as any;
     return row ? this.rowToKnowledgeEntry(row) : undefined;
   }
 
   getAllKnowledgeEntries(category?: string): KnowledgeEntry[] {
     let rows: any[];
     if (category) {
-      rows = this.db.query(
+      rows = this.db.prepare(
         'SELECT * FROM knowledge_base WHERE category = ? ORDER BY priority DESC, created_at DESC'
       ).all(category) as any[];
     } else {
-      rows = this.db.query(
+      rows = this.db.prepare(
         'SELECT * FROM knowledge_base ORDER BY priority DESC, created_at DESC'
       ).all() as any[];
     }
@@ -734,7 +734,7 @@ export class Database {
     const queryLower = query.toLowerCase();
     const queryWords = queryLower.split(/\s+/).filter(w => w.length > 1);
 
-    const allEntries = this.db.query(
+    const allEntries = this.db.prepare(
       'SELECT * FROM knowledge_base ORDER BY priority DESC'
     ).all() as any[];
 
@@ -809,7 +809,7 @@ export class Database {
   ): KnowledgeSearchResult[] {
     const results: KnowledgeSearchResult[] = [];
 
-    const allEntries = this.db.query(
+    const allEntries = this.db.prepare(
       'SELECT id, embedding FROM knowledge_base WHERE embedding IS NOT NULL'
     ).all() as any[];
 
@@ -863,7 +863,7 @@ export class Database {
    * Update or set the embedding vector for a knowledge entry.
    */
   setKnowledgeEmbedding(id: string, embedding: number[]): void {
-    this.db.query('UPDATE knowledge_base SET embedding = ? WHERE id = ?')
+    this.db.prepare('UPDATE knowledge_base SET embedding = ? WHERE id = ?')
       .run(JSON.stringify(embedding), id);
   }
 
@@ -872,7 +872,7 @@ export class Database {
    * Useful for batch-embedding existing entries after migration.
    */
   getKnowledgeEntriesWithoutEmbedding(): KnowledgeEntry[] {
-    const rows = this.db.query(
+    const rows = this.db.prepare(
       'SELECT * FROM knowledge_base WHERE embedding IS NULL'
     ).all() as any[];
     return rows.map(r => this.rowToKnowledgeEntry(r));
@@ -894,30 +894,30 @@ export class Database {
     params.push(id);
 
     if (fields.length > 1) {
-      this.db.query(`UPDATE knowledge_base SET ${fields.join(', ')} WHERE id = ?`).run(...params);
+      this.db.prepare(`UPDATE knowledge_base SET ${fields.join(', ')} WHERE id = ?`).run(...params);
     }
   }
 
   deleteKnowledgeEntry(id: string): void {
-    this.db.query('DELETE FROM knowledge_base WHERE id = ?').run(id);
+    this.db.prepare('DELETE FROM knowledge_base WHERE id = ?').run(id);
   }
 
   getKnowledgeCategories(): string[] {
-    const rows = this.db.query(
+    const rows = this.db.prepare(
       'SELECT DISTINCT category FROM knowledge_base ORDER BY category'
     ).all() as any[];
     return rows.map(r => r.category);
   }
 
   getKnowledgeCount(): number {
-    const row = this.db.query('SELECT COUNT(*) as count FROM knowledge_base').get() as any;
+    const row = this.db.prepare('SELECT COUNT(*) as count FROM knowledge_base').get() as any;
     return row.count;
   }
 
   // ── KB Files (Flexible RAG) ──────────────────────────────────
 
   createKbFile(file: { id: string; fileName: string; filePath: string; fileExtension: string; fileSize: number; chunkCount: number; status?: string }): void {
-    this.db.query(`
+    this.db.prepare(`
       INSERT INTO kb_files (id, file_name, file_path, file_extension, file_size, chunk_count, status)
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `).run(file.id, file.fileName, file.filePath, file.fileExtension, file.fileSize, file.chunkCount, file.status || 'uploaded');
@@ -928,11 +928,11 @@ export class Database {
     const params: any[] = [status];
     if (error !== undefined) { fields.push('error = ?'); params.push(error); }
     params.push(id);
-    this.db.query(`UPDATE kb_files SET ${fields.join(', ')} WHERE id = ?`).run(...params);
+    this.db.prepare(`UPDATE kb_files SET ${fields.join(', ')} WHERE id = ?`).run(...params);
   }
 
   getKbFile(id: string): { id: string; fileName: string; filePath: string; fileExtension: string; fileSize: number; chunkCount: number; status: string; error?: string; createdAt: Date; updatedAt: Date } | undefined {
-    const row = this.db.query('SELECT * FROM kb_files WHERE id = ?').get(id) as any;
+    const row = this.db.prepare('SELECT * FROM kb_files WHERE id = ?').get(id) as any;
     return row ? {
       id: row.id,
       fileName: row.file_name,
@@ -948,7 +948,7 @@ export class Database {
   }
 
   getKbFileByName(fileName: string): { id: string; fileName: string; filePath: string; fileExtension: string; fileSize: number; chunkCount: number; status: string } | undefined {
-    const row = this.db.query('SELECT * FROM kb_files WHERE file_name = ?').get(fileName) as any;
+    const row = this.db.prepare('SELECT * FROM kb_files WHERE file_name = ?').get(fileName) as any;
     return row ? {
       id: row.id,
       fileName: row.file_name,
@@ -961,7 +961,7 @@ export class Database {
   }
 
   getAllKbFiles(): Array<{ id: string; fileName: string; filePath: string; fileExtension: string; fileSize: number; chunkCount: number; status: string; createdAt: Date }> {
-    const rows = this.db.query('SELECT * FROM kb_files ORDER BY created_at DESC').all() as any[];
+    const rows = this.db.prepare('SELECT * FROM kb_files ORDER BY created_at DESC').all() as any[];
     return rows.map(r => ({
       id: r.id,
       fileName: r.file_name,
@@ -976,13 +976,13 @@ export class Database {
 
   deleteKbFile(id: string): void {
     // Cascading delete will remove associated chunks
-    this.db.query('DELETE FROM kb_files WHERE id = ?').run(id);
+    this.db.prepare('DELETE FROM kb_files WHERE id = ?').run(id);
   }
 
   // ── KB Chunks ────────────────────────────────────────────────
 
   createKbChunk(chunk: { id: string; fileId: string; chunkIndex: number; content: string; sectionHeading?: string; rowNumber?: number; lineStart?: number; lineEnd?: number; embedding?: number[] }): void {
-    this.db.query(`
+    this.db.prepare(`
       INSERT INTO kb_chunks (id, file_id, chunk_index, content, section_heading, row_number, line_start, line_end, embedding)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
@@ -994,12 +994,12 @@ export class Database {
   }
 
   setKbChunkEmbedding(id: string, embedding: number[]): void {
-    this.db.query('UPDATE kb_chunks SET embedding = ? WHERE id = ?')
+    this.db.prepare('UPDATE kb_chunks SET embedding = ? WHERE id = ?')
       .run(JSON.stringify(embedding), id);
   }
 
   getKbChunksByFileId(fileId: string): Array<{ id: string; fileId: string; chunkIndex: number; content: string; sectionHeading?: string; embedding?: number[] }> {
-    const rows = this.db.query('SELECT * FROM kb_chunks WHERE file_id = ? ORDER BY chunk_index').all(fileId) as any[];
+    const rows = this.db.prepare('SELECT * FROM kb_chunks WHERE file_id = ? ORDER BY chunk_index').all(fileId) as any[];
     return rows.map(r => ({
       id: r.id,
       fileId: r.file_id,
@@ -1011,7 +1011,7 @@ export class Database {
   }
 
   getKbChunksWithoutEmbedding(): Array<{ id: string; fileId: string; content: string }> {
-    const rows = this.db.query('SELECT id, file_id, content FROM kb_chunks WHERE embedding IS NULL').all() as any[];
+    const rows = this.db.prepare('SELECT id, file_id, content FROM kb_chunks WHERE embedding IS NULL').all() as any[];
     return rows.map(r => ({ id: r.id, fileId: r.file_id, content: r.content }));
   }
 
@@ -1021,7 +1021,7 @@ export class Database {
   searchKbChunksSemantic(queryEmbedding: number[], maxResults = 5, minScore = 0.3): Array<{ chunkId: string; fileId: string; content: string; sectionHeading?: string; score: number; fileName?: string }> {
     const results: Array<{ chunkId: string; fileId: string; content: string; sectionHeading?: string; score: number; fileName?: string }> = [];
 
-    const rows = this.db.query(
+    const rows = this.db.prepare(
       `SELECT c.id, c.file_id, c.content, c.section_heading, c.embedding, f.file_name
        FROM kb_chunks c
        LEFT JOIN kb_files f ON c.file_id = f.id
@@ -1068,7 +1068,7 @@ export class Database {
     const ftsQuery = queryWords.join(' AND ');
 
     try {
-      const rows = this.db.query(`
+      const rows = this.db.prepare(`
         SELECT 
           fts.rowid,
           fts.rank,
@@ -1115,7 +1115,7 @@ export class Database {
 
     if (queryWords.length === 0) return results;
 
-    const rows = this.db.query(
+    const rows = this.db.prepare(
       `SELECT c.id, c.file_id, c.content, c.section_heading, f.file_name
        FROM kb_chunks c
        LEFT JOIN kb_files f ON c.file_id = f.id`
@@ -1192,7 +1192,7 @@ export class Database {
   }
 
   getKbChunkCount(): number {
-    const row = this.db.query('SELECT COUNT(*) as count FROM kb_chunks').get() as any;
+    const row = this.db.prepare('SELECT COUNT(*) as count FROM kb_chunks').get() as any;
     return row.count;
   }
 
@@ -1214,7 +1214,7 @@ export class Database {
   // ── Orders ───────────────────────────────────────────────────
 
   saveOrder(order: { id: string; contactId: string; orderNumber: string; status?: string; items?: any[]; totalAmount?: number; currency?: string; shippingAddress?: string; notes?: string }): void {
-    this.db.query(`
+    this.db.prepare(`
       INSERT INTO orders (id, contact_id, order_number, status, items, total_amount, currency, shipping_address, notes, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
       ON CONFLICT(id) DO UPDATE SET
@@ -1238,7 +1238,7 @@ export class Database {
   }
 
   getOrder(id: string): any | null {
-    const row = this.db.query('SELECT * FROM orders WHERE id = ?').get(id) as any;
+    const row = this.db.prepare('SELECT * FROM orders WHERE id = ?').get(id) as any;
     if (!row) return null;
     return {
       id: row.id,
@@ -1256,7 +1256,7 @@ export class Database {
   }
 
   getOrdersByContact(contactId: string, limit = 10): any[] {
-    const rows = this.db.query(
+    const rows = this.db.prepare(
       'SELECT * FROM orders WHERE contact_id = ? ORDER BY created_at DESC LIMIT ?'
     ).all(contactId, limit) as any[];
     return rows.map(r => ({
@@ -1275,11 +1275,11 @@ export class Database {
   }
 
   updateOrderStatus(id: string, status: string): void {
-    this.db.query('UPDATE orders SET status = ?, updated_at = datetime(\'now\') WHERE id = ?').run(status, id);
+    this.db.prepare('UPDATE orders SET status = ?, updated_at = datetime(\'now\') WHERE id = ?').run(status, id);
   }
 
   searchOrders(query: string, limit = 10): any[] {
-    const rows = this.db.query(
+    const rows = this.db.prepare(
       `SELECT * FROM orders
        WHERE order_number LIKE ? OR notes LIKE ?
        ORDER BY created_at DESC LIMIT ?`
@@ -1299,7 +1299,7 @@ export class Database {
   // ── Products ─────────────────────────────────────────────────
 
   saveProduct(product: { id: string; name: string; description?: string; price: number; currency?: string; stock?: number; category?: string; sku?: string; imageUrl?: string; isActive?: boolean; metadata?: any }): void {
-    this.db.query(`
+    this.db.prepare(`
       INSERT INTO products (id, name, description, price, currency, stock, category, sku, image_url, is_active, metadata, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
       ON CONFLICT(id) DO UPDATE SET
@@ -1329,20 +1329,20 @@ export class Database {
   }
 
   getProduct(id: string): any | null {
-    const row = this.db.query('SELECT * FROM products WHERE id = ?').get(id) as any;
+    const row = this.db.prepare('SELECT * FROM products WHERE id = ?').get(id) as any;
     if (!row) return null;
     return this.rowToProduct(row);
   }
 
   getProductsByCategory(category: string, limit = 50): any[] {
-    const rows = this.db.query(
+    const rows = this.db.prepare(
       'SELECT * FROM products WHERE category = ? AND is_active = 1 ORDER BY name LIMIT ?'
     ).all(category, limit) as any[];
     return rows.map(r => this.rowToProduct(r));
   }
 
   searchProducts(query: string, limit = 10): any[] {
-    const rows = this.db.query(
+    const rows = this.db.prepare(
       `SELECT * FROM products
        WHERE is_active = 1 AND (name LIKE ? OR description LIKE ? OR sku LIKE ?)
        ORDER BY name LIMIT ?`
@@ -1351,7 +1351,7 @@ export class Database {
   }
 
   updateProductStock(id: string, stock: number): void {
-    this.db.query('UPDATE products SET stock = ?, updated_at = datetime(\'now\') WHERE id = ?').run(stock, id);
+    this.db.prepare('UPDATE products SET stock = ?, updated_at = datetime(\'now\') WHERE id = ?').run(stock, id);
   }
 
   private rowToProduct(row: any): any {
