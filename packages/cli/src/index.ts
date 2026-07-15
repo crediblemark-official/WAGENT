@@ -36,9 +36,27 @@ import {
 } from './commands/service.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const pkg = JSON.parse(
-  readFileSync(join(__dirname, '../../../package.json'), 'utf-8')
-);
+
+// Mencari package.json secara aman dengan fallback
+let version = '0.2.15';
+try {
+  const possiblePaths = [
+    join(__dirname, '../package.json'),              // CLI local package.json
+    join(__dirname, '../../package.json'),           // CLI local parent
+    join(__dirname, '../../../package.json'),        // Root dev package.json
+    join(__dirname, '../../../../package.json'),     // Flat nested global package.json
+    join(__dirname, '../../../../../package.json'),    // Deep nested global package.json
+  ];
+  const pkgPath = possiblePaths.find(p => existsSync(p));
+  if (pkgPath) {
+    const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
+    if (pkg && pkg.version) {
+      version = pkg.version;
+    }
+  }
+} catch (e) {
+  // Silent fallback
+}
 
 const program = new Command();
 
@@ -49,7 +67,7 @@ program
     [
       '',
       color.bold(color.cyan('  WAGENT - WhatsApp AI Agent')),
-      color.dim(`  Version  : v${pkg.version}`),
+      color.dim(`  Version  : v${version}`),
       color.dim(`  Runtime  : ${process.versions.bun ? 'Bun ' + process.versions.bun : 'Node ' + process.version}`),
       color.dim(`  Platform : ${process.platform} ${process.arch}`),
       '',
@@ -83,7 +101,7 @@ program
   .description('Mulai WAGENT Gateway (WhatsApp + AI Agent)')
   .option('-p, --port <port>', 'Dashboard port', '3030')
   .option('--no-dashboard', 'Jalankan tanpa dashboard web')
-  .action((options) => startCommand(options, pkg.version));
+  .action((options) => startCommand(options, version));
 
 // ── config, status, log ───────────────────────────────────────────
 
