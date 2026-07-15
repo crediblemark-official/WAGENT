@@ -33,14 +33,41 @@ echo ""
 
 # ── Step 1: Check prerequisites ─────────────────────────────
 step "①" "Checking prerequisites..."
-if ! command -v node &>/dev/null; then
-  fail "Node.js is required but not installed."
-  info "Install: https://nodejs.org"
-  exit 1
-fi
+
+install_pkg() {
+  local pkg=$1
+  local apt_pkg=$2
+  info "Installing $pkg..."
+  if command -v apt-get &>/dev/null; then
+    sudo apt-get update -qq && sudo apt-get install -y "$apt_pkg" >/dev/null 2>&1
+  elif command -v dnf &>/dev/null; then
+    sudo dnf install -y "$pkg" >/dev/null 2>&1
+  elif command -v yum &>/dev/null; then
+    sudo yum install -y "$pkg" >/dev/null 2>&1
+  elif command -v pacman &>/dev/null; then
+    sudo pacman -S --noconfirm "$pkg" >/dev/null 2>&1
+  else
+    fail "No supported package manager found. Please install $pkg manually."
+    exit 1
+  fi
+}
+
 if ! command -v git &>/dev/null; then
-  fail "Git is required but not installed."
-  exit 1
+  install_pkg git git
+  if ! command -v git &>/dev/null; then
+    fail "Failed to auto-install Git. Please install it manually."
+    exit 1
+  fi
+  ok "Git installed successfully"
+fi
+
+if ! command -v node &>/dev/null; then
+  install_pkg nodejs nodejs
+  if ! command -v node &>/dev/null; then
+    fail "Failed to auto-install Node.js. Please install it manually."
+    exit 1
+  fi
+  ok "Node.js installed successfully"
 fi
 # Install bun jika belum ada (dipakai untuk install deps, lebih cepat & kompatibel)
 if ! command -v bun &>/dev/null; then
