@@ -1,6 +1,6 @@
 {
   "name": "@crediblemark/tui",
-  "version": "0.2.7",
+  "version": "0.2.8",
   "description": "WAGENT TUI - Terminal User Interface for setup & management",
   "type": "module",
   "main": "./dist/index.js",
