@@ -9,6 +9,8 @@ export function SettingsPage() {
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  const [sessionName, setSessionName] = useState('');
+
   // Load settings from backend
   useEffect(() => {
     fetch('/api/settings')
@@ -19,6 +21,7 @@ export function SettingsPage() {
         if (data.agent?.autoReply !== undefined) setAutoReply(data.agent.autoReply);
         if (data.agent?.replyGroups !== undefined) setReplyGroups(data.agent.replyGroups);
         if (data.agent?.saveHistory !== undefined) setSaveHistory(data.agent.saveHistory);
+        if (data.whatsappSessionName) setSessionName(data.whatsappSessionName);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -110,9 +113,14 @@ export function SettingsPage() {
           padding: 16, background: '#0f1117', borderRadius: 8, border: '1px solid #1e2030',
           textAlign: 'center',
         }}>
-          <p style={{ fontSize: 13, color: '#64748b' }}>
-            Fitur multi-number akan tersedia di versi berikutnya
+          <p style={{ fontSize: 13, color: '#94a3b8', marginBottom: 8 }}>
+            Pengelolaan multi-number dapat diakses secara langsung melalui menu utama "Nomor WA".
           </p>
+          {sessionName && (
+            <span style={{ fontSize: 12, color: '#8b5cf6', fontWeight: 600 }}>
+              Sesi Utama Aktif: {sessionName}
+            </span>
+          )}
         </div>
       </Section>
 
