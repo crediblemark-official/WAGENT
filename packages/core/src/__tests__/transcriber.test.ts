@@ -22,7 +22,7 @@ vi.mock('../agent/prompt-loader.js', () => ({
 const mockFetch = vi.fn();
 vi.stubGlobal('fetch', mockFetch);
 
-function baseConfig(overrides: Partial<WAgentConfig['resolvedModel']> = {}): WAgentConfig {
+function baseConfig(overrides: Partial<WAgentConfig> = {}): WAgentConfig {
   return {
     whatsappSessionName: 'test',
     aiProvider: 'openai',
@@ -31,7 +31,6 @@ function baseConfig(overrides: Partial<WAgentConfig['resolvedModel']> = {}): WAg
     dashboardHost: 'localhost',
     databaseType: 'sqlite',
     databaseUrl: ':memory:',
-    resolvedModel: undefined,
     ...overrides,
   } as WAgentConfig;
 }

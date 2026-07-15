@@ -43,7 +43,7 @@ export function createBuiltInTools(config: WAgentConfig): ToolDefinition[] {
         const contactId = String(args.contactId);
         const limit = Number(args.limit) || 10;
         const messages = context.db.getMessages(contactId, limit);
-        return JSON.stringify({ messages: messages.map(m => ({
+        return JSON.stringify({ messages: messages.map((m: any) => ({
           from: m.fromMe ? 'bot' : 'customer',
           content: m.content,
           time: m.timestamp,
@@ -261,7 +261,7 @@ export function createBuiltInTools(config: WAgentConfig): ToolDefinition[] {
       return JSON.stringify({
         found: true,
         total: results.length,
-        products: results.map(p => ({
+        products: results.map((p: any) => ({
           name: p.name,
           price: p.price,
           currency: p.currency,

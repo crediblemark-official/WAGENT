@@ -547,7 +547,7 @@ export class Agent {
         }
 
         // Build messages with enriched context
-        const historyMessages: AIMessage[] = history.map(h => ({
+        const historyMessages: AIMessage[] = history.map((h: any) => ({
           role: h.role as AIMessage['role'],
           content: h.content,
         }));
@@ -562,7 +562,7 @@ export class Agent {
     // v1 fallback: simple system prompt + history
     const messages: AIMessage[] = [
       { role: 'system', content: this.config.systemPrompt },
-      ...history.map(h => ({ role: h.role as AIMessage['role'], content: h.content })),
+      ...history.map((h: any) => ({ role: h.role as AIMessage['role'], content: h.content })),
       { role: 'user', content: messageContent },
     ];
 

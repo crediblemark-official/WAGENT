@@ -121,7 +121,7 @@ describe('Scheduler', () => {
     await vi.advanceTimersByTimeAsync(0);
     const updateCall = mocks.db.updateScheduledMessage.mock.calls.find(
       (c: any[]) => c[1].status === 'sent'
-    );
+    ) as any;
     expect(updateCall[1].nextRunAt).toBeUndefined();
   });
 
@@ -136,7 +136,7 @@ describe('Scheduler', () => {
     await vi.advanceTimersByTimeAsync(0);
     const updateCall = mocks.db.updateScheduledMessage.mock.calls.find(
       (c: any[]) => c[1].status === 'pending'
-    );
+    ) as any;
     expect(updateCall[1].nextRunAt).toBeInstanceOf(Date);
     expect(updateCall[1].nextRunAt.getTime()).toBeGreaterThan(Date.now());
   });
@@ -152,7 +152,7 @@ describe('Scheduler', () => {
     await vi.advanceTimersByTimeAsync(0);
     const updateCall = mocks.db.updateScheduledMessage.mock.calls.find(
       (c: any[]) => c[1].status === 'pending'
-    );
+    ) as any;
     expect(updateCall[1].nextRunAt).toBeInstanceOf(Date);
     expect(updateCall[1].nextRunAt.getTime()).toBeGreaterThan(Date.now());
   });
@@ -168,7 +168,7 @@ describe('Scheduler', () => {
     await vi.advanceTimersByTimeAsync(0);
     const updateCall = mocks.db.updateScheduledMessage.mock.calls.find(
       (c: any[]) => c[1].status === 'pending'
-    );
+    ) as any;
     expect(updateCall[1].nextRunAt).toBeInstanceOf(Date);
     expect(updateCall[1].nextRunAt.getTime()).toBeGreaterThan(Date.now());
   });
@@ -182,7 +182,7 @@ describe('Scheduler', () => {
     await vi.advanceTimersByTimeAsync(0);
     const failCall = mocks.db.updateScheduledMessage.mock.calls.find(
       (c: any[]) => c[1].status === 'failed'
-    );
+    ) as any;
     expect(failCall).toBeDefined();
     expect(failCall[1].failedCount).toBe(1);
   });
