@@ -1,6 +1,6 @@
 {
   "name": "@wagent/whatsapp",
-  "version": "0.2.12",
+  "version": "0.2.13",
   "description": "WAGENT WhatsApp - Baileys integration",
   "type": "module",
   "main": "./dist/index.js",
@@ -20,7 +20,7 @@
     "dev": "tsc --watch"
   },
   "dependencies": {
-    "@wagent/core": "*",
+    "@wagent/core": "latest",
     "@whiskeysockets/baileys": "^7.0.0-rc13",
     "@hapi/boom": "^10.0.1",
     "qrcode-terminal": "^0.12.0",

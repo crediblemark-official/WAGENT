@@ -1,6 +1,6 @@
 {
   "name": "@wagent/wagent",
-  "version": "0.2.12",
+  "version": "0.2.13",
   "description": "WAGENT - WhatsApp AI Agent Platform",
   "type": "module",
   "main": "./bin/wagent",
@@ -30,11 +30,11 @@
     "packages/*"
   ],
   "dependencies": {
-    "@wagent/core": "*",
-    "@wagent/cli": "*",
-    "@wagent/whatsapp": "*",
-    "@wagent/tui": "*",
-    "@wagent/dashboard": "*"
+    "@wagent/core": "latest",
+    "@wagent/cli": "latest",
+    "@wagent/whatsapp": "latest",
+    "@wagent/tui": "latest",
+    "@wagent/dashboard": "latest"
   },
   "keywords": [
     "whatsapp",

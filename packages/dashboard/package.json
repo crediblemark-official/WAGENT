@@ -1,6 +1,6 @@
 {
   "name": "@wagent/dashboard",
-  "version": "0.2.12",
+  "version": "0.2.13",
   "description": "WAGENT Dashboard - Web Panel",
   "type": "module",
   "main": "./dist/server.js",
@@ -22,7 +22,7 @@
     "dev": "vite"
   },
   "dependencies": {
-    "@wagent/core": "*",
+    "@wagent/core": "latest",
     "express": "^5.1.0",
     "ws": "^8.18.0",
     "pino": "^9.6.0"
