@@ -102,18 +102,10 @@ program
 
 
     console.log('');
-    console.log(color.bold(color.cyan('  ╔═══════════════════════════════════════════╗')));
-    console.log(color.bold(color.cyan('  ║                                           ║')));
-    console.log(color.bold(color.cyan('  ║')) + color.bold('   ██╗    ██╗███████╗ █████╗ ████████╗') + color.bold(color.cyan('   ║')));
-    console.log(color.bold(color.cyan('  ║')) + color.bold('   ██║    ██║██╔════╝██╔══██╗╚══██╔══╝') + color.bold(color.cyan('   ║')));
-    console.log(color.bold(color.cyan('  ║')) + color.bold('   ██║ █╗ ██║█████╗  ███████║   ██║') + color.bold(color.cyan('      ║')));
-    console.log(color.bold(color.cyan('  ║')) + color.bold('   ██║███╗██║██╔══╝  ██╔══██║   ██║') + color.bold(color.cyan('      ║')));
-    console.log(color.bold(color.cyan('  ║')) + color.bold('   ╚███╔███╔╝███████╗██║  ██║   ██║') + color.bold(color.cyan('      ║')));
-    console.log(color.bold(color.cyan('  ║')) + color.bold('    ╚══╝╚══╝ ╚══════╝╚═╝  ╚═╝   ╚═╝') + color.bold(color.cyan('      ║')));
-    console.log(color.bold(color.cyan('  ║                                           ║')));
-    console.log(color.bold(color.cyan('  ║')) + color.dim('   WhatsApp AI Agent · Self-Hosted') + color.bold(color.cyan('        ║')));
-    console.log(color.bold(color.cyan('  ║                                           ║')));
-    console.log(color.bold(color.cyan('  ╚═══════════════════════════════════════════╝')));
+    console.log(color.bold(color.cyan('  ╔═══════════════════════════════════════╗')));
+    console.log(color.bold(color.cyan('  ║')) + '  🤖  ' + color.bold('W A G E N T') + color.bold(color.cyan('                   ║')));
+    console.log(color.bold(color.cyan('  ║')) + color.dim('  WhatsApp AI Agent · Self-Hosted     ') + color.bold(color.cyan('║')));
+    console.log(color.bold(color.cyan('  ╚═══════════════════════════════════════╝')));
     console.log('');
 
     const config = await loadConfig();
