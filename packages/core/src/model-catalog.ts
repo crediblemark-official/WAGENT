@@ -232,8 +232,16 @@ async function refreshCatalog(): Promise<void> {
     
     const data = await response.json() as { [providerId: string]: any };
     
+    // Validate: must be a non-empty object with provider-like entries
+    if (!data || typeof data !== 'object' || Object.keys(data).length < 5) {
+      throw new Error('Invalid catalog data from models.dev (too few providers)');
+    }
+    
     const providers: { [id: string]: ProviderData } = {};
     for (const [id, providerData] of Object.entries(data)) {
+      // Skip entries that don't look like valid providers
+      if (!providerData || typeof providerData !== 'object' || !providerData.name) continue;
+      
       providers[id] = {
         id,
         name: providerData.name || id,
@@ -243,6 +251,11 @@ async function refreshCatalog(): Promise<void> {
         doc: providerData.doc,
         models: providerData.models,
       };
+    }
+    
+    // Validate: must have a reasonable number of real providers
+    if (Object.keys(providers).length < 5) {
+      throw new Error(`Parsed catalog has only ${Object.keys(providers).length} providers, expected 50+`);
     }
     
     cache = { timestamp: Date.now(), providers };
