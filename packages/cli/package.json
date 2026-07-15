@@ -1,6 +1,6 @@
 {
   "name": "@crediblemark/cli",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "description": "WAGENT CLI - Command-line interface",
   "type": "module",
   "main": "./dist/bootstrap.js",
@@ -8,6 +8,9 @@
   "bin": {
     "wagent": "./dist/bootstrap.js"
   },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",

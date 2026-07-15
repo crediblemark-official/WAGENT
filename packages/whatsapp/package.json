@@ -1,6 +1,6 @@
 {
   "name": "@crediblemark/whatsapp",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "description": "WAGENT WhatsApp - Baileys integration",
   "type": "module",
   "main": "./dist/index.js",
@@ -11,6 +11,10 @@
       "import": "./dist/index.js"
     }
   },
+  "files": [
+    "dist",
+    "scripts"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch"

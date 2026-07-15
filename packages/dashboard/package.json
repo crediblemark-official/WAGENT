@@ -1,6 +1,6 @@
 {
   "name": "@crediblemark/dashboard",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "description": "WAGENT Dashboard - Web Panel",
   "type": "module",
   "main": "./dist/server.js",
@@ -11,6 +11,9 @@
       "import": "./dist/server.js"
     }
   },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "bun run build:client && bun run build:server",
     "build:server": "tsc",

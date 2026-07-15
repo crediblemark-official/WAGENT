@@ -1,11 +1,11 @@
 {
   "name": "@crediblemark/wagent",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "description": "WAGENT - WhatsApp AI Agent Platform",
   "type": "module",
-  "main": "packages/cli/dist/index.js",
+  "main": "./bin/wagent",
   "bin": {
-    "wagent": "packages/cli/dist/index.js"
+    "wagent": "./bin/wagent"
   },
   "files": [
     "packages/*/dist/**",
