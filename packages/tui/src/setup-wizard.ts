@@ -345,6 +345,18 @@ export async function setupWizard(): Promise<void> {
  * Setelah connected, koneksi ditutup — service yang akan mengelola selanjutnya.
  * Timeout: 2 menit.
  */
+/** Buat Pino-compatible silent logger untuk Baileys (semua level jadi no-op) */
+function makeSilentLogger(): any {
+  const noop = () => {};
+  const logger: any = {
+    level: 'silent',
+    info: noop, warn: noop, error: noop,
+    debug: noop, trace: noop, fatal: noop,
+    child: () => makeSilentLogger(),
+  };
+  return logger;
+}
+
 async function scanWhatsAppQR(sessionName: string): Promise<void> {
   console.log('');
   console.log(color.bold('  📱 Koneksi WhatsApp'));
@@ -381,7 +393,7 @@ async function scanWhatsAppQR(sessionName: string): Promise<void> {
       const sock = makeWASocket({
         auth: state,
         printQRInTerminal: false,
-        logger: { level: 'silent', child: () => ({ level: 'silent', info: () => {}, warn: () => {}, error: () => {}, debug: () => {}, trace: () => {}, fatal: () => {} }) },
+        logger: makeSilentLogger(),
       });
 
       sock.ev.on('creds.update', saveCreds);
