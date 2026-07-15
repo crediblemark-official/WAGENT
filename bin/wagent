@@ -4,4 +4,16 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
+# Resolve node: tambah NVM bin ke PATH jika node belum tersedia
+if ! command -v node &>/dev/null; then
+  NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
+  if [ -d "$NVM_DIR/versions/node" ]; then
+    # Pakai versi node terbaru yang tersedia di NVM
+    LATEST="$(ls -v "$NVM_DIR/versions/node" 2>/dev/null | tail -1)"
+    if [ -n "$LATEST" ]; then
+      export PATH="$NVM_DIR/versions/node/$LATEST/bin:$PATH"
+    fi
+  fi
+fi
+
 exec node "$PROJECT_DIR/packages/cli/dist/index.js" "$@"
