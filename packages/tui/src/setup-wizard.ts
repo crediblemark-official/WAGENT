@@ -368,6 +368,7 @@ async function scanWhatsAppQR(sessionName: string): Promise<void> {
   try {
     const { join, dirname, resolve } = await import('path');
     const { fileURLToPath } = await import('url');
+    const { rmSync, existsSync } = await import('fs');
     const qrcode = await import('qrcode-terminal') as any;
 
     // Resolve baileys dari whatsapp package
@@ -378,12 +379,11 @@ async function scanWhatsAppQR(sessionName: string): Promise<void> {
 
     // Session dir sama persis dengan yang dipakai core/config.ts → join(cwd, '.sessions')
     const sessionDir = join(process.cwd(), '.sessions', sessionName);
-    const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
 
     const s = spinner();
 
-    // Fungsi koneksi — bisa dipanggil ulang setelah reset session
-    const connectAndWait = async (): Promise<void> => {
+    // Fungsi koneksi — max 1x retry setelah session reset
+    const connectAndWait = async (retryCount = 0): Promise<void> => {
       const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
 
       return new Promise<void>((resolve) => {
@@ -406,7 +406,7 @@ async function scanWhatsAppQR(sessionName: string): Promise<void> {
         sock.ev.on('creds.update', saveCreds);
 
         sock.ev.on('connection.update', async (update: any) => {
-          const { connection, qr, lastDisconnect } = update;
+          const { connection, qr } = update;
 
           if (qr) {
             qrShown = true;
@@ -429,21 +429,24 @@ async function scanWhatsAppQR(sessionName: string): Promise<void> {
           }
 
           if (connection === 'close') {
-            const code = (lastDisconnect?.error as any)?.output?.statusCode;
             if (!qrShown) {
-              // Close sebelum QR = session stale, reset dan reconnect
               clearTimeout(timeout);
               sock.end(undefined);
-              const { rmSync, existsSync } = await import('fs');
-              if (existsSync(sessionDir)) {
-                rmSync(sessionDir, { recursive: true, force: true });
-                console.log(color.yellow('  ⚠ Session lama tidak valid, direset. Menampilkan QR baru...'));
+
+              if (retryCount === 0) {
+                // Reset session lama, coba sekali lagi
+                if (existsSync(sessionDir)) {
+                  rmSync(sessionDir, { recursive: true, force: true });
+                }
+                console.log(color.yellow('  ⚠ Session tidak valid, direset. Memuat QR...'));
+                resolve(connectAndWait(1));
+              } else {
+                // Sudah retry 1x → skip, service akan handle
+                console.log(color.dim('  Tidak bisa tampilkan QR sekarang. Scan saat service start.'));
+                resolve();
               }
-              // Reconnect dengan session bersih
-              resolve(connectAndWait());
-            } else if (code === 401) {
-              // Logged out — tunggu timeout
             } else {
+              // QR sudah muncul tapi connection close — resolve saja
               clearTimeout(timeout);
               resolve();
             }
