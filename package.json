@@ -1,6 +1,6 @@
 {
   "name": "@wagent/wagent",
-  "version": "0.2.13",
+  "version": "0.2.15",
   "description": "WAGENT - WhatsApp AI Agent Platform",
   "type": "module",
   "main": "./bin/wagent",
@@ -18,6 +18,7 @@
   ],
   "scripts": {
     "build": "cd packages/core && bun run build && cd ../dashboard && bun run build && cd ../tui && bun run build && cd ../whatsapp && bun run build && cd ../cli && bun run build",
+    "publish:root": "node scripts/publish-root.mjs",
     "prepublishOnly": "npm run build",
     "start": "./bin/wagent start",
     "dev": "./bin/wagent start --no-dashboard",
