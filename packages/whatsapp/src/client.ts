@@ -102,7 +102,6 @@ export class BaileysAdapter implements WhatsAppAdapter {
       const sessionFiles = readdirSync(this.sessionDir);
       const hasCreds = sessionFiles.some((f: string) => f.includes('creds'));
       if (!hasCreds) {
-        this.logger.warn('No credentials found in session directory, QR scan required');
         this.status = 'qr';
         this.emit({ type: 'connection:update', status: 'qr' });
       }
@@ -142,7 +141,12 @@ export class BaileysAdapter implements WhatsAppAdapter {
         const now = Date.now();
         if (!this.lastQrTime || now - this.lastQrTime > 10000) {
           this.lastQrTime = now;
+          console.log('');
+          console.log('  📱 Scan QR code with WhatsApp:');
+          console.log('  WhatsApp → ⋮ → Linked Devices → Link a Device');
+          console.log('');
           qrcode.generate(qr, { small: true });
+          console.log('');
         }
 
         if (this.qrCallback) {
