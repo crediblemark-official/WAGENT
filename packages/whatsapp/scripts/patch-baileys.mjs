@@ -13,12 +13,24 @@ import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
+let resolvedBaileysPath = '';
+try {
+  const entryPoint = require.resolve('@whiskeysockets/baileys');
+  resolvedBaileysPath = join(dirname(entryPoint), 'Utils/validate-connection.js');
+} catch (e) {
+  // Fallback ke paths hardcoded jika gagal
+}
+
 const BAILEYS_PATHS = [
+  resolvedBaileysPath,
   join(__dirname, '../../../node_modules/.bun/node_modules/@whiskeysockets/baileys/lib/Utils/validate-connection.js'),
   join(__dirname, '../../../node_modules/@whiskeysockets/baileys/lib/Utils/validate-connection.js'),
   join(__dirname, '../../../../node_modules/.bun/node_modules/@whiskeysockets/baileys/lib/Utils/validate-connection.js'),
   join(__dirname, '../../../../node_modules/@whiskeysockets/baileys/lib/Utils/validate-connection.js'),
-];
+].filter(Boolean);
 
 function patchBaileys() {
   for (const path of BAILEYS_PATHS) {
@@ -32,8 +44,8 @@ function patchBaileys() {
     }
     
     const patched = content.replace(
-      /platform:\s*WAProto_1\.proto\.ClientPayload\.UserAgent\.Platform\.WEB/,
-      'platform: WAProto_1.proto.ClientPayload.UserAgent.Platform.MACOS'
+      /platform:\s*((?:[A-Za-z0-9_]+\.)?proto\.ClientPayload\.UserAgent\.Platform\.)WEB/,
+      'platform: $1MACOS'
     );
     
     if (patched !== content) {
