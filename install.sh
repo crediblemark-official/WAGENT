@@ -98,8 +98,16 @@ cd "$INSTALL_DIR"
 if npm install --silent --no-fund --no-audit >/dev/null 2>&1; then
   ok "Dependencies installed"
 else
-  fail "npm install failed"
-  exit 1
+  # npm v11 workspace dedup can crash on dependency changes — retry
+  # after wiping node_modules.
+  echo -e "  ${Y}⚠ Retrying with clean install...${N}"
+  rm -rf node_modules packages/*/node_modules
+  if npm install --silent --no-fund --no-audit >/dev/null 2>&1; then
+    ok "Dependencies installed"
+  else
+    fail "npm install failed"
+    exit 1
+  fi
 fi
 echo ""
 
