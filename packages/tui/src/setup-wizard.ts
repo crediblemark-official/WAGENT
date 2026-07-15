@@ -375,7 +375,7 @@ async function scanWhatsAppQR(sessionName: string): Promise<void> {
     const sessionDir = join(process.cwd(), '.sessions', sessionName);
 
     // Create a Node.js script for QR scan (Bun WebSocket doesn't support Baileys)
-    const scriptPath = join(tuiDir, '_qr-scan.js');
+    const scriptPath = join(tuiDir, '_qr-scan.cjs');
     const baileysPath = resolve(tuiDir, '../../whatsapp/node_modules/@whiskeysockets/baileys/lib/index.js');
 
     const script = `
