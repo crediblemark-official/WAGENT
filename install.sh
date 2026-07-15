@@ -12,7 +12,7 @@ echo "║      🤖 WAGENT Installer            ║"
 echo "╚══════════════════════════════════════╝"
 echo ""
 
-# ── Check Node ──────────────────────────────────────────────────
+# ── Check Node (required) ──────────────────────────────────────
 if ! command -v node &>/dev/null; then
   echo "❌ Node.js is required but not installed."
   echo "   Install: https://nodejs.org"
@@ -20,6 +20,22 @@ if ! command -v node &>/dev/null; then
 fi
 
 echo "✓ Node $(node --version)"
+
+# ── Detect package manager ─────────────────────────────────────
+PKG_MANAGER=""
+if command -v bun &>/dev/null; then
+  PKG_MANAGER="bun"
+  echo "✓ Bun $(bun --version) (fast mode)"
+elif command -v pnpm &>/dev/null; then
+  PKG_MANAGER="pnpm"
+  echo "✓ pnpm $(pnpm --version) (fast mode)"
+elif command -v yarn &>/dev/null; then
+  PKG_MANAGER="yarn"
+  echo "✓ yarn $(yarn --version)"
+else
+  PKG_MANAGER="npm"
+  echo "✓ npm (default)"
+fi
 
 # ── Clone atau Update ──────────────────────────────────────────
 if [ -d "$INSTALL_DIR" ]; then
@@ -68,8 +84,16 @@ git clone --depth 1 "$REPO" "$INSTALL_DIR"
 # ── Build ──────────────────────────────────────────────────────
 echo "🔨 Building..."
 cd "$INSTALL_DIR"
-npm install
-npm run build
+
+if [ "$PKG_MANAGER" = "bun" ]; then
+  bun install && bun run build
+elif [ "$PKG_MANAGER" = "pnpm" ]; then
+  pnpm install && pnpm run build
+elif [ "$PKG_MANAGER" = "yarn" ]; then
+  yarn install && yarn run build
+else
+  npm install && npm run build
+fi
 
 # ── Link ───────────────────────────────────────────────────────
 mkdir -p "$BIN_DIR"
