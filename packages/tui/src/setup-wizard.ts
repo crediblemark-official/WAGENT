@@ -301,6 +301,17 @@ export async function setupWizard(): Promise<void> {
   // Stop any existing service first
   spawnSync('systemctl', ['--user', 'stop', 'wagent'], { encoding: 'utf-8', stdio: 'pipe' });
 
+  // Hapus session lama agar Baileys pasti generate QR baru
+  try {
+    const { existsSync: fsExists, rmSync: fsRm } = await import('fs');
+    const { join: pathJoin } = await import('path');
+    const sessionDir = pathJoin(process.cwd(), '.sessions', config.session);
+    if (fsExists(sessionDir)) {
+      fsRm(sessionDir, { recursive: true, force: true });
+      console.log(color.dim(`  Session lama dihapus → QR baru akan muncul`));
+    }
+  } catch { /* ignore */ }
+
   console.log(color.bold('Starting WAGENT...'));
   console.log(color.dim('  WhatsApp QR code akan muncul di bawah ini.'));
   console.log(color.dim('  Buka WhatsApp → ⋮ → Perangkat Tertaut → Tautkan Perangkat'));
@@ -312,7 +323,7 @@ export async function setupWizard(): Promise<void> {
     const { fileURLToPath } = await import('url');
     const cliDistDir = dirname(fileURLToPath(import.meta.url));
     const startPath = resolve(cliDistDir, '../../cli/dist/index.js');
-    // Run 'wagent start' in foreground via Node.js
+    // Run 'wagent start' in foreground via bun — QR muncul langsung di terminal
     const { spawn } = await import('child_process');
     const child = spawn('bun', [startPath, 'start'], {
       stdio: 'inherit',
