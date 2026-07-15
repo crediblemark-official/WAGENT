@@ -314,7 +314,7 @@ export async function setupWizard(): Promise<void> {
     const startPath = resolve(cliDistDir, '../../cli/dist/index.js');
     // Run 'wagent start' in foreground via Node.js
     const { spawn } = await import('child_process');
-    const child = spawn('node', [startPath, 'start'], {
+    const child = spawn('bun', [startPath, 'start'], {
       stdio: 'inherit',
       cwd: process.cwd(),
     });
