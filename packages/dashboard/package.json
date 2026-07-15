@@ -12,7 +12,7 @@
     }
   },
   "scripts": {
-    "build": "bun run build:client && bun run build:server",
+    "build": "npm run build:client && npm run build:server",
     "build:server": "tsc",
     "build:client": "vite build",
     "dev:server": "tsc --watch",

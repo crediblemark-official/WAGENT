@@ -7,10 +7,10 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "cd packages/core && bun run build && cd ../dashboard && bun run build && cd ../tui && bun run build && cd ../whatsapp && bun run build && cd ../cli && bun run build",
+    "build": "cd packages/core && npm run build && cd ../dashboard && npm run build && cd ../tui && npm run build && cd ../whatsapp && npm run build && cd ../cli && npm run build",
     "start": "./bin/wagent start",
     "dev": "./bin/wagent start --no-dashboard",
-    "test": "cd packages/core && bun run test",
+    "test": "cd packages/core && npx vitest run",
     "lint": "eslint packages/*/src --ext .ts",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf packages/*/dist node_modules"
@@ -27,7 +27,7 @@
   ],
   "license": "MIT",
   "engines": {
-    "bun": ">=1.0.0"
+    "node": ">=18.0.0"
   },
   "devDependencies": {
     "@types/react": "^19.2.17",
