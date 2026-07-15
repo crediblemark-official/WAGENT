@@ -9,7 +9,7 @@ import {
   SkillLoader
 } from '@wagent/core';
 import { BaileysAdapter } from '@wagent/whatsapp';
-import { renderDashboard, renderQRToString } from '@wagent/tui';
+import { renderQRToString } from '@wagent/tui';
 import { isServiceRunning, serviceStart } from './service.js';
 
 // Helper: cek port
@@ -135,107 +135,77 @@ export async function startCommand(options: { port?: string; dashboard?: boolean
     // Start gateway (emits connection:update + qr:received events)
     await gateway.start();
 
-    // Full-screen Ink dashboard only when attached to a real terminal.
-    // Under systemd / piped logs there is no TTY, so fall back to the
-    // plain console summary.
-    if (!process.stdout.isTTY) {
-      console.log('');
-      console.log(color.bold(color.green('  ┌─────────────────────────────────────────┐')));
-      console.log(color.bold(color.green('  │')) + color.bold('           ✓ WAGENT is running!          ') + color.bold(color.green('│')));
-      console.log(color.bold(color.green('  └─────────────────────────────────────────┘')));
-      console.log('');
-      if (config.dashboardPort && options.dashboard !== false) {
-        console.log(`  ${color.dim('Dashboard')}  ${color.cyan(`http://localhost:${config.dashboardPort}`)}`);
-      }
-      console.log(`  ${color.dim('Stop')}       ${color.yellow('Ctrl+C')}`);
-      console.log('');
-
-      const shutdownHeadless = async () => {
-        await gateway.stop();
-        db.close();
-        process.exit(0);
-      };
-      process.on('SIGINT', shutdownHeadless);
-      process.on('SIGTERM', shutdownHeadless);
-
-      await new Promise(() => {}); // keep alive
-      return;
-    }
-
-    // Render Ink dashboard (replaces console output). Tell WhatsApp client
-    // not to print the QR itself — the dashboard renders it.
-    process.env.WAGENT_DASHBOARD = '1';
-    const dashboardUrl = config.dashboardPort
-      ? `http://localhost:${config.dashboardPort}`
-      : undefined;
-
-    // Redam log error dekripsi libsignal yang mengotori TUI
-    const originalConsoleError = console.error;
-    console.error = (...args: any[]) => {
-      const msg = args.join(' ');
-      if (
-        msg.includes('Failed to decrypt message') ||
-        msg.includes('Bad MAC') ||
-        msg.includes('libsignal/src/') ||
-        msg.includes('verifyMAC')
-      ) {
-        return;
-      }
-      originalConsoleError(...args);
-    };
-
-    const ui = renderDashboard({
-      version: pkgVersion,
-      model: modelInfo,
-      dashboardUrl,
-      sessionName: config.whatsappSessionName || 'default',
-    });
-
-    // Drive the Ink dashboard dari gateway events
+    // Dapatkan event bus dari gateway
     const bus = gateway.getEventBus();
-    bus.on('connection:update', (e: any) => {
-      const s = e.status === 'reconnecting' ? 'connecting' : e.status;
-      ui.setStatus(s);
-    });
-    bus.on('qr:received', (e: any) => ui.setQRCode(renderQRToString(e.qr)));
-    bus.on('message:received', (e: any) => {
-      const m = e.message || {};
-      ui.addMessage({
-        from: m.senderName || m.from || 'unknown',
-        content: m.body || m.text || '',
-        time: new Date().toLocaleTimeString(),
-        isAI: false,
-      });
-    });
-
+    let qrWasShown = false;
     let shuttingDown = false;
 
-    // Setelah QR di-scan dan connected: stop proses ini, hand-off ke service
-    ui.onConnected?.(() => {
-      setImmediate(async () => {
-        if (shuttingDown) return;
-        shuttingDown = true;
-        try {
-          await gateway.stop();
-          db.close();
-        } catch { /* abaikan */ }
-        // Beri jeda 500ms supaya socket WA benar-benar released sebelum service start
-        await new Promise(r => setTimeout(r, 500));
-        try {
-          serviceStart();
-        } catch (err: any) {
-          logger.warn('Tidak bisa start service: %s', err?.message);
-        }
-        process.exit(0);
-      });
+    // Tampilkan informasi inisialisasi awal
+    console.log('');
+    console.log(color.bold(color.green('  ┌─────────────────────────────────────────┐')));
+    console.log(color.bold(color.green('  │')) + color.bold('           🤖 WAGENT is running!         ') + color.bold(color.green('│')));
+    console.log(color.bold(color.green('  └─────────────────────────────────────────┘')));
+    console.log('');
+    console.log(`  ${color.dim('Model')}       ${color.yellow(modelInfo)}`);
+    console.log(`  ${color.dim('Session')}     ${config.whatsappSessionName || 'default'}`);
+    if (config.dashboardPort && options.dashboard !== false) {
+      console.log(`  ${color.dim('Dashboard')}   ${color.cyan(`http://localhost:${config.dashboardPort}`)}`);
+    }
+    console.log(`  ${color.dim('Stop')}        ${color.yellow('Ctrl+C')}`);
+    console.log('');
+
+    // Listener untuk QR Code
+    bus.on('qr:received', (e: any) => {
+      qrWasShown = true;
+      console.log('');
+      console.log(color.cyan('  📱 Scan QR code dengan WhatsApp:'));
+      console.log(color.dim('  WhatsApp → ⋮ → Linked Devices → Link a Device'));
+      console.log('');
+      
+      // Gunakan renderQRToString dari @wagent/tui
+      const qrStr = renderQRToString(e.qr);
+      console.log(qrStr);
+      console.log('');
     });
 
-    // Clean shutdown used by both SIGINT/SIGTERM and Ink's own exit
+    // Listener untuk status koneksi
+    bus.on('connection:update', (e: any) => {
+      const status = e.status;
+      if (status === 'connected') {
+        console.log(color.green('  ✓ WhatsApp terhubung!'));
+        
+        // Jika QR sempat muncul (artinya sesi fresh pairing/scan), otomatis hand-off ke background service
+        if (qrWasShown) {
+          console.log(color.cyan('  ⚙ Mengalihkan jalannya program ke background service...'));
+          setImmediate(async () => {
+            if (shuttingDown) return;
+            shuttingDown = true;
+            try {
+              await gateway.stop();
+              db.close();
+            } catch {}
+            // Beri jeda 500ms agar socket WA dirilis sepenuhnya
+            await new Promise(r => setTimeout(r, 500));
+            try {
+              serviceStart();
+            } catch (err: any) {
+              logger.warn('Gagal start service: %s', err?.message);
+            }
+            process.exit(0);
+          });
+        }
+      } else if (status === 'disconnected') {
+        console.log(color.red('  ✗ WhatsApp terputus.'));
+      } else if (status === 'connecting') {
+        console.log(color.dim('  ● Menghubungkan ke WhatsApp...'));
+      }
+    });
+
+    // Clean shutdown helper
     const shutdown = async () => {
       if (shuttingDown) return;
       shuttingDown = true;
-      console.error = originalConsoleError; // Restore console.error
-      ui.stop();
+      console.log(color.dim('\n  Stopping WAGENT...'));
       await gateway.stop();
       db.close();
       process.exit(0);
@@ -244,16 +214,8 @@ export async function startCommand(options: { port?: string; dashboard?: boolean
     process.on('SIGINT', shutdown);
     process.on('SIGTERM', shutdown);
 
-    // Wait for Ink to exit (Ctrl+C / 'q' inside the TUI)
-    await ui.waitUntilExit();
-
-    // Ink closed — make sure gateway is stopped and process exits
-    console.error = originalConsoleError; // Restore console.error
-    if (!shuttingDown) {
-      shuttingDown = true;
-      await gateway.stop();
-      db.close();
-    }
+    // Keep alive
+    await new Promise(() => {});
     process.exit(0);
 
   } catch (err: any) {
