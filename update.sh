@@ -42,6 +42,12 @@ else
   ok "Code updated (forced)"
 fi
 
+# Re-exec with the freshly pulled script so any self-updates apply now.
+if [ "${WAGENT_UPDATED:-}" != "1" ]; then
+  export WAGENT_UPDATED=1
+  exec bash "$0"
+fi
+
 # ── Reinstall deps ─────────────────────────────────────────────
 step "📦 Installing dependencies..."
 if npm install --silent --no-fund --no-audit >/dev/null 2>&1; then
