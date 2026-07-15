@@ -19,6 +19,7 @@
   "scripts": {
     "build": "cd packages/core && npm run build && cd ../dashboard && npm run build && cd ../tui && npm run build && cd ../whatsapp && npm run build && cd ../cli && npm run build",
     "prepublishOnly": "npm run build",
+    "postinstall": "node packages/whatsapp/scripts/patch-baileys.mjs",
     "start": "./bin/wagent start",
     "dev": "./bin/wagent start --no-dashboard",
     "test": "cd packages/core && npx vitest run",

@@ -4,6 +4,7 @@ import {
   makeWASocket,
   DisconnectReason,
   useMultiFileAuthState,
+  fetchLatestBaileysVersion,
   WASocket,
   downloadContentFromMessage,
 } from '@whiskeysockets/baileys';
@@ -113,11 +114,15 @@ export class BaileysAdapter implements WhatsAppAdapter {
 
     const { state, saveCreds } = await useMultiFileAuthState(this.sessionDir);
 
+    // Fetch latest WhatsApp Web version (prevents 405 Connection Failure)
+    const { version } = await fetchLatestBaileysVersion();
+
     this.sock = makeWASocket({
       auth: state,
+      version,
       printQRInTerminal: false,
       logger: pino({ level: 'silent' }),
-      browser: ['WAGENT', 'Chrome', '0.1.0'],
+      browser: ['WAGENT', 'Chrome', '145.0'],
       syncFullHistory: false,
       markOnlineOnConnect: false,
     });

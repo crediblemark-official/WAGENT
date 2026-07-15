@@ -61,7 +61,7 @@ describe('config', () => {
       try {
         const config = await loadConfig();
         expect(config.whatsappSessionName).toBe('wagent-session');
-        expect(config.welcomeMessage).toContain('bisa saya bantu');
+        expect(config.welcomeMessage).toContain('Selamat datang');
         expect(config.rateLimitMessage).toContain('tunggu');
         expect(config.offlineMessage).toContain('jam operasional');
       } finally {

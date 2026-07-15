@@ -4,6 +4,13 @@
   "workspaces": {
     "": {
       "name": "wagent",
+      "dependencies": {
+        "@wagent/cli": "*",
+        "@wagent/core": "*",
+        "@wagent/dashboard": "*",
+        "@wagent/tui": "*",
+        "@wagent/whatsapp": "*",
+      },
       "devDependencies": {
         "@types/react": "^19.2.17",
         "@types/react-dom": "^19.2.3",
