@@ -47,13 +47,13 @@ const STATUS_LABELS: Record<ConnectionStatus, string> = {
 function Header({ version, status }: { version: string; status: ConnectionStatus }) {
   const uptime = useUptime(status === 'connected');
   return (
-    <Box justifyContent="space-between" marginBottom={1}>
+    <Box justifyContent="space-between" marginBottom={0}>
       <Box>
         <Text bold color="cyan">🤖 WAGENT</Text>
         <Text dimColor> v{version}</Text>
       </Box>
       <Box>
-        <Text color={STATUS_COLORS[status]}>{STATUS_LABELS[status]}</Text>
+        <Text color={STATUS_COLORS[status]} bold>{STATUS_LABELS[status]}</Text>
         {status === 'connected' && <Text dimColor>   {uptime}</Text>}
       </Box>
     </Box>
@@ -62,12 +62,14 @@ function Header({ version, status }: { version: string; status: ConnectionStatus
 
 function StatusPanel({ model, dashboardUrl, sessionName }: Omit<DashboardProps, 'version'>) {
   return (
-    <Box flexDirection="column" marginBottom={1}>
-      <Box><Text dimColor>Model      </Text><Text color="yellow">{model}</Text></Box>
+    <Box flexDirection="row" marginBottom={0} marginTop={0}>
+      <Text dimColor>Model: </Text><Text color="yellow">{model}</Text>
+      <Text dimColor>  |  Session: </Text><Text>{sessionName}</Text>
       {dashboardUrl && (
-        <Box><Text dimColor>Dashboard  </Text><Text color="cyan">{dashboardUrl}</Text></Box>
+        <>
+          <Text dimColor>  |  Dashboard: </Text><Text color="cyan">{dashboardUrl}</Text>
+        </>
       )}
-      <Box><Text dimColor>Session    </Text><Text>{sessionName}</Text></Box>
     </Box>
   );
 }
@@ -75,11 +77,11 @@ function StatusPanel({ model, dashboardUrl, sessionName }: Omit<DashboardProps, 
 function QRPanel({ qrCode }: { qrCode?: string }) {
   if (!qrCode) return null;
   return (
-    <Box flexDirection="column" marginBottom={1}>
-      <Box><Text color="cyan">📱 Scan QR code with WhatsApp:</Text></Box>
+    <Box flexDirection="column" marginBottom={0} marginTop={0}>
+      <Box><Text color="cyan" bold>📱 Scan QR code with WhatsApp:</Text></Box>
       <Box><Text dimColor>WhatsApp → ⋮ → Linked Devices → Link a Device</Text></Box>
-      <Box marginTop={1} borderStyle="round" borderColor="cyan" padding={1}>
-        <Text>{qrCode}</Text>
+      <Box marginTop={0} padding={1} backgroundColor="white" width={46} justifyContent="center" alignItems="center">
+        <Text color="black" bold>{qrCode}</Text>
       </Box>
     </Box>
   );
@@ -88,22 +90,22 @@ function QRPanel({ qrCode }: { qrCode?: string }) {
 function MessagesPanel({ messages, stats }: { messages: Message[]; stats: { total: number; today: number } }) {
   if (messages.length === 0) {
     return (
-      <Box flexDirection="column" marginBottom={1}>
+      <Box flexDirection="column" marginBottom={0} marginTop={0}>
         <Box justifyContent="space-between">
           <Text dimColor>💬 Recent Messages</Text>
           <Text dimColor>{stats.today} today</Text>
         </Box>
-        <Box marginTop={1}><Text dimColor>  No messages yet</Text></Box>
+        <Box marginTop={0}><Text dimColor>  No messages yet</Text></Box>
       </Box>
     );
   }
   return (
-    <Box flexDirection="column" marginBottom={1}>
+    <Box flexDirection="column" marginBottom={0} marginTop={0}>
       <Box justifyContent="space-between">
         <Text dimColor>💬 Recent Messages</Text>
         <Text dimColor>{stats.total} total</Text>
       </Box>
-      <Box marginTop={1} flexDirection="column">
+      <Box marginTop={0} flexDirection="column">
         {messages.slice(0, 5).map((msg, i) => (
           <Box key={i}>
             <Text color="cyan">{msg.from.padEnd(16)}</Text>
@@ -119,7 +121,7 @@ function MessagesPanel({ messages, stats }: { messages: Message[]; stats: { tota
 
 function Footer() {
   return (
-    <Box marginTop={1}>
+    <Box marginTop={0}>
       <Text dimColor>Ctrl+C: Stop   ?: Help</Text>
     </Box>
   );
@@ -127,8 +129,8 @@ function Footer() {
 
 function Separator() {
   return (
-    <Box marginY={1}>
-      <Text dimColor>{'─'.repeat(60)}</Text>
+    <Box marginY={0}>
+      <Text dimColor>{'─'.repeat(65)}</Text>
     </Box>
   );
 }
@@ -191,7 +193,7 @@ export function Dashboard({ version, model, dashboardUrl, sessionName, onConnect
   });
 
   return (
-    <Box flexDirection="column" padding={1}>
+    <Box flexDirection="column" paddingX={1} paddingY={0}>
       <Header version={version} status={status} />
       <Separator />
       <StatusPanel model={model} dashboardUrl={dashboardUrl} sessionName={sessionName} />
