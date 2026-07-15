@@ -59,20 +59,66 @@ export function serviceInstall(): boolean {
   const serviceDir = join(home, '.config', 'systemd', 'user');
   const serviceFile = join(serviceDir, `${SERVICE_NAME}.service`);
 
-  const installDir = join(home, '.wagent');
-  const templatePath = join(installDir, 'bin', `${SERVICE_NAME}.service`);
+  // Cari template secara dinamis
+  const possibleTemplates = [
+    join(home, '.wagent', 'bin', `${SERVICE_NAME}.service`),
+    join(__dirname, '../../bin', `${SERVICE_NAME}.service`),
+    join(__dirname, '../../../bin', `${SERVICE_NAME}.service`),
+    join(__dirname, '../../../../bin', `${SERVICE_NAME}.service`),
+  ];
+  const templatePath = possibleTemplates.find(p => existsSync(p));
 
-  if (!existsSync(templatePath)) {
-    console.error(color.red(`  ✗ Service template not found: ${templatePath}`));
-    return false;
+  let serviceContent = '';
+  if (templatePath) {
+    serviceContent = readFileSync(templatePath, 'utf-8');
+  } else {
+    // Generate inline template dinamis
+    // Dapatkan path binary wagent yang sedang berjalan
+    let wagentBin = 'wagent';
+    try {
+      const whichResult = execSync('which wagent', { encoding: 'utf-8' }).trim();
+      if (whichResult) {
+        wagentBin = whichResult;
+      }
+    } catch {
+      // Fallback ke default global bun/npm path
+      wagentBin = join(home, '.bun', 'bin', 'wagent');
+    }
+
+    serviceContent = [
+      '[Unit]',
+      'Description=WAGENT WhatsApp AI Agent',
+      'After=network-online.target',
+      'Wants=network-online.target',
+      '',
+      '[Service]',
+      'Type=simple',
+      'WorkingDirectory=%h',
+      `ExecStart=${wagentBin} start`,
+      'Restart=on-failure',
+      'RestartSec=10',
+      'StandardOutput=journal',
+      'StandardError=journal',
+      'Environment=HOME=%h',
+      'Environment=NVM_DIR=%h/.nvm',
+      'Environment=PATH=%h/.local/bin:%h/.bun/bin:/usr/local/bin:/usr/bin:/bin',
+      '',
+      '[Install]',
+      'WantedBy=default.target',
+      ''
+    ].join('\n');
   }
 
-  mkdirSync(serviceDir, { recursive: true });
-  writeFileSync(serviceFile, readFileSync(templatePath, 'utf-8'));
-  console.log(color.green(`  ✓ Service file installed: ${serviceFile}`));
-
-  ctl('daemon-reload');
-  return true;
+  try {
+    mkdirSync(serviceDir, { recursive: true });
+    writeFileSync(serviceFile, serviceContent);
+    console.log(color.green(`  ✓ Service file installed: ${serviceFile}`));
+    ctl('daemon-reload');
+    return true;
+  } catch (err: any) {
+    console.error(color.red(`  ✗ Gagal menulis file service: ${err.message}`));
+    return false;
+  }
 }
 
 // ── Subcommand handlers ──────────────────────────────────────────
@@ -85,12 +131,32 @@ export function serviceStatus(): void {
 
 export function serviceStart(): void {
   if (!hasSystemd()) { printNoSystemd(); return; }
+  
+  // Cek apakah service file sudah terpasang, jika belum pasang otomatis
+  const home = homedir();
+  const serviceFile = join(home, '.config', 'systemd', 'user', `${SERVICE_NAME}.service`);
+  if (!existsSync(serviceFile)) {
+    console.log(color.cyan(`  🔍 Unit file wagent.service belum terpasang. Menginstal otomatis...`));
+    const installed = serviceInstall();
+    if (!installed) {
+      console.error(color.red(`  ✗ Tidak dapat melanjutkan karena instalasi service gagal.`));
+      process.exit(1);
+    }
+  }
+
   const r = ctl('start', SERVICE_NAME);
   if (r.ok) {
     console.log(color.green(`  ✓ ${SERVICE_NAME} service started.`));
   } else {
-    console.error(color.red(`  ✗ Failed to start service:\n${r.output}`));
-    process.exit(1);
+    // Jika masih gagal (misal jika status file sempat tersangkut), reload daemon lalu coba lagi sekali
+    ctl('daemon-reload');
+    const retry = ctl('start', SERVICE_NAME);
+    if (retry.ok) {
+      console.log(color.green(`  ✓ ${SERVICE_NAME} service started after reload.`));
+    } else {
+      console.error(color.red(`  ✗ Failed to start service:\n${retry.output}`));
+      process.exit(1);
+    }
   }
 }
 
@@ -107,6 +173,19 @@ export function serviceStop(): void {
 
 export function serviceRestart(): void {
   if (!hasSystemd()) { printNoSystemd(); return; }
+
+  // Cek apakah service file sudah terpasang, jika belum pasang otomatis
+  const home = homedir();
+  const serviceFile = join(home, '.config', 'systemd', 'user', `${SERVICE_NAME}.service`);
+  if (!existsSync(serviceFile)) {
+    console.log(color.cyan(`  🔍 Unit file wagent.service belum terpasang. Menginstal otomatis...`));
+    const installed = serviceInstall();
+    if (!installed) {
+      console.error(color.red(`  ✗ Tidak dapat melanjutkan karena instalasi service gagal.`));
+      process.exit(1);
+    }
+  }
+
   const r = ctl('restart', SERVICE_NAME);
   if (r.ok) {
     console.log(color.green(`  ✓ ${SERVICE_NAME} service restarted.`));
@@ -130,6 +209,19 @@ export function serviceLogs(): void {
 
 export function serviceEnable(): void {
   if (!hasSystemd()) { printNoSystemd(); return; }
+
+  // Cek apakah service file sudah terpasang, jika belum pasang otomatis
+  const home = homedir();
+  const serviceFile = join(home, '.config', 'systemd', 'user', `${SERVICE_NAME}.service`);
+  if (!existsSync(serviceFile)) {
+    console.log(color.cyan(`  🔍 Unit file wagent.service belum terpasang. Menginstal otomatis...`));
+    const installed = serviceInstall();
+    if (!installed) {
+      console.error(color.red(`  ✗ Gagal memasang unit file.`));
+      return;
+    }
+  }
+
   const r = ctl('enable', SERVICE_NAME);
   if (r.ok) {
     console.log(color.green(`  ✓ ${SERVICE_NAME} will autostart on login/boot.`));
