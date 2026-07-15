@@ -1,15 +1,56 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 export function SettingsPage() {
-  const [systemPrompt, setSystemPrompt] = useState(
-    'Kamu adalah customer service yang ramah, profesional, dan membantu. Balaslah dengan bahasa Indonesia yang natural dan sopan.'
-  );
+  const [systemPrompt, setSystemPrompt] = useState('');
+  const [selectedProvider, setSelectedProvider] = useState('OpenAI');
+  const [autoReply, setAutoReply] = useState(true);
+  const [replyGroups, setReplyGroups] = useState(false);
+  const [saveHistory, setSaveHistory] = useState(true);
   const [saved, setSaved] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const handleSave = () => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+  // Load settings from backend
+  useEffect(() => {
+    fetch('/api/settings')
+      .then(res => res.json())
+      .then(data => {
+        if (data.agent?.systemPrompt) setSystemPrompt(data.agent.systemPrompt);
+        if (data.model?.provider) setSelectedProvider(data.model.provider);
+        if (data.agent?.autoReply !== undefined) setAutoReply(data.agent.autoReply);
+        if (data.agent?.replyGroups !== undefined) setReplyGroups(data.agent.replyGroups);
+        if (data.agent?.saveHistory !== undefined) setSaveHistory(data.agent.saveHistory);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handleSave = async () => {
+    try {
+      await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agent: {
+            systemPrompt,
+            autoReply,
+            replyGroups,
+            saveHistory,
+          },
+          model: {
+            provider: selectedProvider,
+          },
+        }),
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (err) {
+      console.error('Failed to save settings:', err);
+    }
   };
+
+  if (loading) {
+    return <div style={{ padding: 24, color: '#64748b' }}>Loading...</div>;
+  }
 
   return (
     <div style={{ padding: 24, maxWidth: 720, overflow: 'auto', height: '100%' }}>
@@ -24,12 +65,13 @@ export function SettingsPage() {
           {['OpenAI', 'Gemini', 'Claude', 'Ollama'].map(provider => (
             <button
               key={provider}
+              onClick={() => setSelectedProvider(provider)}
               style={{
                 padding: '8px 16px', borderRadius: 8, border: '1px solid #1e2030',
-                background: provider === 'OpenAI' ? 'rgba(139, 92, 246, 0.1)' : '#161822',
-                color: provider === 'OpenAI' ? '#8b5cf6' : '#94a3b8',
+                background: provider === selectedProvider ? 'rgba(139, 92, 246, 0.1)' : '#161822',
+                color: provider === selectedProvider ? '#8b5cf6' : '#94a3b8',
                 fontSize: 13, fontWeight: 500, cursor: 'pointer',
-                borderColor: provider === 'OpenAI' ? '#8b5cf6' : '#1e2030',
+                borderColor: provider === selectedProvider ? '#8b5cf6' : '#1e2030',
                 transition: 'all 0.15s',
               }}
             >
@@ -56,16 +98,16 @@ export function SettingsPage() {
       {/* Auto Reply Settings */}
       <Section title="Auto Reply" description="Atur perilaku auto-reply agent">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <ToggleRow label="Aktifkan auto-reply" description="Balas pesan otomatis dengan AI" checked={true} />
-          <ToggleRow label="Balas pesan grup" description="Izinkan AI merespon di grup" checked={false} />
-          <ToggleRow label="Simpan riwayat chat" description="Simpan percakapan ke database" checked={true} />
+          <ToggleRow label="Aktifkan auto-reply" description="Balas pesan otomatis dengan AI" checked={autoReply} onChange={setAutoReply} />
+          <ToggleRow label="Balas pesan grup" description="Izinkan AI merespon di grup" checked={replyGroups} onChange={setReplyGroups} />
+          <ToggleRow label="Simpan riwayat chat" description="Simpan percakapan ke database" checked={saveHistory} onChange={setSaveHistory} />
         </div>
       </Section>
 
       {/* Multi-Number */}
       <Section title="Multi-Number" description="Kelola beberapa nomor WhatsApp">
         <div style={{
-          padding: 16, background: '#0f1117', borderRadius: 8, border: '1px dashed #1e2030',
+          padding: 16, background: '#0f1117', borderRadius: 8, border: '1px solid #1e2030',
           textAlign: 'center',
         }}>
           <p style={{ fontSize: 13, color: '#64748b' }}>
@@ -105,8 +147,7 @@ function Section({ title, description, children }: { title: string; description:
   );
 }
 
-function ToggleRow({ label, description, checked }: { label: string; description: string; checked: boolean }) {
-  const [isChecked, setIsChecked] = useState(checked);
+function ToggleRow({ label, description, checked, onChange }: { label: string; description: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
       <div>
@@ -114,10 +155,10 @@ function ToggleRow({ label, description, checked }: { label: string; description
         <div style={{ fontSize: 11, color: '#64748b' }}>{description}</div>
       </div>
       <button
-        onClick={() => setIsChecked(!isChecked)}
+        onClick={() => onChange(!checked)}
         style={{
           width: 40, height: 22, borderRadius: 11, border: 'none',
-          background: isChecked ? '#8b5cf6' : '#334155',
+          background: checked ? '#8b5cf6' : '#334155',
           cursor: 'pointer', position: 'relative' as const,
           transition: 'background 0.2s',
         }}
@@ -125,7 +166,7 @@ function ToggleRow({ label, description, checked }: { label: string; description
         <div style={{
           width: 18, height: 18, borderRadius: '50%', background: '#fff',
           position: 'absolute' as const, top: 2,
-          left: isChecked ? 20 : 2, transition: 'left 0.2s',
+          left: checked ? 20 : 2, transition: 'left 0.2s',
         }} />
       </button>
     </div>

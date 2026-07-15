@@ -3,6 +3,7 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { ProactiveAction, ProactiveTriggerType, ProactiveActionType } from './types.js';
 import type { ApprovalQueue } from './approval-queue.js';
+import type { Database } from './storage.js';
 import { getLogger } from './logger.js';
 
 /**
@@ -24,19 +25,23 @@ export class ProactiveScheduler {
   private logger: Logger;
   private actions: Map<string, ProactiveAction> = new Map();
   private approvalQueue?: ApprovalQueue;
+  private db?: Database;
   private persistPath: string;
   private checkIntervalMs: number;
   private timer: ReturnType<typeof setInterval> | null = null;
   private running = false;
   private onActionTrigger?: (action: ProactiveAction) => Promise<void>;
+  private pendingEvents: Map<string, Date> = new Map();
 
   constructor(options?: {
+    db?: Database;
     approvalQueue?: ApprovalQueue;
     persistPath?: string;
     checkIntervalMs?: number;
     onActionTrigger?: (action: ProactiveAction) => Promise<void>;
   }) {
     this.logger = getLogger().child({ module: 'proactive-scheduler' });
+    this.db = options?.db;
     this.approvalQueue = options?.approvalQueue;
     this.persistPath = options?.persistPath || join(process.cwd(), 'data', 'proactive-actions.json');
     this.checkIntervalMs = options?.checkIntervalMs || 60_000; // Check every 60s
@@ -201,6 +206,15 @@ export class ProactiveScheduler {
   }
 
   /**
+   * Register an external event for event-based triggers.
+   * Call this when something happens (e.g., new message, order created).
+   */
+  registerEvent(eventName: string): void {
+    this.pendingEvents.set(eventName, new Date());
+    this.logger.debug({ event: eventName }, 'Event registered for proactive triggers');
+  }
+
+  /**
    * Manually trigger a check for all actions.
    * Returns actions that would trigger.
    */
@@ -248,16 +262,41 @@ export class ProactiveScheduler {
     switch (action.trigger.type) {
       case 'time':
         return this.checkTimeTrigger(action, now);
-      case 'event':
-        // Event-based triggers are checked externally via checkEventTrigger()
-        return false;
-      case 'pattern':
-        // Pattern-based triggers need external data (e.g., days since last message)
-        // For now, time-triggered patterns check the schedule
+      case 'event': {
+        // Event-based triggers check if the expected event has been registered
+        const eventName = action.trigger.event;
+        if (!eventName) return false;
+        const eventTime = this.pendingEvents.get(eventName);
+        if (!eventTime) return false;
+        // Check if event happened after last trigger
+        if (action.lastTriggeredAt && eventTime <= action.lastTriggeredAt) return false;
+        // Clean up processed event
+        this.pendingEvents.delete(eventName);
+        return true;
+      }
+      case 'pattern': {
+        // Pattern triggers with schedule use time-based check
         if (action.trigger.schedule) {
           return this.checkTimeTrigger(action, now);
         }
+        // Pattern triggers without schedule check DB for last message time
+        if (action.trigger.condition && action.trigger.contactId && this.db) {
+          try {
+            const messages = this.db.getMessages(action.trigger.contactId, 1);
+            if (messages.length === 0) return false;
+            const lastMsgTime = new Date(messages[0].timestamp).getTime();
+            const daysSince = (now.getTime() - lastMsgTime) / (24 * 60 * 60 * 1000);
+            const daysMatch = action.trigger.condition.match(/^(\d+)\s+days?\s+no\s+reply/i);
+            if (daysMatch) {
+              const threshold = parseInt(daysMatch[1], 10);
+              return daysSince >= threshold;
+            }
+          } catch {
+            return false;
+          }
+        }
         return false;
+      }
       default:
         return false;
     }

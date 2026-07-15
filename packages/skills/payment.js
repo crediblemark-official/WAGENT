@@ -310,22 +310,24 @@ export default function createPaymentSkill() {
         },
         handler: async (args, context) => {
           try {
-            // Simpan ke DB lokal
+            const id = `pay_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
             const record = {
-              order_id: args.order_id,
-              amount: argsjumlah,
+              id,
+              orderId: args.order_id,
+              contactId: context.contactId,
+              amount: args.jumlah,
               method: args.metode,
               proof: args.bukti,
-              recorded_by: 'ai_agent',
-              recorded_at: new Date().toISOString(),
+              recordedBy: 'ai_agent',
             };
 
-            // TODO: Simpan ke tabel payments di DB
-            // context.db.savePayment(record);
+            // Save to payments table
+            context.db.savePayment(record);
 
             return JSON.stringify({
               berhasil: true,
               message: 'Pembayaran tercatat',
+              id,
               order_id: args.order_id,
               jumlah: `Rp${args.jumlah.toLocaleString('id-ID')}`,
               metode: args.metode,

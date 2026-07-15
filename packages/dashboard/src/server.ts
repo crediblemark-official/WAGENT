@@ -201,12 +201,40 @@ export class DashboardServer implements DashboardAdapter {
         break;
       }
 
-      case 'number:connect':
-      case 'number:disconnect':
-      case 'number:remove':
-        // These are handled at the CLI/Gateway level, not in dashboard server
-        this.logger.warn('Number action %s not handled at dashboard level (must be routed to Gateway)', msg.type);
+      case 'number:connect': {
+        const connectId = msg.numberId || msg.id;
+        const numToConnect = this.numbers.find(n => n.id === connectId);
+        if (numToConnect) {
+          numToConnect.enabled = true;
+          this.persistNumbers();
+          this.broadcast({ type: 'connection:update', status: 'connected' } as any);
+          this.logger.info({ numberId: connectId }, 'Number connected via dashboard');
+        } else {
+          ws.send(JSON.stringify({ type: 'error', error: `Number ${connectId} not found` }));
+        }
         break;
+      }
+
+      case 'number:disconnect': {
+        const disconnectId = msg.numberId || msg.id;
+        const numToDisconnect = this.numbers.find(n => n.id === disconnectId);
+        if (numToDisconnect) {
+          numToDisconnect.enabled = false;
+          this.persistNumbers();
+          this.broadcast({ type: 'connection:update', status: 'disconnected' } as any);
+          this.logger.info({ numberId: disconnectId }, 'Number disconnected via dashboard');
+        }
+        break;
+      }
+
+      case 'number:remove': {
+        const removeId = msg.numberId || msg.id;
+        this.numbers = this.numbers.filter(n => n.id !== removeId);
+        this.persistNumbers();
+        ws.send(JSON.stringify({ type: 'numbers:list', numbers: this.numbers }));
+        this.logger.info({ numberId: removeId }, 'Number removed via dashboard');
+        break;
+      }
 
       // ── Approval Queue ────────────────────────────────────
 
@@ -458,12 +486,15 @@ export class DashboardServer implements DashboardAdapter {
     });
 
     // ── Approval Queue API ────────────────────────────────────
-    // Note: These endpoints require gateway access for ApprovalQueue
-    // For now, they return empty/default data; real impl needs gateway reference
+
+    this.app.get('/api/approval', (_req, res) => {
+      const pending = this.gateway?.getApprovalQueue().getPending() || [];
+      res.json({ actions: pending });
+    });
 
     this.app.get('/api/approval/pending', (_req, res) => {
       const pending = this.gateway?.getApprovalQueue().getPending() || [];
-      res.json({ requests: pending });
+      res.json({ actions: pending });
     });
 
     this.app.post('/api/approval/:id/approve', (req, res) => {
@@ -478,6 +509,34 @@ export class DashboardServer implements DashboardAdapter {
       const reason = req.body?.reason || '';
       const ok = this.gateway?.getApprovalQueue().reject(id, 'dashboard', reason) ?? false;
       res.json({ success: ok, id, action: 'rejected', reason });
+    });
+
+    // ── Settings API ───────────────────────────────────────────
+
+    this.app.get('/api/settings', (_req, res) => {
+      const settingsPath = join(process.cwd(), 'config.jsonc');
+      try {
+        if (existsSync(settingsPath)) {
+          const raw = readFileSync(settingsPath, 'utf-8');
+          // Strip JSONC comments for parsing
+          const cleaned = raw.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
+          res.json(JSON.parse(cleaned));
+        } else {
+          res.json({});
+        }
+      } catch {
+        res.json({});
+      }
+    });
+
+    this.app.post('/api/settings', (req, res) => {
+      try {
+        const settingsPath = join(process.cwd(), 'config.jsonc');
+        writeFileSync(settingsPath, JSON.stringify(req.body, null, 2));
+        res.json({ success: true });
+      } catch (err: any) {
+        res.status(500).json({ error: err.message });
+      }
     });
 
     // Serve static files in production

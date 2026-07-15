@@ -101,7 +101,9 @@ export class MCPClient {
     if (server) {
       try {
         await server.client.close();
-      } catch {}
+      } catch (err: any) {
+        this.logger.warn({ server: serverName, error: err.message }, 'Error disconnecting from MCP server');
+      }
       server.connected = false;
       this.servers.delete(serverName);
       this.logger.info({ server: serverName }, 'Disconnected from MCP server');

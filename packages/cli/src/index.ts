@@ -1153,7 +1153,9 @@ skillCmd
       console.log('');
     } else {
       // Remove failed file
-      try { unlinkSync(destPath); } catch {}
+      try { unlinkSync(destPath); } catch (err: any) {
+        console.log(color.dim(`  (cleanup: ${err.message})`));
+      }
       console.log(color.red('✗ Gagal menginstall skill. Perbaiki error dan coba lagi.'));
       console.log('');
     }

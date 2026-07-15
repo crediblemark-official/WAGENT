@@ -290,13 +290,20 @@ export function createBuiltInTools(config: WAgentConfig): ToolDefinition[] {
       const message = String(args.message);
       const contactId = args.contactId ? String(args.contactId) : context.contactId;
 
-      // Note: Actual sending is handled by the gateway after tool execution
-      // This tool just validates and queues the message
+      // Queue message to be sent after AI response
+      if (context.pendingMessages) {
+        context.pendingMessages.push({
+          to: contactId,
+          content: message,
+          type: 'text',
+        });
+      }
+
       return JSON.stringify({
         success: true,
         contactId,
         message,
-        note: 'Pesan akan dikirim setelah respons AI selesai',
+        queued: true,
       });
     },
   });
@@ -318,12 +325,22 @@ export function createBuiltInTools(config: WAgentConfig): ToolDefinition[] {
       const caption = args.caption ? String(args.caption) : '';
       const contactId = args.contactId ? String(args.contactId) : context.contactId;
 
+      // Queue image to be sent after AI response
+      if (context.pendingMessages) {
+        context.pendingMessages.push({
+          to: contactId,
+          content: caption,
+          type: 'image',
+          imageUrl,
+        });
+      }
+
       return JSON.stringify({
         success: true,
         contactId,
         imageUrl,
         caption,
-        note: 'Gambar akan dikirim setelah respons AI selesai',
+        queued: true,
       });
     },
   });
@@ -347,13 +364,50 @@ export function createBuiltInTools(config: WAgentConfig): ToolDefinition[] {
       const datetime = String(args.datetime);
       const contactId = args.contactId ? String(args.contactId) : context.contactId;
 
-      // Note: Actual scheduling is handled by ProactiveScheduler
+      // Parse datetime
+      let scheduledAt: Date;
+      try {
+        scheduledAt = new Date(datetime);
+        if (isNaN(scheduledAt.getTime())) {
+          // Try parsing Indonesian relative time
+          const now = new Date();
+          if (/besok/i.test(datetime)) {
+            const match = datetime.match(/jam\s+(\d+)/i);
+            const hour = match ? parseInt(match[1]) : 9;
+            scheduledAt = new Date(now);
+            scheduledAt.setDate(scheduledAt.getDate() + 1);
+            scheduledAt.setHours(hour, 0, 0, 0);
+          } else {
+            scheduledAt = new Date(Date.now() + 60 * 60 * 1000); // Default: 1 hour from now
+          }
+        }
+      } catch {
+        scheduledAt = new Date(Date.now() + 60 * 60 * 1000);
+      }
+
+      // Create scheduled message in DB
+      const id = `reminder_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      context.db.createScheduledMessage({
+        id,
+        contactId,
+        contactName: contactId,
+        content: message,
+        scheduledAt,
+        repeat: 'none',
+        status: 'pending',
+        sentCount: 0,
+        failedCount: 0,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
       return JSON.stringify({
         success: true,
+        id,
         contactId,
         message,
-        datetime,
-        note: 'Reminder akan dijadwalkan oleh sistem',
+        scheduledAt: scheduledAt.toISOString(),
+        note: 'Reminder dijadwalkan dan akan dikirim otomatis',
       });
     },
   });

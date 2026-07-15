@@ -183,10 +183,14 @@ export function ApprovalPage() {
   const fetchActions = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/approval?status=${filter}`);
+      const res = await fetch('/api/approval');
       if (res.ok) {
         const data = await res.json();
-        setActions(data.actions || []);
+        let items = data.actions || [];
+        if (filter !== 'all') {
+          items = items.filter((a: PendingAction) => a.status === filter);
+        }
+        setActions(items);
       }
     } catch (err) {
       console.error('Failed to fetch actions:', err);

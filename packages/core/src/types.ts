@@ -212,6 +212,15 @@ export interface ToolContext {
   config: WAgentConfig;
   contactId: string;
   knowledgeStore?: import('./knowledge-store.js').KnowledgeStore;
+  scheduler?: import('./scheduler.js').Scheduler;
+  pendingMessages?: PendingMessage[];
+}
+
+export interface PendingMessage {
+  to: string;
+  content: string;
+  type: 'text' | 'image';
+  imageUrl?: string;
 }
 
 // ── Skill / Plugin Types ───────────────────────────────────────

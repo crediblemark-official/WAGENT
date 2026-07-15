@@ -309,6 +309,7 @@ export class Agent {
   private summarizer?: Summarizer;
   private learner?: Learner;
   private knowledgeStore?: KnowledgeStore;
+  private _scheduler?: import('./scheduler.js').Scheduler;
   private _memoryEnabled: boolean;
   private _styleEnabled: boolean;
   private _autoSummarizeEnabled: boolean;
@@ -330,6 +331,7 @@ export class Agent {
       summarizer?: Summarizer;
       learner?: Learner;
       knowledgeStore?: KnowledgeStore;
+      scheduler?: import('./scheduler.js').Scheduler;
       memoryEnabled?: boolean;
       styleEnabled?: boolean;
       autoSummarizeEnabled?: boolean;
@@ -349,6 +351,7 @@ export class Agent {
     this.summarizer = options?.summarizer;
     this.learner = options?.learner;
     this.knowledgeStore = options?.knowledgeStore;
+    this._scheduler = options?.scheduler;
     this._memoryEnabled = options?.memoryEnabled ?? true;
     this._styleEnabled = options?.styleEnabled ?? true;
     this._autoSummarizeEnabled = options?.autoSummarizeEnabled ?? true;
@@ -614,7 +617,7 @@ export class Agent {
     messageContent: string,
     contactId: string,
     contactName: string
-  ): Promise<string> {
+  ): Promise<{ response: string; pendingMessages: import('./types.js').PendingMessage[] }> {
     this.logger.info({ contactId, contactName }, 'Processing message from %s', contactName);
 
     // Build context using v2 sub-components (with v1 fallback)
@@ -623,12 +626,15 @@ export class Agent {
     // Save user message to DB conversation history (always)
     this.db.addConversation(contactId, 'user', messageContent);
 
+    const pendingMessages: import('./types.js').PendingMessage[] = [];
     const toolContext: ToolContext = {
       logger: this.logger,
       db: this.db,
       config: this.config,
       contactId,
       knowledgeStore: this.knowledgeStore,
+      scheduler: this._scheduler,
+      pendingMessages,
     };
 
     let iterations = 0;
@@ -765,6 +771,6 @@ export class Agent {
     }
 
     this.logger.info({ contactId }, 'Response sent to %s', contactName);
-    return finalResponse;
+    return { response: finalResponse, pendingMessages };
   }
 }

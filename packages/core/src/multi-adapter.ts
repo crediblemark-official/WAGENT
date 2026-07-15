@@ -97,7 +97,9 @@ export class MultiWhatsAppAdapter implements WhatsAppAdapter {
   async getContacts(): Promise<Contact[]> {
     const all: Contact[] = [];
     for (const adapter of this.adapters.values()) {
-      try { all.push(...(await adapter.getContacts())); } catch {}
+      try { all.push(...(await adapter.getContacts())); } catch (err: any) {
+        this.logger?.warn({ error: err.message }, 'Failed to get contacts from adapter');
+      }
     }
     return all;
   }

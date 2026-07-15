@@ -159,7 +159,9 @@ export class Gateway {
           description: event.request.description,
           type: event.request.type,
           contactName: event.request.contactName,
-        }).catch(() => {});
+        }).catch(err => {
+          this.logger.warn({ error: err.message }, 'Failed to send approval notification to Telegram');
+        });
       }
     });
 
@@ -631,11 +633,29 @@ Ini adalah chat pertama dengan pelanggan ini. Sambut dengan hangat dan tawarkan 
 ${this.config.welcomeMessage ? `Gunakan sambutan seperti: "${this.config.welcomeMessage}"` : ''}`;
       }
 
-      const response = await this.agent.processMessage(messageContent, msg.from, contactName);
+      const result = await this.agent.processMessage(messageContent, msg.from, contactName);
+      const response = result.response;
+      const pendingMessages = result.pendingMessages;
 
       // 6. Stop typing indicator
       clearInterval(typingInterval);
-      this.whatsapp.sendPresenceUpdate?.('paused', jid)?.catch(() => {});
+      this.whatsapp.sendPresenceUpdate?.('paused', jid)?.catch(e =>
+        this.logger.warn({ error: e.message }, 'Failed to pause presence')
+      );
+
+      // 7. Send pending messages from tools (send_message, send_image)
+      for (const pm of pendingMessages) {
+        try {
+          if (pm.type === 'image' && pm.imageUrl) {
+            await this.whatsapp.sendMessage(pm.to, pm.imageUrl);
+          } else {
+            await this.whatsapp.sendMessage(pm.to, pm.content);
+          }
+          this.db.incrementMessageCount('outgoing');
+        } catch (err: any) {
+          this.logger.error({ error: err.message, to: pm.to }, 'Failed to send pending message');
+        }
+      }
 
       if (response) {
         // 7. Human-like post-delay (simulate typing speed)
@@ -670,7 +690,9 @@ ${this.config.welcomeMessage ? `Gunakan sambutan seperti: "${this.config.welcome
               customerMessage: messageContent,
               reason: 'ai_empty_response',
               details: `AI response: "${response.substring(0, 200)}"`,
-            }).catch(() => {});
+            }).catch(err => {
+              this.logger.warn({ error: err.message, from: msg.from }, 'Failed to escalate to Telegram');
+            });
           }
         }
       } else if (this.canEscalate(msg.from)) {
@@ -682,7 +704,9 @@ ${this.config.welcomeMessage ? `Gunakan sambutan seperti: "${this.config.welcome
           customerMessage: messageContent,
           reason: 'ai_empty_response',
           details: 'AI tidak mengembalikan response apapun',
-        }).catch(() => {});
+        }).catch(err => {
+          this.logger.warn({ error: err.message, from: msg.from }, 'Failed to escalate empty response to Telegram');
+        });
       }
     } catch (err: any) {
       clearInterval(typingInterval);
@@ -696,7 +720,9 @@ ${this.config.welcomeMessage ? `Gunakan sambutan seperti: "${this.config.welcome
           customerMessage: messageContent,
           reason: 'ai_error',
           details: err.message,
-        }).catch(() => {});
+        }).catch(err2 => {
+          this.logger.warn({ error: err2.message, from: jid }, 'Failed to escalate AI error to Telegram');
+        });
       }
     }
   }

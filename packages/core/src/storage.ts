@@ -245,6 +245,19 @@ export class Database {
         created_at TEXT DEFAULT (datetime('now')),
         updated_at TEXT DEFAULT (datetime('now'))
       );
+
+      -- Payments
+      CREATE TABLE IF NOT EXISTS payments (
+        id TEXT PRIMARY KEY,
+        order_id TEXT,
+        contact_id TEXT,
+        amount INTEGER NOT NULL DEFAULT 0,
+        method TEXT DEFAULT 'unknown',
+        proof TEXT DEFAULT '',
+        recorded_by TEXT DEFAULT 'system',
+        status TEXT DEFAULT 'recorded',
+        created_at TEXT DEFAULT (datetime('now'))
+      );
     `);
 
     // Safe migration: add embedding column if it doesn't exist
@@ -1292,6 +1305,39 @@ export class Database {
       items: JSON.parse(r.items || '[]'),
       totalAmount: r.total_amount,
       currency: r.currency,
+      createdAt: new Date(r.created_at),
+    }));
+  }
+
+  // ── Payments ─────────────────────────────────────────────────
+
+  savePayment(payment: { id: string; orderId?: string; contactId?: string; amount: number; method: string; proof?: string; recordedBy?: string }): void {
+    this.db.prepare(`
+      INSERT INTO payments (id, order_id, contact_id, amount, method, proof, recorded_by, status, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'recorded', datetime('now'))
+    `).run(
+      payment.id,
+      payment.orderId || null,
+      payment.contactId || null,
+      payment.amount,
+      payment.method,
+      payment.proof || '',
+      payment.recordedBy || 'system',
+    );
+  }
+
+  getPaymentsByOrder(orderId: string): any[] {
+    return (this.db.prepare(
+      'SELECT * FROM payments WHERE order_id = ? ORDER BY created_at DESC'
+    ).all(orderId) as any[]).map(r => ({
+      id: r.id,
+      orderId: r.order_id,
+      contactId: r.contact_id,
+      amount: r.amount,
+      method: r.method,
+      proof: r.proof,
+      recordedBy: r.recorded_by,
+      status: r.status,
       createdAt: new Date(r.created_at),
     }));
   }
