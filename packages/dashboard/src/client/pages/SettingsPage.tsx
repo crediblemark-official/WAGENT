@@ -16,12 +16,15 @@ export function SettingsPage() {
   const [systemPrompt, setSystemPrompt] = useState('');
   const [welcomeMessage, setWelcomeMessage] = useState('Halo! Ada yang bisa saya bantu?');
   
-  // API Keys
-  const [googleKey, setGoogleKey] = useState('');
-  const [openaiKey, setOpenaiKey] = useState('');
-  const [anthropicKey, setAnthropicKey] = useState('');
-  const [groqKey, setGroqKey] = useState('');
-  const [deepseekKey, setDeepseekKey] = useState('');
+  // API Keys (Dinamis)
+  const [apiKeys, setApiKeys] = useState<{ [providerId: string]: string }>({});
+
+  const handleApiKeyChange = (provId: string, value: string) => {
+    setApiKeys(prev => ({
+      ...prev,
+      [provId]: value
+    }));
+  };
 
   // Perilaku
   const [autoReply, setAutoReply] = useState(true);
@@ -76,11 +79,15 @@ export function SettingsPage() {
         if (cfg.agent?.welcomeMessage) setWelcomeMessage(cfg.agent.welcomeMessage);
         
         // Map API keys
-        if (cfg.providers?.google?.apiKey) setGoogleKey(cfg.providers.google.apiKey);
-        if (cfg.providers?.openai?.apiKey) setOpenaiKey(cfg.providers.openai.apiKey);
-        if (cfg.providers?.anthropic?.apiKey) setAnthropicKey(cfg.providers.anthropic.apiKey);
-        if (cfg.providers?.groq?.apiKey) setGroqKey(cfg.providers.groq.apiKey);
-        if (cfg.providers?.deepseek?.apiKey) setDeepseekKey(cfg.providers.deepseek.apiKey);
+        const keys: { [providerId: string]: string } = {};
+        if (cfg.providers) {
+          for (const [provId, data] of Object.entries(cfg.providers)) {
+            if (data && typeof data === 'object' && (data as any).apiKey) {
+              keys[provId] = (data as any).apiKey;
+            }
+          }
+        }
+        setApiKeys(keys);
 
         // Map toggles
         if (cfg.groupChat?.enabled !== undefined) setGroupChatEnabled(cfg.groupChat.enabled);
@@ -135,33 +142,19 @@ export function SettingsPage() {
   const handleSave = async () => {
     setError(null);
     try {
-      // Rekonstruksi config object
+      // Rekonstruksi providers config
+      const updatedProviders = { ...rawConfig.providers };
+      for (const [provId, key] of Object.entries(apiKeys)) {
+        updatedProviders[provId] = {
+          ...updatedProviders[provId],
+          apiKey: key.trim()
+        };
+      }
+
       const updatedConfig = {
         ...rawConfig,
         model: model.trim(),
-        providers: {
-          ...rawConfig.providers,
-          google: {
-            ...rawConfig.providers?.google,
-            apiKey: googleKey.trim()
-          },
-          openai: {
-            ...rawConfig.providers?.openai,
-            apiKey: openaiKey.trim()
-          },
-          anthropic: {
-            ...rawConfig.providers?.anthropic,
-            apiKey: anthropicKey.trim()
-          },
-          groq: {
-            ...rawConfig.providers?.groq,
-            apiKey: groqKey.trim()
-          },
-          deepseek: {
-            ...rawConfig.providers?.deepseek,
-            apiKey: deepseekKey.trim()
-          }
-        },
+        providers: updatedProviders,
         agent: {
           ...rawConfig.agent,
           welcomeMessage: welcomeMessage.trim(),
@@ -309,11 +302,35 @@ export function SettingsPage() {
 
           <Section title="Kredensial API Provider" description="Masukkan API Key untuk mengaktifkan provider">
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <InputRow label="Google Gemini" value={googleKey} onChange={setGoogleKey} placeholder="Google/Gemini API Key" type="password" />
-              <InputRow label="OpenAI" value={openaiKey} onChange={setOpenaiKey} placeholder="sk-..." type="password" />
-              <InputRow label="Anthropic" value={anthropicKey} onChange={setAnthropicKey} placeholder="sk-ant-..." type="password" />
-              <InputRow label="Groq" value={groqKey} onChange={setGroqKey} placeholder="gsk_..." type="password" />
-              <InputRow label="DeepSeek" value={deepseekKey} onChange={setDeepseekKey} placeholder="sk-..." type="password" />
+              {availableProviders
+                .filter(provId => provId !== 'ollama')
+                .filter(provId => provId === selectedProvider || (apiKeys[provId] && apiKeys[provId].trim() !== ''))
+                .map(provId => {
+                  const labels: { [id: string]: string } = {
+                    google: 'Google Gemini',
+                    openai: 'OpenAI',
+                    anthropic: 'Anthropic',
+                    groq: 'Groq',
+                    deepseek: 'DeepSeek',
+                    mistral: 'Mistral',
+                    xai: 'xAI',
+                    cohere: 'Cohere',
+                    together: 'Together AI',
+                    fireworks: 'Fireworks AI',
+                    perplexity: 'Perplexity'
+                  };
+                  const label = labels[provId] || provId.charAt(0).toUpperCase() + provId.slice(1);
+                  return (
+                    <InputRow
+                      key={provId}
+                      label={label}
+                      value={apiKeys[provId] || ''}
+                      onChange={(val) => handleApiKeyChange(provId, val)}
+                      placeholder={`Kunci API ${label}`}
+                      type="password"
+                    />
+                  );
+                })}
             </div>
           </Section>
 
