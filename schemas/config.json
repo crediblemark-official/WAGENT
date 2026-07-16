@@ -212,7 +212,7 @@
         },
         "host": {
           "type": "string",
-          "default": "localhost",
+          "default": "0.0.0.0",
           "description": "Dashboard host"
         }
       }

@@ -293,7 +293,7 @@ function buildConfig(jsonConfig: WAgentJsonConfig, resolved: ResolvedModel): WAg
     
     // Dashboard
     dashboardPort: jsonConfig.dashboard?.port || 3030,
-    dashboardHost: jsonConfig.dashboard?.host || 'localhost',
+    dashboardHost: jsonConfig.dashboard?.host || '0.0.0.0',
     
     // Database
     databaseType: jsonConfig.database?.type || 'sqlite',
