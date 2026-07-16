@@ -25,8 +25,8 @@ async function checkPort(port: number): Promise<boolean> {
 
 export async function startCommand(options: { port?: string; dashboard?: boolean }, pkgVersion: string): Promise<void> {
   // ── Port conflict check ─────────────────────────────────────
-  // Lewati jika dijalankan sebagai systemd service (INVOCATION_ID di-set oleh systemd)
-  const runningAsService = !!process.env.INVOCATION_ID;
+  // Lewati jika dijalankan sebagai systemd service
+  const runningAsService = !!process.env.INVOCATION_ID || process.env.WAGENT_SERVICE === '1';
 
   const config = await loadConfig();
   ensureDirectories(config);
@@ -202,20 +202,26 @@ export async function startCommand(options: { port?: string; dashboard?: boolean
         if (dashboard) {
           const displayHost = config.dashboardHost === '0.0.0.0' ? 'localhost' : config.dashboardHost;
           console.log('');
-          console.log(color.cyan(`  📱 Sesi WhatsApp memerlukan pemindaian. Scan QR Code di bawah atau buka Web Dashboard.`));
-          console.log(color.cyan(`     Dashboard: http://${displayHost}:${config.dashboardPort}`));
-          console.log('');
-          import('qrcode-terminal').then((qrTerm) => {
-            const term = (qrTerm as any).generate ? qrTerm : (qrTerm as any).default;
-            if (term && typeof term.generate === 'function') {
-              term.generate.call(term, e.qr, { small: true });
-            } else {
-              console.log('  [Error: qrcode-terminal generate function not found]');
-            }
-          }).catch((err) => {
-            console.log('  [Error loading qrcode-terminal:', err.message, ']');
-          });
-          console.log('');
+          if (runningAsService) {
+            console.log(color.cyan(`  📱 Sesi WhatsApp memerlukan pemindaian. Hubungkan nomor Anda melalui Web Dashboard:`));
+            console.log(color.cyan(`     http://${displayHost}:${config.dashboardPort}`));
+            console.log('');
+          } else {
+            console.log(color.cyan(`  📱 Sesi WhatsApp memerlukan pemindaian. Scan QR Code di bawah atau buka Web Dashboard.`));
+            console.log(color.cyan(`     Dashboard: http://${displayHost}:${config.dashboardPort}`));
+            console.log('');
+            import('qrcode-terminal').then((qrTerm) => {
+              const term = (qrTerm as any).generate ? qrTerm : (qrTerm as any).default;
+              if (term && typeof term.generate === 'function') {
+                term.generate.call(term, e.qr, { small: true });
+              } else {
+                console.log('  [Error: qrcode-terminal generate function not found]');
+              }
+            }).catch((err) => {
+              console.log('  [Error loading qrcode-terminal:', err.message, ']');
+            });
+            console.log('');
+          }
         }
       }
     });
