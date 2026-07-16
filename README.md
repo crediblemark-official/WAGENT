@@ -20,6 +20,40 @@ WAGENT adalah **platform WhatsApp AI Agent** yang bisa dipakai siapa saja — pe
 
 ---
 
+## 📸 Preview / Tangkapan Layar
+
+<details>
+  <summary><b>Lihat Antarmuka Terminal & Web Dashboard WAGENT</b></summary>
+  <br/>
+  
+  ### 1. TUI Setup Wizard
+  Wizard penyiapan interaktif di terminal saat pertama kali menjalankan `./bin/wagent init`.
+  
+  ![TUI Setup Wizard](assets/setup-wizard.png)
+  
+  ### 2. WhatsApp QR Authentication di Terminal
+  Kode QR dinamis yang dihasilkan di terminal untuk menghubungkan nomor WhatsApp Anda.
+  
+  ![WhatsApp QR Code](assets/qr-code.png)
+  
+  ### 3. WAGENT Service di Systemd
+  Log operasional background daemon saat berjalan di server Linux (`systemctl start wagent`).
+  
+  ![WAGENT Service](assets/systemd-service.png)
+  
+  ### 4. Konfigurasi Nomor WhatsApp (Web Dashboard)
+  Tampilan pengaturan di Web Dashboard untuk mengelola integrasi multi-nomor WhatsApp Anda.
+  
+  ![Web Dashboard WA Configuration](assets/dashboard-config.png)
+  
+  ### 5. Riwayat Percakapan (Web Dashboard)
+  Tampilan pemantauan pesan masuk real-time, di mana CS manusia dapat melakukan intervensi obrolan.
+  
+  ![Web Dashboard Chat Interface](assets/dashboard-chat.png)
+</details>
+
+---
+
 ## ✨ Fitur
 
 ### Core
