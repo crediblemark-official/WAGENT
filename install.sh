@@ -31,6 +31,23 @@ echo -e "  ${C}║${N}  ${D}WhatsApp AI Agent · Self-Hosted${N}     ${C}║${N}
 echo -e "  ${C}╚═══════════════════════════════════════╝${N}"
 echo ""
 
+# ── Termux / Android preparation (run BEFORE any pkg install) ──
+# On a fresh Termux the package repo is HTTPS and often fails with
+# "certificate verify failed" until ca-certificates is present and the
+# index is refreshed. Do this first so subsequent installs succeed.
+if [ -d "/data/data/com.termux" ] || grep -qi "termux" <<< "$(uname -a 2>/dev/null)"; then
+  info "Termux detected — preparing package repository..."
+  if command -v pkg &>/dev/null; then
+    pkg install -y ca-certificates >/dev/null 2>&1 || true
+    pkg update >/dev/null 2>&1 || true
+    ok "Termux repository prepared (ca-certificates + pkg update)"
+    # Build tools as a fallback path (if the user ever uses Node + better-sqlite3)
+    pkg install -y build-essential python nodejs >/dev/null 2>&1 || true
+    ok "Termux build tools ready (build-essential, python, nodejs)"
+  fi
+  info "Tip: WAGENT uses Bun on Termux (bun:sqlite — no native compile needed)."
+fi
+
 # ── Step 1: Check prerequisites ─────────────────────────────
 step "①" "Checking prerequisites..."
 
@@ -84,20 +101,6 @@ ok "Node $(node --version)"
 ok "Bun $(bun --version)"
 ok "Git $(git --version | awk '{print $3}')"
 echo ""
-
-# ── Termux / Android detection ──────────────────────────────
-# WAGENT runs on Termux via Bun (bun:sqlite needs no native compile).
-# If the user later installs with plain npm (Node + better-sqlite3) they
-# need a C/C++ toolchain so the native addon can build. We pre-wire that
-# here so both paths work out of the box.
-if [ -d "/data/data/com.termux" ] || grep -qi "termux" <<< "$(uname -a 2>/dev/null)"; then
-  info "Termux detected — ensuring build toolchain is available..."
-  if command -v pkg &>/dev/null; then
-    pkg install -y build-essential python nodejs >/dev/null 2>&1 || true
-    ok "Termux build tools ready (build-essential, python, nodejs)"
-  fi
-  info "Tip: WAGENT uses Bun on Termux (no native compile needed)."
-fi
 
 
 # ── Step 2: Clone or Update ────────────────────────────────────
