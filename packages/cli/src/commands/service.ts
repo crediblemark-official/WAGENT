@@ -93,7 +93,7 @@ export function serviceInstall(): boolean {
     'Type=simple',
     'WorkingDirectory=%h',
     `ExecStart=${wagentBin} start`,
-    'Restart=on-failure',
+    'Restart=always',
     'RestartSec=10',
     'StandardOutput=journal',
     'StandardError=journal',

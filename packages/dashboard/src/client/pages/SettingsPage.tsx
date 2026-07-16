@@ -26,6 +26,25 @@ export function SettingsPage() {
   // Perilaku
   const [autoReply, setAutoReply] = useState(true);
   const [groupChatEnabled, setGroupChatEnabled] = useState(false);
+
+  // Telegram Escalation
+  const [tgBotToken, setTgBotToken] = useState('');
+  const [tgChatId, setTgChatId] = useState('');
+
+  // Jam Kerja (Working Hours)
+  const [whEnabled, setWhEnabled] = useState(false);
+  const [whStart, setWhStart] = useState('08:00');
+  const [whEnd, setWhEnd] = useState('17:00');
+  const [whTimezone, setWhTimezone] = useState('Asia/Jakarta');
+  const [whOfflineMsg, setWhOfflineMsg] = useState('Mohon maaf, saat ini di luar jam operasional.');
+
+  // Rate Limiting
+  const [rlMax, setRlMax] = useState(10);
+  const [rlWindow, setRlWindow] = useState(10);
+  const [rlMsg, setRlMsg] = useState('Mohon tunggu sebentar ya, Anda terlalu cepat mengirim pesan.');
+
+  // Status Auto-restart
+  const [restarting, setRestarting] = useState(false);
   
   // Raw config placeholder untuk preserve field lain
   const [rawConfig, setRawConfig] = useState<any>({});
@@ -66,6 +85,22 @@ export function SettingsPage() {
         // Map toggles
         if (cfg.groupChat?.enabled !== undefined) setGroupChatEnabled(cfg.groupChat.enabled);
         if (cfg.agent?.autoReply !== undefined) setAutoReply(cfg.agent.autoReply);
+
+        // Map Telegram
+        if (cfg.escalation?.telegramBotToken) setTgBotToken(cfg.escalation.telegramBotToken);
+        if (cfg.escalation?.telegramChatId) setTgChatId(cfg.escalation.telegramChatId);
+
+        // Map Jam Kerja (Working Hours)
+        if (cfg.workingHours?.enabled !== undefined) setWhEnabled(cfg.workingHours.enabled);
+        if (cfg.workingHours?.start) setWhStart(cfg.workingHours.start);
+        if (cfg.workingHours?.end) setWhEnd(cfg.workingHours.end);
+        if (cfg.workingHours?.timezone) setWhTimezone(cfg.workingHours.timezone);
+        if (cfg.workingHours?.offlineMessage) setWhOfflineMsg(cfg.workingHours.offlineMessage);
+
+        // Map Rate Limiting
+        if (cfg.rateLimit?.max !== undefined) setRlMax(cfg.rateLimit.max);
+        if (cfg.rateLimit?.windowSeconds !== undefined) setRlWindow(cfg.rateLimit.windowSeconds);
+        if (cfg.rateLimit?.message) setRlMsg(cfg.rateLimit.message);
 
         // Map Catalog Models
         if (modelsData?.models) {
@@ -135,6 +170,25 @@ export function SettingsPage() {
         groupChat: {
           ...rawConfig.groupChat,
           enabled: groupChatEnabled
+        },
+        escalation: {
+          ...rawConfig.escalation,
+          telegramBotToken: tgBotToken.trim(),
+          telegramChatId: tgChatId.trim()
+        },
+        workingHours: {
+          ...rawConfig.workingHours,
+          enabled: whEnabled,
+          start: whStart.trim(),
+          end: whEnd.trim(),
+          timezone: whTimezone.trim(),
+          offlineMessage: whOfflineMsg.trim()
+        },
+        rateLimit: {
+          ...rawConfig.rateLimit,
+          max: Number(rlMax) || 10,
+          windowSeconds: Number(rlWindow) || 10,
+          message: rlMsg.trim()
         }
       };
 
@@ -152,7 +206,11 @@ export function SettingsPage() {
       }
 
       setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
+      setRestarting(true);
+      setTimeout(() => {
+        setSaved(false);
+        setRestarting(false);
+      }, 5000);
     } catch (err: any) {
       setError(err.message || 'Gagal menyimpan konfigurasi');
     }
@@ -259,6 +317,38 @@ export function SettingsPage() {
             </div>
           </Section>
 
+          <Section title="Rate Limiting (Anti-Spam)" description="Batasi pesan per pengguna untuk mencegah spam">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                <label style={{ fontSize: 12, color: '#e9edef', minWidth: 100 }}>Maks. Pesan</label>
+                <input
+                  type="number"
+                  value={rlMax}
+                  onChange={(e) => setRlMax(Number(e.target.value))}
+                  style={{ ...styles.input, padding: '6px 10px', fontSize: 12, width: '100%', maxWidth: 260 }}
+                />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                <label style={{ fontSize: 12, color: '#e9edef', minWidth: 100 }}>Durasi (Detik)</label>
+                <input
+                  type="number"
+                  value={rlWindow}
+                  onChange={(e) => setRlWindow(Number(e.target.value))}
+                  style={{ ...styles.input, padding: '6px 10px', fontSize: 12, width: '100%', maxWidth: 260 }}
+                />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                <label style={{ fontSize: 12, color: '#e9edef', minWidth: 100 }}>Pesan Peringatan</label>
+                <input
+                  type="text"
+                  value={rlMsg}
+                  onChange={(e) => setRlMsg(e.target.value)}
+                  style={{ ...styles.input, padding: '6px 10px', fontSize: 12, width: '100%', maxWidth: 260 }}
+                />
+              </div>
+            </div>
+          </Section>
+
         </div>
 
         {/* Kolom Kanan: Perilaku & WhatsApp */}
@@ -291,8 +381,78 @@ export function SettingsPage() {
             />
           </Section>
 
+          <Section title="Eskalasi Telegram" description="Teruskan obrolan ke Telegram untuk penanganan manusia">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <InputRow label="Bot Token" value={tgBotToken} onChange={setTgBotToken} placeholder="Token Bot Telegram" type="password" />
+              <InputRow label="Chat ID" value={tgChatId} onChange={setTgChatId} placeholder="Chat ID Telegram" />
+            </div>
+          </Section>
+
         </div>
 
+      </div>
+
+      {/* Baris Penuh: Jam Kerja */}
+      <div style={{ marginBottom: 16 }}>
+        <Section title="Jam Kerja (Working Hours)" description="Batasi operasional AI agar membalas sesuai jam kerja yang ditentukan">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <ToggleRow
+              label="Aktifkan Batasan Jam Kerja"
+              description="AI hanya akan merespon pada jam operasional di bawah ini"
+              checked={whEnabled}
+              onChange={setWhEnabled}
+            />
+            
+            {whEnabled && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.2fr', gap: 12, borderTop: '1px solid #222e35', paddingTop: 12, marginTop: 4 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <label style={{ fontSize: 11, color: '#8696a0' }}>Jam Mulai</label>
+                  <input
+                    type="time"
+                    value={whStart}
+                    onChange={(e) => setWhStart(e.target.value)}
+                    style={styles.input}
+                  />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <label style={{ fontSize: 11, color: '#8696a0' }}>Jam Selesai</label>
+                  <input
+                    type="time"
+                    value={whEnd}
+                    onChange={(e) => setWhEnd(e.target.value)}
+                    style={styles.input}
+                  />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <label style={{ fontSize: 11, color: '#8696a0' }}>Zona Waktu</label>
+                  <select
+                    value={whTimezone}
+                    onChange={(e) => setWhTimezone(e.target.value)}
+                    style={{ ...styles.input, cursor: 'pointer' }}
+                  >
+                    <option value="Asia/Jakarta">WIB (Asia/Jakarta)</option>
+                    <option value="Asia/Makassar">WITA (Asia/Makassar)</option>
+                    <option value="Asia/Jayapura">WIT (Asia/Jayapura)</option>
+                    <option value="UTC">UTC</option>
+                  </select>
+                </div>
+              </div>
+            )}
+            
+            {whEnabled && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <label style={{ fontSize: 11, color: '#8696a0' }}>Pesan Offline</label>
+                <input
+                  type="text"
+                  value={whOfflineMsg}
+                  onChange={(e) => setWhOfflineMsg(e.target.value)}
+                  placeholder="Mohon maaf, saat ini di luar jam operasional."
+                  style={styles.input}
+                />
+              </div>
+            )}
+          </div>
+        </Section>
       </div>
 
       {/* Baris Penuh: System Prompt */}
@@ -313,6 +473,30 @@ export function SettingsPage() {
           />
         </Section>
       </div>
+
+      {/* Restarting Overlay */}
+      {restarting && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(11, 20, 26, 0.9)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          color: '#e9edef'
+        }}>
+          <div style={{ fontSize: 32, marginBottom: 16 }}>⚙️</div>
+          <h3 style={{ fontSize: 18, fontWeight: 600, margin: '0 0 8px 0' }}>Memuat Ulang Sistem...</h3>
+          <p style={{ fontSize: 13, color: '#8696a0', margin: 0, textAlign: 'center', maxWidth: 320 }}>
+            Menyimpan perubahan dan memulai ulang engine AI. Halaman akan siap kembali dalam beberapa detik.
+          </p>
+        </div>
+      )}
 
       {/* Save Button */}
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
