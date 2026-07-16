@@ -2,10 +2,9 @@
 
 **Open-source, self-hosted, multi-AI WhatsApp agent untuk siapapun.**
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Bun](https://img.shields.io/badge/Bun-%3E%3D1.0-f5e0ac)](https://bun.sh)
-[![TypeScript](https://img.shields.io/badge/%3C%2F%3E-TypeScript-007ACC)](https://www.typescriptlang.org/)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+[![TypeScript](https://img.shields.io/badge/%3C%2F%3E-TypeScript-5.9-007ACC)](https://www.typescriptlang.org/)
 
 ---
 
@@ -82,7 +81,7 @@ WAGENT adalah **platform WhatsApp AI Agent** yang bisa dipakai siapa saja — pe
 | Fitur | Deskripsi |
 |-------|-----------|
 | 🔌 **MCP Support** | Model Context Protocol — konek ke sistem apapun |
-| 🧩 **Skill System** | Plugin untuk extensibilitas |
+| 🧩 **Skill System** | Plugin JavaScript untuk extensibilitas |
 | 🌐 **Web Scraper** | Cari info dari internet |
 | 📱 **Dashboard** | Web UI untuk monitoring & management |
 
@@ -202,7 +201,7 @@ wagent service disable
 
 # Buat skill untuk integrasi API klien
 mkdir -p skills
-cat > skills/client-api.ts << 'EOF'
+cat > skills/client-api.js << 'EOF'
 export default () => ({
   manifest: { name: 'client-api', version: '1.0.0', description: 'Client API integration' },
   tools: [{
@@ -261,7 +260,7 @@ EOF
 ```bash
 # Buat skill custom
 mkdir -p skills
-cat > skills/my-skill.ts << 'EOF'
+cat > skills/my-skill.js << 'EOF'
 export default () => ({
   manifest: { name: 'my-skill', version: '1.0.0', description: 'Custom skill' },
   tools: [{
@@ -300,7 +299,7 @@ WAGENT mendukung integrasi via **Skills** (plugins):
 - File System
 - Custom API
 
-Lihat [Dokumentasi Skills](./docs/skills.md) untuk detail.
+Lihat folder `packages/skills/` untuk contoh skill.
 
 ---
 
@@ -327,20 +326,42 @@ WAGENT mendukung MCP untuk konek ke sistem eksternal:
 ./bin/wagent start                 # Start agent
 ./bin/wagent status                # Cek status
 ./bin/wagent config                # Lihat config
+./bin/wagent log                   # Lihat log
 
 # Knowledge Base
 ./bin/wagent kb list               # List KB
 ./bin/wagent kb upload <file>      # Upload file
 ./bin/wagent kb search "query"     # Search KB
+./bin/wagent kb categories         # List kategori
 
 # Skills
 ./bin/wagent skill list            # List skills
 ./bin/wagent skill install <path>  # Install skill
 
+# Multi-Number
+./bin/wagent number list           # List nomor WA
+./bin/wagent number add <id>       # Tambah nomor
+
 # MCP
 ./bin/wagent mcp list              # List MCP servers
 ./bin/wagent mcp test              # Test connections
 ./bin/wagent mcp expose            # Expose tools
+
+# Model
+./bin/wagent model list            # List AI models
+./bin/wagent model resolve <id>    # Resolve model
+
+# Service (systemd)
+./bin/wagent service start         # Start daemon
+./bin/wagent service status        # Cek status
+./bin/wagent service logs          # Lihat log live
+
+# Encryption
+./bin/wagent crypto init           # Setup encryption
+./bin/wagent crypto encrypt        # Enkripsi data
+
+# Maintenance
+./bin/wagent update                # Update WAGENT
 ```
 
 ---
@@ -349,17 +370,17 @@ WAGENT mendukung MCP untuk konek ke sistem eksternal:
 
 ```
 Runtime      │ Bun ≥1.0 (ESM)
-Language     │ TypeScript 5.7
-Database     │ bun:sqlite (SQLite + WAL + FTS5)
+Language     │ TypeScript 5.9
+Database     │ better-sqlite3 (SQLite + WAL + FTS5)
 AI Providers │ OpenAI / Gemini / Claude / Ollama
 Embeddings   │ Gemini text-embedding-004 (768d)
 WhatsApp     │ @whiskeysockets/baileys
 CLI          │ Commander.js + picocolors
-Dashboard    │ React 19 + Vite + Express + WebSocket
-MCP          │ @modelcontextprotocol/sdk v2
+Dashboard    │ React 19 + Vite 6 + Express 5 + WebSocket
+MCP          │ @modelcontextprotocol/sdk ≥2.0.0-beta.1 (peer dep)
 Encryption   │ AES-256-GCM (Node crypto)
 Logging      │ Pino structured logger
-Testing      │ Vitest + coverage v8
+Testing      │ Vitest + @vitest/coverage-v8
 ```
 
 ---
@@ -368,15 +389,16 @@ Testing      │ Vitest + coverage v8
 
 ```bash
 cd packages/core
-bun test --coverage
+npx vitest run --coverage
 ```
 
 | Metrik | Nilai |
 |:---|---:|
-| **Lines** | **~83%** 🟢 |
-| **Branches** | **~81%** 🟢 |
-| **Functions** | **~91%** 🟢 |
-| **Tests** | **712+** ✅ |
+| **Lines** | **~87%** 🟢 |
+| **Branches** | **~78%** 🟢 |
+| **Functions** | **~86%** 🟢 |
+| **Statements** | **~86%** 🟢 |
+| **Tests** | **1445+** ✅ |
 
 ---
 
@@ -384,15 +406,11 @@ bun test --coverage
 
 | Dokumen | Deskripsi |
 |---------|-----------|
-| [📘 Getting Started](./docs/getting-started.md) | Instalasi & setup |
-| [⚙️ Configuration](./docs/configuration.md) | Semua env vars |
-| [🏗️ Architecture](./docs/architecture.md) | System design |
-| [📟 CLI Commands](./docs/cli-commands.md) | Semua commands |
-| [📚 Knowledge Base](./docs/knowledge-base.md) | KB + RAG |
-| [🧩 Skills](./docs/skills.md) | Plugin system |
-| [🔌 MCP](./docs/mcp.md) | Model Context Protocol |
-| [🔐 Encryption](./docs/encryption.md) | Data protection |
-| [🚨 Escalation](./docs/escalation.md) | Telegram setup |
+| [📘 Core Package](./packages/core/README.md) | AI Agent Engine, RAG, Database |
+| [📟 CLI Commands](./packages/cli/README.md) | Command line interface |
+| [📱 Dashboard](./packages/dashboard/README.md) | Web UI monitoring & management |
+| [💬 WhatsApp Adapter](./packages/whatsapp/README.md) | WhatsApp integration |
+| [🖥️ TUI](./packages/tui/README.md) | Terminal user interface |
 
 ---
 
@@ -402,8 +420,6 @@ bun test --coverage
 2. **Testing:** Coba install, laporkan bugs
 3. **Skills:** Buat skill baru untuk integrasi
 4. **Dokumentasi:** Bantu perbaiki docs
-
-Lihat [CONTRIBUTING.md](CONTRIBUTING.md) untuk panduan.
 
 ---
 

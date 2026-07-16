@@ -8,5 +8,5 @@ WAGENT Terminal User Interface (TUI) — Panel visual di dalam terminal yang dig
 
 ## Instalasi
 ```bash
-npm install @wagent/tui
+bun add @wagent/tui
 ```

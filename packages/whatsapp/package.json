@@ -1,6 +1,6 @@
 {
   "name": "@wagent/whatsapp",
-  "version": "0.2.45",
+  "version": "0.2.46",
   "description": "WAGENT WhatsApp - Baileys integration",
   "type": "module",
   "main": "./dist/index.js",

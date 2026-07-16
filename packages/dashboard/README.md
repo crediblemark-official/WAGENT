@@ -1,6 +1,6 @@
 # @wagent/dashboard
 
-WAGENT Web Dashboard Server & Client — Halaman admin berbasis web (React + Express) untuk memonitor, mengonfigurasi, dan berinteraksi secara visual dengan AI Agent WAGENT.
+WAGENT Web Dashboard Server & Client — Halaman admin berbasis web (React 19 + Vite 6 + Express 5) untuk memonitor, mengonfigurasi, dan berinteraksi secara visual dengan AI Agent WAGENT.
 
 ## Panel Menu
 - **Chat**: Chat panel real-time dengan status penyerahan obrolan (Human Takeover).
@@ -12,5 +12,5 @@ WAGENT Web Dashboard Server & Client — Halaman admin berbasis web (React + Exp
 
 ## Instalasi
 ```bash
-npm install @wagent/dashboard
+bun add @wagent/dashboard
 ```
