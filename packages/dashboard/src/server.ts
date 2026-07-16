@@ -595,7 +595,13 @@ export class DashboardServer implements DashboardAdapter {
       try {
         if (existsSync(settingsPath)) {
           const raw = readFileSync(settingsPath, 'utf-8');
-          const cleaned = raw.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
+          let cleaned = raw.replace(/\/\/.*$/gm, (match) => {
+            const idx = raw.indexOf(match);
+            const before = raw.substring(0, idx);
+            const openQuotes = (before.match(/"/g) || []).length;
+            return openQuotes % 2 === 0 ? '' : match;
+          });
+          cleaned = cleaned.replace(/\/\*[\s\S]*?\*\//g, '').replace(/,\s*([}\]])/g, '$1');
           configData = JSON.parse(cleaned);
         }
       } catch (err) {
