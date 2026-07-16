@@ -198,7 +198,19 @@ if command -v systemctl &>/dev/null && systemctl --user status &>/dev/null 2>&1;
 else
   info "Systemd not available — use 'wagent start' manually"
 fi
-echo ""
+
+# ── Firewall check (UFW) ───────────────────────────────────────
+if command -v ufw &>/dev/null; then
+  if sudo ufw status 2>/dev/null | grep -q "Status: active"; then
+    step "⑦" "Configuring firewall (UFW)..."
+    if sudo ufw allow 3030/tcp >/dev/null 2>&1; then
+      ok "Allowed port 3030/tcp in UFW firewall"
+    else
+      info "Could not configure UFW automatically. Please allow port 3030/tcp manually."
+    fi
+    echo ""
+  fi
+fi
 
 # ── Done ───────────────────────────────────────────────────────
 hr
