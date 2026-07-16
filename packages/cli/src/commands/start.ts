@@ -41,6 +41,7 @@ export async function startCommand(options: { port?: string; dashboard?: boolean
       console.log(`  ${color.dim('Restart:')} wagent service restart`);
       console.log(`  ${color.dim('Logs:')}    wagent service logs`);
       console.log('');
+      console.log('DEBUG: Exited at line 44 (Service is running)');
       process.exit(0);
     }
 
@@ -52,6 +53,7 @@ export async function startCommand(options: { port?: string; dashboard?: boolean
       console.log(color.yellow(`  ⚠  Port ${targetPort} is already in use.`));
       console.log(color.dim('  WAGENT may already be running. Check with: wagent service status'));
       console.log('');
+      console.log('DEBUG: Exited at line 55 (Port is in use)');
       process.exit(0);
     }
   }
@@ -74,6 +76,7 @@ export async function startCommand(options: { port?: string; dashboard?: boolean
 
       try {
         serviceStart();
+        console.log('DEBUG: Exited at line 77 (Session active, service started)');
         process.exit(0);
       } catch (err: any) {
         console.error(color.red(`  ✗ Gagal menjalankan service: ${err.message}`));
@@ -217,6 +220,7 @@ export async function startCommand(options: { port?: string; dashboard?: boolean
             } catch (err: any) {
               logger.warn('Gagal start service: %s', err?.message);
             }
+            console.log('DEBUG: Exited at line 220 (WhatsApp connected, hand-off to service)');
             process.exit(0);
           });
         }
@@ -234,6 +238,7 @@ export async function startCommand(options: { port?: string; dashboard?: boolean
       console.log(color.dim('\n  Stopping WAGENT...'));
       await gateway.stop();
       db.close();
+      console.log('DEBUG: Exited at line 237 (Shutdown triggered)');
       process.exit(0);
     };
 
@@ -242,6 +247,7 @@ export async function startCommand(options: { port?: string; dashboard?: boolean
 
     // Keep alive
     await new Promise(() => { });
+    console.log('DEBUG: Exited at line 245 (Keep-alive promise ended)');
     process.exit(0);
 
   } catch (err: any) {
