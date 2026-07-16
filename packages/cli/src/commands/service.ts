@@ -111,6 +111,7 @@ export function serviceInstall(): boolean {
     writeFileSync(serviceFile, serviceContent);
     console.log(color.green(`  ✓ Service file installed: ${serviceFile}`));
     ctl('daemon-reload');
+    ctl('enable', SERVICE_NAME); // Aktifkan autostart saat boot
     return true;
   } catch (err: any) {
     console.error(color.red(`  ✗ Gagal menulis file service: ${err.message}`));
