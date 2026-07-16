@@ -210,34 +210,34 @@ const styles: Record<string, React.CSSProperties> = {
   container: {
     display: 'flex',
     height: '100%',
-    backgroundColor: '#0b141a',
+    backgroundColor: 'var(--bg-main)',
   },
   chatList: {
     width: 280,
-    borderRight: '1px solid #222e35',
+    borderRight: '1px solid var(--border-color)',
     display: 'flex',
     flexDirection: 'column',
     flexShrink: 0,
-    backgroundColor: '#111b21',
+    backgroundColor: 'var(--bg-sidebar)',
   },
   header: {
     padding: '12px 16px',
-    borderBottom: '1px solid #222e35',
+    borderBottom: '1px solid var(--border-color)',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#111b21',
+    backgroundColor: 'var(--bg-sidebar)',
   },
   title: {
     fontSize: 15,
     fontWeight: 600,
-    color: '#e9edef',
+    color: 'var(--text-main)',
     margin: 0,
   },
   count: {
     fontSize: 11,
-    color: '#00a884',
-    background: '#202c33',
+    color: 'var(--text-active)',
+    background: 'var(--tag-bg)',
     padding: '2px 6px',
     borderRadius: 8,
     fontWeight: 600,
@@ -248,21 +248,21 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '10px 14px',
     border: 'none',
     background: 'transparent',
-    color: '#e9edef',
+    color: 'var(--text-main)',
     cursor: 'pointer',
     width: '100%',
     textAlign: 'left' as const,
-    borderBottom: '1px solid #222e35',
+    borderBottom: '1px solid var(--border-color)',
     transition: 'background 0.1s',
   },
   chatItemActive: {
-    background: '#2a3942', // Active WhatsApp Web chat background
+    background: 'var(--bg-active)',
   },
   avatar: {
     width: 36,
     height: 36,
     borderRadius: '50%',
-    background: 'linear-gradient(135deg, #005c4b, #00a884)', // WhatsApp Green/Teal gradient
+    background: 'linear-gradient(135deg, #008069, #25d366)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -274,7 +274,7 @@ const styles: Record<string, React.CSSProperties> = {
   chatName: {
     fontSize: 13,
     fontWeight: 500,
-    color: '#e9edef',
+    color: 'var(--text-main)',
     marginBottom: 2,
     overflow: 'hidden',
     textOverflow: 'ellipsis',
@@ -282,7 +282,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   chatPreview: {
     fontSize: 11,
-    color: '#8696a0', // Muted text
+    color: 'var(--text-muted)',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap' as const,
@@ -296,12 +296,12 @@ const styles: Record<string, React.CSSProperties> = {
   },
   chatTime: {
     fontSize: 10,
-    color: '#8696a0',
+    color: 'var(--text-muted)',
     whiteSpace: 'nowrap' as const,
   },
   badge: {
-    background: '#00a884', // WhatsApp Teal badge
-    color: '#111b21',
+    background: 'var(--text-active)',
+    color: 'var(--bg-sidebar)',
     fontSize: 10,
     padding: '1px 5px',
     borderRadius: 8,
@@ -320,16 +320,16 @@ const styles: Record<string, React.CSSProperties> = {
     flex: 1,
     display: 'flex',
     flexDirection: 'column',
-    backgroundColor: '#0b141a', // WhatsApp Web Chat Area Background
+    backgroundColor: 'var(--bg-main)',
     position: 'relative',
   },
   chatHeader: {
     padding: '10px 16px',
-    borderBottom: '1px solid #222e35',
+    borderBottom: '1px solid var(--border-color)',
     display: 'flex',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: '#202c33', // WhatsApp Web Chat Header
+    backgroundColor: 'var(--bg-header)',
   },
   messageList: {
     flex: 1,
@@ -349,30 +349,32 @@ const styles: Record<string, React.CSSProperties> = {
   },
   messageIn: {
     alignSelf: 'flex-start',
-    background: '#202c33', // WhatsApp Web Inbound Message
-    color: '#e9edef',
+    background: 'var(--bg-chat-in)',
+    color: 'var(--text-main)',
     borderTopLeftRadius: 0,
+    boxShadow: 'var(--shadow)',
   },
   messageOut: {
     alignSelf: 'flex-end',
-    background: '#005c4b', // WhatsApp Web Outbound Message (Teal Dark)
-    color: '#e9edef',
+    background: 'var(--bg-chat-out)',
+    color: 'var(--text-main)',
     borderTopRightRadius: 0,
+    boxShadow: 'var(--shadow)',
   },
   messageContent: {
     wordBreak: 'break-word' as const,
   },
   messageTime: {
     fontSize: 9,
-    color: '#8696a0',
+    color: 'var(--text-muted)',
     marginTop: 4,
   },
   inputBar: {
     padding: '10px 14px',
-    borderTop: '1px solid #222e35',
+    borderTop: '1px solid var(--border-color)',
     display: 'flex',
     gap: 8,
-    background: '#202c33', // WhatsApp input bar background
+    background: 'var(--bg-header)',
     alignItems: 'center',
   },
   input: {
@@ -380,8 +382,8 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '8px 12px',
     borderRadius: 8,
     border: 'none',
-    background: '#2a3942', // WhatsApp Web input field
-    color: '#e9edef',
+    background: 'var(--bg-input)',
+    color: 'var(--text-main)',
     fontSize: 13,
     outline: 'none',
   },
@@ -390,8 +392,8 @@ const styles: Record<string, React.CSSProperties> = {
     height: 34,
     borderRadius: '50%',
     border: 'none',
-    background: '#00a884', // WhatsApp Teal
-    color: '#111b21',
+    background: 'var(--text-active)',
+    color: 'var(--bg-sidebar)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -404,6 +406,6 @@ const styles: Record<string, React.CSSProperties> = {
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#222e35',
+    backgroundColor: 'var(--bg-main)',
   },
 };

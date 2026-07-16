@@ -8,7 +8,69 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Inter', -apple-system, sans-serif; background: #0f1117; color: #e2e8f0; }
+    
+    /* Default: Light Theme */
+    :root {
+      --bg-main: #f0f2f5;
+      --bg-sidebar: #ffffff;
+      --bg-card: #ffffff;
+      --border-color: #e9edef;
+      --text-main: #111b21;
+      --text-muted: #667781;
+      --text-active: #008069;
+      --bg-active: #f0f2f5;
+      --bg-chat-out: #d9fdd3;
+      --bg-chat-in: #ffffff;
+      --bg-input: #ffffff;
+      --bg-header: #f0f2f5;
+      --input-border: #e9edef;
+      --scrollbar-thumb: #ced3d6;
+      --tag-bg: #eae6df;
+      --shadow: 0 1px 3px rgba(11,20,26,0.08);
+      --card-title: #111b21;
+    }
+    
+    /* Dark Theme */
+    :root[data-theme="dark"] {
+      --bg-main: #0b141a;
+      --bg-sidebar: #111b21;
+      --bg-card: #161822;
+      --border-color: #222e35;
+      --text-main: #e9edef;
+      --text-muted: #8696a0;
+      --text-active: #00a884;
+      --bg-active: #202c33;
+      --bg-chat-out: #005c4b;
+      --bg-chat-in: #202c33;
+      --bg-input: #2a3942;
+      --bg-header: #202c33;
+      --input-border: #222e35;
+      --scrollbar-thumb: #374248;
+      --tag-bg: #202c33;
+      --shadow: 0 4px 6px rgba(0,0,0,0.1);
+      --card-title: #f1f5f9;
+    }
+
+    body { 
+      font-family: 'Inter', -apple-system, sans-serif; 
+      background: var(--bg-main); 
+      color: var(--text-main);
+      transition: background-color 0.2s ease, color 0.2s ease;
+    }
+
+    /* Scrollbar Styling */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: var(--scrollbar-thumb);
+      border-radius: 3px;
+    }
+    
     button {
       background: transparent;
       border: none;
@@ -22,6 +84,11 @@
       appearance: none;
     }
   </style>
+  <script>
+    // Load theme before parsing body to prevent layout flash
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+  </script>
 </head>
 <body>
   <div id="root"></div>

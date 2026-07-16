@@ -16,6 +16,7 @@ const statusLabels: Record<string, string> = {
 };
 
 export function NumbersPage({ ws }: { ws: ReturnType<typeof useWebSocket> }) {
+  const [activeTab, setActiveTab] = useState<'whatsapp' | 'telegram'>('whatsapp');
   const [numbers, setNumbers] = useState<NumberInfo[]>([]);
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ id: '', sessionName: '', label: '' });
@@ -248,264 +249,300 @@ export function NumbersPage({ ws }: { ws: ReturnType<typeof useWebSocket> }) {
   const handleRemove = (id: string) => ws.send({ type: 'number:remove', id });
 
   return (
-    <div style={{ padding: 24, height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <div>
-          <h2 style={{ fontSize: 18, fontWeight: 600, color: '#f1f5f9' }}>Nomor WhatsApp</h2>
-          <p style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>
-            Kelola beberapa nomor WhatsApp dalam satu instance
-          </p>
-        </div>
-        <button onClick={() => setShowAdd(!showAdd)} style={{
-          padding: '10px 20px', borderRadius: 8, border: 'none',
-          background: showAdd ? '#ef4444' : '#8b5cf6', color: '#fff',
-          fontSize: 13, fontWeight: 600, cursor: 'pointer',
-        }}>
-          {showAdd ? 'Batal' : '+ Tambah Nomor'}
+    <div style={{ padding: 24, height: '100%', display: 'flex', flexDirection: 'column', boxSizing: 'border-box' }}>
+      
+      {/* Tabs Layout */}
+      <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', marginBottom: 20 }}>
+        <button 
+          onClick={() => setActiveTab('whatsapp')}
+          style={{
+            padding: '10px 20px',
+            fontSize: 14,
+            fontWeight: 600,
+            color: activeTab === 'whatsapp' ? 'var(--text-active)' : 'var(--text-muted)',
+            borderBottom: activeTab === 'whatsapp' ? '3px solid var(--text-active)' : '3px solid transparent',
+            marginBottom: -2,
+            transition: 'all 0.15s ease',
+          }}
+        >
+          WhatsApp Setup
+        </button>
+        <button 
+          onClick={() => setActiveTab('telegram')}
+          style={{
+            padding: '10px 20px',
+            fontSize: 14,
+            fontWeight: 600,
+            color: activeTab === 'telegram' ? 'var(--text-active)' : 'var(--text-muted)',
+            borderBottom: activeTab === 'telegram' ? '3px solid var(--text-active)' : '3px solid transparent',
+            marginBottom: -2,
+            transition: 'all 0.15s ease',
+          }}
+        >
+          Telegram Escalation
         </button>
       </div>
 
-      {showAdd && (
-        <div style={{ background: '#161822', borderRadius: 12, border: '1px solid #1e2030', padding: 20, marginBottom: 24, display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+      {activeTab === 'whatsapp' ? (
+        <>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
             <div>
-              <label style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', marginBottom: 6, display: 'block' }}>ID</label>
-              <input value={form.id} onChange={e => setForm(f => ({...f, id: e.target.value}))} placeholder="my-number-1" style={inputS} />
+              <h2 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-main)', margin: 0 }}>Nomor WhatsApp</h2>
+              <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4, margin: 0 }}>
+                Kelola beberapa nomor WhatsApp dalam satu instance
+              </p>
             </div>
-            <div>
-              <label style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', marginBottom: 6, display: 'block' }}>Session Name</label>
-              <input value={form.sessionName} onChange={e => setForm(f => ({...f, sessionName: e.target.value}))} placeholder="session-nomor-1" style={inputS} />
-            </div>
-            <div>
-              <label style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', marginBottom: 6, display: 'block' }}>Label</label>
-              <input value={form.label} onChange={e => setForm(f => ({...f, label: e.target.value}))} placeholder="Nomor CS 1" style={inputS} />
-            </div>
+            <button onClick={() => setShowAdd(!showAdd)} style={{
+              padding: '8px 16px', borderRadius: 20, border: 'none',
+              background: showAdd ? '#ef4444' : 'var(--text-active)', color: '#fff',
+              fontSize: 12, fontWeight: 600, cursor: 'pointer',
+            }}>
+              {showAdd ? 'Batal' : '+ Tambah Nomor'}
+            </button>
           </div>
-          <button onClick={handleAdd} disabled={!form.id || !form.sessionName} style={{
-            padding: '10px 24px', borderRadius: 8, border: 'none', alignSelf: 'flex-end',
-            background: '#8b5cf6', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer',
-            opacity: !form.id || !form.sessionName ? 0.5 : 1,
-          }}>Tambah & Connect</button>
-        </div>
-      )}
 
-      <div style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {numbers.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: 40, color: '#475569' }}>
-            <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#334155" strokeWidth="1.5" style={{ margin: '0 auto 12px' }}>
-              <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/>
-            </svg>
-            <p>Belum ada nomor. Tambah nomor WhatsApp pertama!</p>
-          </div>
-        ) : numbers.map(n => (
-          <div key={n.id} style={{ background: '#161822', borderRadius: 10, border: '1px solid #1e2030', padding: '14px 18px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'linear-gradient(135deg, #8b5cf6, #6366f1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 600, color: '#fff' }}>
-                  {n.label.charAt(0).toUpperCase()}
+          {showAdd && (
+            <div style={{ background: 'var(--bg-sidebar)', borderRadius: 12, border: '1px solid var(--border-color)', padding: 20, marginBottom: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>ID</label>
+                  <input value={form.id} onChange={e => setForm(f => ({...f, id: e.target.value}))} placeholder="my-number-1" style={inputS} />
                 </div>
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 500, color: '#f1f5f9' }}>{n.label}</div>
-                  <div style={{ fontSize: 12, color: '#64748b' }}>{n.sessionName} {n.userJid ? `· ${n.userJid}` : ''}</div>
+                  <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>Session Name</label>
+                  <input value={form.sessionName} onChange={e => setForm(f => ({...f, sessionName: e.target.value}))} placeholder="session-nomor-1" style={inputS} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>Label</label>
+                  <input value={form.label} onChange={e => setForm(f => ({...f, label: e.target.value}))} placeholder="Nomor CS 1" style={inputS} />
                 </div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: statusColors[n.status] || '#64748b' }} />
-                  <span style={{ fontSize: 12, color: statusColors[n.status] || '#94a3b8' }}>{statusLabels[n.status] || n.status}</span>
+              <button onClick={handleAdd} disabled={!form.id || !form.sessionName} style={{
+                padding: '8px 20px', borderRadius: 20, border: 'none', alignSelf: 'flex-end',
+                background: 'var(--text-active)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                opacity: !form.id || !form.sessionName ? 0.5 : 1,
+              }}>Tambah & Connect</button>
+            </div>
+          )}
+
+          <div style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {numbers.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ margin: '0 auto 12px' }}>
+                  <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/>
+                </svg>
+                <p>Belum ada nomor. Tambah nomor WhatsApp pertama!</p>
+              </div>
+            ) : numbers.map(n => (
+              <div key={n.id} style={{ background: 'var(--bg-sidebar)', borderRadius: 10, border: '1px solid var(--border-color)', padding: '14px 18px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'linear-gradient(135deg, #008069, #25d366)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 600, color: '#fff' }}>
+                      {n.label.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-main)' }}>{n.label}</div>
+                      <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{n.sessionName} {n.userJid ? `· ${n.userJid}` : ''}</div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: statusColors[n.status] || '#64748b' }} />
+                      <span style={{ fontSize: 12, color: statusColors[n.status] || 'var(--text-muted)' }}>{statusLabels[n.status] || n.status}</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      {n.status !== 'connected' ? (
+                        <button onClick={() => handleConnect(n.id)} style={btnS} title="Connect">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                        </button>
+                      ) : (
+                        <button onClick={() => handleDisconnect(n.id)} style={btnS} title="Disconnect">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#eab308" strokeWidth="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+                        </button>
+                      )}
+                      <button onClick={() => handleRemove(n.id)} style={btnS} title="Remove">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                      </button>
+                    </div>
+                  </div>
                 </div>
-                <div style={{ display: 'flex', gap: 4 }}>
-                  {n.status !== 'connected' ? (
-                    <button onClick={() => handleConnect(n.id)} style={btnS} title="Connect">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                    </button>
-                  ) : (
-                    <button onClick={() => handleDisconnect(n.id)} style={btnS} title="Disconnect">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#eab308" strokeWidth="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
-                    </button>
-                  )}
-                  <button onClick={() => handleRemove(n.id)} style={btnS} title="Remove">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+
+                {/* Tampilan QR Code ketika status adalah 'qr' */}
+                {n.status === 'qr' && qrCodes[n.id] && (
+                  <div style={{ marginTop: 14, borderTop: '1px solid var(--border-color)', paddingTop: 14, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+                    <div style={{ fontSize: 13, color: 'var(--text-active)', fontWeight: 600 }}>Pindai Kode QR WhatsApp</div>
+                    <div style={{ background: '#fff', padding: 12, borderRadius: 8, display: 'inline-block', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
+                      <img
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(qrCodes[n.id])}`}
+                        alt="WhatsApp QR Code"
+                        style={{ display: 'block', width: 180, height: 180 }}
+                      />
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', maxWidth: 360, lineHeight: 1.4 }}>
+                      Buka aplikasi WhatsApp di HP Anda &rarr; ketuk <b>Setelan / Menu</b> &rarr; <b>Perangkat Tertaut</b> &rarr; <b>Tautkan Perangkat</b>, lalu arahkan kamera ke kode QR di atas.
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </>
+      ) : (
+        <div style={{ flex: 1, overflow: 'auto' }}>
+          <div style={{ marginBottom: 16 }}>
+            <h3 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-main)', margin: '0 0 4px 0' }}>Setelan Eskalasi Telegram</h3>
+            <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>
+              Konfigurasi penerusan notifikasi bantuan manusia ke bot Telegram ketika AI tidak mampu menjawab pesan.
+            </p>
+          </div>
+
+          {tgSaved && (
+            <div style={{
+              padding: 10, borderRadius: 6, background: 'rgba(37, 211, 102, 0.1)',
+              color: '#25d366', border: '1px solid rgba(37, 211, 102, 0.2)',
+              fontSize: 12, marginBottom: 14
+            }}>
+              ✓ Setelan Telegram berhasil disimpan! Sistem memuat ulang latar belakang...
+            </div>
+          )}
+
+          {tgTestSuccess && (
+            <div style={{
+              padding: 10, borderRadius: 6, background: 'rgba(37, 211, 102, 0.1)',
+              color: '#25d366', border: '1px solid rgba(37, 211, 102, 0.2)',
+              fontSize: 12, marginBottom: 14
+            }}>
+              ✓ Pesan uji coba berhasil dikirim! Silakan periksa grup/chat Telegram Anda.
+            </div>
+          )}
+
+          {tgTestError && (
+            <div style={{
+              padding: 10, borderRadius: 6, background: 'rgba(239, 68, 68, 0.1)',
+              color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.2)',
+              fontSize: 12, marginBottom: 14
+            }}>
+              ⚠️ {tgTestError}
+            </div>
+          )}
+
+          <div style={{
+            background: 'var(--bg-sidebar)',
+            borderRadius: 10,
+            border: '1px solid var(--border-color)',
+            padding: 16,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 14
+          }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label style={{ fontSize: 12, color: 'var(--text-main)', fontWeight: 500 }}>Bot Token</label>
+                  <button
+                    onClick={handleAutoDetectChatId}
+                    disabled={!tgBotToken || tgPollInterval !== null || tgBinding}
+                    style={{
+                      border: 'none', background: 'transparent', color: 'var(--text-active)',
+                      fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: 0,
+                      opacity: !tgBotToken || tgPollInterval !== null || tgBinding ? 0.5 : 1,
+                    }}
+                    type="button"
+                  >
+                    {tgBinding ? '⏳ Menghubungkan...' : '🔗 Deteksi Otomatis (Binding)'}
                   </button>
                 </div>
+                <input
+                  type="password"
+                  value={tgBotToken}
+                  onChange={e => setTgBotToken(e.target.value)}
+                  placeholder="Token Bot Telegram"
+                  style={{ ...inputS, background: 'var(--bg-input)', border: '1px solid var(--border-color)', color: 'var(--text-main)' }}
+                />
               </div>
+
+              {tgChatId && !tgDetectName && (
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#00a884' }}></span>
+                  ID Chat Telegram Aktif: <strong style={{ color: 'var(--text-main)' }}>{tgChatId}</strong>
+                </div>
+              )}
             </div>
 
-            {/* Tampilan QR Code ketika status adalah 'qr' */}
-            {n.status === 'qr' && qrCodes[n.id] && (
-              <div style={{ marginTop: 14, borderTop: '1px solid #1e2030', paddingTop: 14, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
-                <div style={{ fontSize: 13, color: '#a855f7', fontWeight: 600 }}>Pindai Kode QR WhatsApp</div>
-                <div style={{ background: '#fff', padding: 12, borderRadius: 8, display: 'inline-block', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
-                  <img
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(qrCodes[n.id])}`}
-                    alt="WhatsApp QR Code"
-                    style={{ display: 'block', width: 180, height: 180 }}
-                  />
-                </div>
-                <div style={{ fontSize: 11, color: '#64748b', textAlign: 'center', maxWidth: 360, lineHeight: 1.4 }}>
-                  Buka aplikasi WhatsApp di HP Anda &rarr; ketuk <b>Setelan / Menu</b> &rarr; <b>Perangkat Tertaut</b> &rarr; <b>Tautkan Perangkat</b>, lalu arahkan kamera ke kode QR di atas.
-                </div>
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-
-      {/* Setelan Telegram */}
-      <div style={{ marginTop: 28, borderTop: '1px solid #222e35', paddingTop: 20 }}>
-        <div style={{ marginBottom: 16 }}>
-          <h3 style={{ fontSize: 15, fontWeight: 600, color: '#e9edef', margin: '0 0 4px 0' }}>Setelan Eskalasi Telegram</h3>
-          <p style={{ fontSize: 12, color: '#8696a0', margin: 0 }}>
-            Konfigurasi penerusan notifikasi bantuan manusia ke bot Telegram ketika AI tidak mampu menjawab pesan.
-          </p>
-        </div>
-
-        {tgSaved && (
-          <div style={{
-            padding: 10, borderRadius: 6, background: 'rgba(37, 211, 102, 0.1)',
-            color: '#25d366', border: '1px solid rgba(37, 211, 102, 0.2)',
-            fontSize: 12, marginBottom: 14
-          }}>
-            ✓ Setelan Telegram berhasil disimpan! Sistem memuat ulang latar belakang...
-          </div>
-        )}
-
-        {tgTestSuccess && (
-          <div style={{
-            padding: 10, borderRadius: 6, background: 'rgba(37, 211, 102, 0.1)',
-            color: '#25d366', border: '1px solid rgba(37, 211, 102, 0.2)',
-            fontSize: 12, marginBottom: 14
-          }}>
-            ✓ Pesan uji coba berhasil dikirim! Silakan periksa grup/chat Telegram Anda.
-          </div>
-        )}
-
-        {tgTestError && (
-          <div style={{
-            padding: 10, borderRadius: 6, background: 'rgba(239, 68, 68, 0.1)',
-            color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.2)',
-            fontSize: 12, marginBottom: 14
-          }}>
-            ⚠️ {tgTestError}
-          </div>
-        )}
-
-        <div style={{
-          background: '#111b21',
-          borderRadius: 10,
-          border: '1px solid #222e35',
-          padding: 16,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 14
-        }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <label style={{ fontSize: 12, color: '#e9edef', fontWeight: 500 }}>Bot Token</label>
-                <button
-                  onClick={handleAutoDetectChatId}
-                  disabled={!tgBotToken || tgPollInterval !== null || tgBinding}
-                  style={{
-                    border: 'none', background: 'transparent', color: '#00a884',
-                    fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: 0,
-                    opacity: !tgBotToken || tgPollInterval !== null || tgBinding ? 0.5 : 1,
-                  }}
-                  type="button"
-                >
-                  {tgBinding ? '⏳ Menghubungkan...' : '🔗 Deteksi Otomatis (Binding)'}
-                </button>
-              </div>
-              <input
-                type="password"
-                value={tgBotToken}
-                onChange={e => setTgBotToken(e.target.value)}
-                placeholder="Token Bot Telegram"
-                style={{ ...inputS, background: '#202c33', border: '1px solid #222e35', color: '#e9edef' }}
-              />
-            </div>
-
-            {tgChatId && !tgDetectName && (
-              <div style={{ fontSize: 12, color: '#8696a0', display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#00a884' }}></span>
-                ID Chat Telegram Aktif: <strong style={{ color: '#e9edef' }}>{tgChatId}</strong>
-              </div>
-            )}
-          </div>
-
-          {tgVerificationCode && (
-            <div style={{
-              background: '#0b141a', padding: 14, borderRadius: 8,
-              border: '1px dashed #00a884', display: 'flex', flexDirection: 'column',
-              alignItems: 'center', gap: 8, marginTop: 4
-            }}>
-              <div style={{ fontSize: 12, color: '#8696a0', textAlign: 'center' }}>
-                Kirim kode verifikasi berikut ke bot Telegram Anda (bisa di chat pribadi atau di grup):
-              </div>
+            {tgVerificationCode && (
               <div style={{
-                fontSize: 18, fontWeight: 700, letterSpacing: 1, color: '#e9edef',
-                background: '#202c33', padding: '6px 16px', borderRadius: 4,
-                border: '1px solid #222e35'
+                background: 'var(--bg-main)', padding: 14, borderRadius: 8,
+                border: '1px dashed var(--text-active)', display: 'flex', flexDirection: 'column',
+                alignItems: 'center', gap: 8, marginTop: 4
               }}>
-                {tgVerificationCode}
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center' }}>
+                  Kirim kode verifikasi berikut ke bot Telegram Anda (bisa di chat pribadi atau di grup):
+                </div>
+                <div style={{
+                  fontSize: 18, fontWeight: 700, letterSpacing: 1, color: 'var(--text-main)',
+                  background: 'var(--bg-input)', padding: '6px 16px', borderRadius: 4,
+                  border: '1px solid var(--border-color)'
+                }}>
+                  {tgVerificationCode}
+                </div>
+                <div style={{ fontSize: 11, color: '#eab308' }}>
+                  ⏳ Menunggu pesan verifikasi... (Waktu Tersisa: {tgTimeLeft} detik)
+                </div>
               </div>
-              <div style={{ fontSize: 11, color: '#eab308' }}>
-                ⏳ Menunggu pesan verifikasi... (Waktu Tersisa: {tgTimeLeft} detik)
+            )}
+
+            {tgDetectName && (
+              <div style={{ fontSize: 12, color: '#25d366', fontWeight: 500, textAlign: 'center', marginTop: 4 }}>
+                ✓ Terdeteksi Chat: <b>{tgDetectName}</b> (ID: {tgChatId})
               </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
+              <button
+                onClick={handleTestTelegram}
+                disabled={!tgBotToken || !tgChatId || tgTesting}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: 20,
+                  border: '1px solid var(--text-active)',
+                  background: 'transparent',
+                  color: 'var(--text-active)',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  opacity: !tgBotToken || !tgChatId || tgTesting ? 0.5 : 1,
+                }}
+              >
+                {tgTesting ? 'Menguji...' : 'Uji Coba Kirim Notifikasi'}
+              </button>
+
+              <button
+                onClick={handleSaveTelegram}
+                style={{
+                  padding: '10px 24px',
+                  borderRadius: 20,
+                  border: 'none',
+                  background: 'var(--text-active)',
+                  color: '#fff',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                }}
+              >
+                Simpan Setelan Telegram
+              </button>
             </div>
-          )}
-
-          {tgDetectName && (
-            <div style={{ fontSize: 12, color: '#25d366', fontWeight: 500, textAlign: 'center', marginTop: 4 }}>
-              ✓ Terdeteksi Chat: <b>{tgDetectName}</b> (ID: {tgChatId})
-            </div>
-          )}
-
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
-            <button
-              onClick={handleTestTelegram}
-              disabled={!tgBotToken || !tgChatId || tgTesting}
-              style={{
-                padding: '8px 16px',
-                borderRadius: 20,
-                border: '1px solid #00a884',
-                background: 'transparent',
-                color: '#00a884',
-                fontSize: 12,
-                fontWeight: 600,
-                cursor: 'pointer',
-                opacity: !tgBotToken || !tgChatId || tgTesting ? 0.5 : 1,
-              }}
-            >
-              {tgTesting ? 'Menguji...' : 'Uji Coba Kirim Notifikasi'}
-            </button>
-
-            <button
-              onClick={handleSaveTelegram}
-              style={{
-                padding: '10px 24px',
-                borderRadius: 20,
-                border: 'none',
-                background: '#00a884',
-                color: '#fff',
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: 'pointer',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-              }}
-            >
-              Simpan Setelan Telegram
-            </button>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
 
 const inputS: React.CSSProperties = {
-  width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #1e2030',
-  background: '#0f1117', color: '#e2e8f0', fontSize: 13, outline: 'none', boxSizing: 'border-box',
+  width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid var(--border-color)',
+  background: 'var(--bg-input)', color: 'var(--text-main)', fontSize: 13, outline: 'none', boxSizing: 'border-box',
 };
 const btnS: React.CSSProperties = {
   width: 32, height: 32, borderRadius: 6, border: 'none',

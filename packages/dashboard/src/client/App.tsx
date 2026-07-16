@@ -83,7 +83,17 @@ export function App() {
   const [currentPage, setCurrentPage] = useState<Page>('chats');
   const [connectionStatus, setConnectionStatus] = useState<string>('disconnected');
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
+  const [theme, setTheme] = useState<string>(() => localStorage.getItem('theme') || 'light');
   const ws = useWebSocket();
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'light' ? 'dark' : 'light');
+  };
 
   useEffect(() => {
     const unsub = ws.on('connection:status', (data) => {
@@ -153,13 +163,33 @@ export function App() {
         <div style={styles.statusBar}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: statusColor }} />
-            <span style={{ fontSize: 12, color: '#94a3b8' }}>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
               {connectionStatus === 'connected' ? 'Terkoneksi' :
                connectionStatus === 'qr' ? 'Scan QR' :
                connectionStatus === 'connecting' ? 'Menghubungkan...' :
                connectionStatus}
             </span>
           </div>
+
+          <button 
+            onClick={toggleTheme} 
+            title={theme === 'light' ? 'Ubah ke Mode Gelap' : 'Ubah ke Mode Terang'}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 4,
+              borderRadius: 4,
+              color: 'var(--text-muted)',
+              cursor: 'pointer',
+            }}
+          >
+            {theme === 'light' ? (
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+            )}
+          </button>
         </div>
       </aside>
 
@@ -178,13 +208,13 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     height: '100vh',
     overflow: 'hidden',
-    backgroundColor: '#0b141a', // WhatsApp Web Chat Background Dark
+    backgroundColor: 'var(--bg-main)',
     fontFamily: 'Segoe UI, Helvetica Neue, Helvetica, Lucida Grande, Arial, Ubuntu, Cantarell, sans-serif',
   },
   sidebar: {
     width: 230,
-    backgroundColor: '#111b21', // WhatsApp Web Sidebar Dark
-    borderRight: '1px solid #222e35',
+    backgroundColor: 'var(--bg-sidebar)',
+    borderRight: '1px solid var(--border-color)',
     display: 'flex',
     flexDirection: 'column',
     flexShrink: 0,
@@ -194,14 +224,14 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: 'center',
     gap: 8,
     padding: '16px 16px',
-    borderBottom: '1px solid #222e35',
-    color: '#00a884', // WhatsApp Teal
+    borderBottom: '1px solid var(--border-color)',
+    color: 'var(--text-active)',
     fontWeight: 700,
     fontSize: 16,
     letterSpacing: '0.5px',
   },
   logoText: {
-    background: 'linear-gradient(135deg, #00a884, #25d366)', // WhatsApp Green/Teal gradient
+    background: 'linear-gradient(135deg, #00a884, #25d366)',
     WebkitBackgroundClip: 'text',
     WebkitTextFillColor: 'transparent',
   },
@@ -221,7 +251,7 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: 6,
     border: 'none',
     backgroundColor: 'transparent',
-    color: '#8696a0', // WhatsApp muted text
+    color: 'var(--text-muted)',
     fontSize: 13,
     cursor: 'pointer',
     transition: 'all 0.1s ease',
@@ -229,18 +259,21 @@ const styles: Record<string, React.CSSProperties> = {
     width: '100%',
   },
   navItemActive: {
-    backgroundColor: '#202c33', // WhatsApp active chat dark
-    color: '#00a884', // WhatsApp Teal
+    backgroundColor: 'var(--bg-active)',
+    color: 'var(--text-active)',
     fontWeight: 600,
   },
   statusBar: {
     padding: '10px 14px',
-    borderTop: '1px solid #222e35',
-    backgroundColor: '#111b21',
+    borderTop: '1px solid var(--border-color)',
+    backgroundColor: 'var(--bg-sidebar)',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   main: {
     flex: 1,
     overflow: 'hidden',
-    backgroundColor: '#0b141a',
+    backgroundColor: 'var(--bg-main)',
   },
 };

@@ -216,13 +216,14 @@ export function SettingsPage() {
   return (
     <div style={{
       padding: '16px 20px',
-      maxWidth: 850,
+      width: '100%',
       overflowY: 'auto',
       height: '100%',
-      backgroundColor: '#0b141a',
-      color: '#e9edef',
+      backgroundColor: 'var(--bg-main)',
+      color: 'var(--text-main)',
       boxSizing: 'border-box'
     }}>
+      <div style={{ maxWidth: 850, margin: '0 auto' }}>
       <div style={{ marginBottom: 20 }}>
         <h2 style={{ fontSize: 18, fontWeight: 600, color: '#e9edef', margin: 0 }}>Pengaturan WAGENT</h2>
         <p style={{ fontSize: 12, color: '#8696a0', marginTop: 4, margin: 0 }}>
@@ -530,6 +531,7 @@ export function SettingsPage() {
           {saved ? '✓ Tersimpan!' : 'Simpan Setelan'}
         </button>
       </div>
+      </div>
     </div>
   );
 }
@@ -539,14 +541,14 @@ export function SettingsPage() {
 function Section({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
   return (
     <div style={{
-      background: '#111b21',
+      background: 'var(--bg-sidebar)',
       borderRadius: 10,
-      border: '1px solid #222e35',
+      border: '1px solid var(--border-color)',
       padding: '14px 16px',
       boxSizing: 'border-box'
     }}>
-      <h3 style={{ fontSize: 13, fontWeight: 600, color: '#e9edef', margin: '0 0 2px 0' }}>{title}</h3>
-      <p style={{ fontSize: 11, color: '#8696a0', margin: '0 0 12px 0' }}>{description}</p>
+      <h3 style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-main)', margin: '0 0 2px 0' }}>{title}</h3>
+      <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '0 0 12px 0' }}>{description}</p>
       {children}
     </div>
   );
@@ -555,7 +557,7 @@ function Section({ title, description, children }: { title: string; description:
 function InputRow({ label, value, onChange, placeholder, type = 'text' }: { label: string; value: string; onChange: (v: string) => void; placeholder: string; type?: string }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-      <label style={{ fontSize: 12, color: '#e9edef', minWidth: 100 }}>{label}</label>
+      <label style={{ fontSize: 12, color: 'var(--text-main)', minWidth: 100 }}>{label}</label>
       <input
         type={type}
         value={value}
@@ -571,8 +573,8 @@ function ToggleRow({ label, description, checked, onChange }: { label: string; d
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
       <div style={{ flex: 1 }}>
-        <div style={{ fontSize: 12, fontWeight: 500, color: '#e9edef' }}>{label}</div>
-        <div style={{ fontSize: 10, color: '#8696a0', marginTop: 2 }}>{description}</div>
+        <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-main)' }}>{label}</div>
+        <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>{description}</div>
       </div>
       <button
         onClick={() => onChange(!checked)}
@@ -581,7 +583,7 @@ function ToggleRow({ label, description, checked, onChange }: { label: string; d
           height: 18,
           borderRadius: 9,
           border: 'none',
-          background: checked ? '#00a884' : '#3b4a54', // WhatsApp Teal / Gray
+          background: checked ? '#00a884' : 'var(--border-color)',
           cursor: 'pointer',
           position: 'relative' as const,
           transition: 'background 0.2s',
@@ -608,9 +610,9 @@ const styles = {
     width: '100%',
     padding: '8px 12px',
     borderRadius: 6,
-    border: '1px solid #222e35',
-    background: '#202c33', // WhatsApp input dark
-    color: '#e9edef',
+    border: '1px solid var(--border-color)',
+    background: 'var(--bg-input)',
+    color: 'var(--text-main)',
     fontSize: 13,
     outline: 'none',
     boxSizing: 'border-box' as const,
