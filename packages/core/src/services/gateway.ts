@@ -243,7 +243,11 @@ export class Gateway {
       // human's reply to DB so history is complete across restarts.
       // Skip self-chat messages (owner sending to own number)
       const userJid = this.whatsapp.userJid;
-      const isSelfChatMsg = userJid && msg.to === userJid;
+      // A self-chat message is one the owner sends to their own number:
+      // fromMe === true and the sender (remoteJid) equals the owner's JID.
+      // We key off `from` (remoteJid) rather than `to` because `to` may be
+      // empty/normalised differently across Baileys versions.
+      const isSelfChatMsg = !!userJid && msg.fromMe && msg.from === userJid;
       if (msg.fromMe && msg.id && !isSelfChatMsg) {
         const exists = this.db.messageExists(msg.id);
         if (!exists) {
@@ -443,8 +447,8 @@ export class Gateway {
   private isSelfChat(msg: Message): boolean {
     const userJid = this.whatsapp.userJid;
     if (!userJid) return false;
-    // msg.to is the recipient — if it matches own JID, it's self-chat
-    return msg.to === userJid;
+    // Self-chat = owner sends to their own number (fromMe + sender === owner JID)
+    return !!msg.fromMe && msg.from === userJid;
   }
 
   /**
