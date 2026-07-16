@@ -10,7 +10,6 @@ import {
   MultiWhatsAppAdapter
 } from '@wagent/core';
 import { BaileysAdapter } from '@wagent/whatsapp';
-import { renderQRToString } from '@wagent/tui';
 import { isServiceRunning, serviceStart } from './service.js';
 
 // Helper: cek port
@@ -107,9 +106,9 @@ export async function startCommand(options: { port?: string; dashboard?: boolean
     if (existsSync(numbersFilePath)) {
       try {
         initialNumbers = JSON.parse(readFileSync(numbersFilePath, 'utf-8'));
-      } catch {}
+      } catch { }
     }
-    
+
     if (initialNumbers.length === 0) {
       initialNumbers = [{
         id: 'default',
@@ -187,16 +186,10 @@ export async function startCommand(options: { port?: string; dashboard?: boolean
 
     // Listener untuk QR Code
     bus.on('qr:received', (e: any) => {
-      qrWasShown = true;
-      console.log('');
-      console.log(color.cyan('  📱 Scan QR code dengan WhatsApp:'));
-      console.log(color.dim('  WhatsApp → ⋮ → Linked Devices → Link a Device'));
-      console.log('');
-      
-      // Gunakan renderQRToString dari @wagent/tui
-      const qrStr = renderQRToString(e.qr);
-      console.log(qrStr);
-      console.log('');
+      if (!qrWasShown) {
+        qrWasShown = true;
+        console.log(color.cyan('  📱 Sesi WhatsApp memerlukan pemindaian. Silakan buka Web Dashboard untuk memindai QR Code.'));
+      }
     });
 
     // Listener untuk status koneksi
@@ -205,7 +198,7 @@ export async function startCommand(options: { port?: string; dashboard?: boolean
       const status = e.status;
       if (status === 'connected') {
         console.log(color.green('  ✓ WhatsApp terhubung!'));
-        
+
         // Jika QR sempat muncul (artinya sesi fresh pairing/scan), otomatis hand-off ke background service
         if (qrWasShown) {
           console.log(color.cyan('  ⚙ Mengalihkan jalannya program ke background service...'));
@@ -215,7 +208,7 @@ export async function startCommand(options: { port?: string; dashboard?: boolean
             try {
               await gateway.stop();
               db.close();
-            } catch {}
+            } catch { }
             // Jeda 2s agar Telegram bot foreground benar-benar berhenti
             // sebelum service baru mulai (hindari 409 Conflict)
             await new Promise(r => setTimeout(r, 2000));
@@ -248,7 +241,7 @@ export async function startCommand(options: { port?: string; dashboard?: boolean
     process.on('SIGTERM', shutdown);
 
     // Keep alive
-    await new Promise(() => {});
+    await new Promise(() => { });
     process.exit(0);
 
   } catch (err: any) {
