@@ -19,6 +19,7 @@ export function NumbersPage({ ws }: { ws: ReturnType<typeof useWebSocket> }) {
   const [numbers, setNumbers] = useState<NumberInfo[]>([]);
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ id: '', sessionName: '', label: '' });
+  const [qrCodes, setQrCodes] = useState<{ [numberId: string]: string }>({});
 
   useEffect(() => {
     ws.send({ type: 'get:numbers' });
@@ -31,7 +32,24 @@ export function NumbersPage({ ws }: { ws: ReturnType<typeof useWebSocket> }) {
         return [...prev, d.number];
       });
     });
-    return () => { unsubList(); unsubUpdate(); };
+    const unsubQr = ws.on('qr:received', (d) => {
+      if (d.qr && d.numberId) {
+        setQrCodes(prev => ({ ...prev, [d.numberId]: d.qr }));
+      }
+    });
+    const unsubStatus = ws.on('connection:update', (d) => {
+      if (d.status && d.numberId) {
+        setNumbers(prev => {
+          return prev.map(n => {
+            if (n.id === d.numberId) {
+              return { ...n, status: d.status };
+            }
+            return n;
+          });
+        });
+      }
+    });
+    return () => { unsubList(); unsubUpdate(); unsubQr(); unsubStatus(); };
   }, [ws]);
 
   const handleAdd = () => {
@@ -128,6 +146,23 @@ export function NumbersPage({ ws }: { ws: ReturnType<typeof useWebSocket> }) {
                 </div>
               </div>
             </div>
+
+            {/* Tampilan QR Code ketika status adalah 'qr' */}
+            {n.status === 'qr' && qrCodes[n.id] && (
+              <div style={{ marginTop: 14, borderTop: '1px solid #1e2030', paddingTop: 14, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+                <div style={{ fontSize: 13, color: '#a855f7', fontWeight: 600 }}>Pindai Kode QR WhatsApp</div>
+                <div style={{ background: '#fff', padding: 12, borderRadius: 8, display: 'inline-block', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(qrCodes[n.id])}`}
+                    alt="WhatsApp QR Code"
+                    style={{ display: 'block', width: 180, height: 180 }}
+                  />
+                </div>
+                <div style={{ fontSize: 11, color: '#64748b', textAlign: 'center', maxWidth: 360, lineHeight: 1.4 }}>
+                  Buka aplikasi WhatsApp di HP Anda &rarr; ketuk <b>Setelan / Menu</b> &rarr; <b>Perangkat Tertaut</b> &rarr; <b>Tautkan Perangkat</b>, lalu arahkan kamera ke kode QR di atas.
+                </div>
+              </div>
+            )}
           </div>
         ))}
       </div>

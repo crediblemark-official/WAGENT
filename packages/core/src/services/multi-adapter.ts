@@ -227,7 +227,7 @@ export class MultiWhatsAppAdapter implements WhatsAppAdapter {
     if (event.type === 'message:sent') {
       return { ...event, message: { ...event.message, metadata: { ...event.message.metadata, numberId } } };
     }
-    return event;
+    return { ...event, numberId } as any;
   }
 
   private persist(): void {
