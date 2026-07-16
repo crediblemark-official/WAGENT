@@ -399,26 +399,16 @@ export function NumbersPage({ ws }: { ws: ReturnType<typeof useWebSocket> }) {
           flexDirection: 'column',
           gap: 14
         }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <label style={{ fontSize: 12, color: '#e9edef', fontWeight: 500 }}>Bot Token</label>
-              <input
-                type="password"
-                value={tgBotToken}
-                onChange={e => setTgBotToken(e.target.value)}
-                placeholder="Token Bot Telegram"
-                style={{ ...inputS, background: '#202c33', border: '1px solid #222e35', color: '#e9edef' }}
-              />
-            </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <label style={{ fontSize: 12, color: '#e9edef', fontWeight: 500 }}>Chat ID / ID Grup</label>
+                <label style={{ fontSize: 12, color: '#e9edef', fontWeight: 500 }}>Bot Token</label>
                 <button
                   onClick={handleAutoDetectChatId}
                   disabled={!tgBotToken || tgPollInterval !== null || tgBinding}
                   style={{
                     border: 'none', background: 'transparent', color: '#00a884',
-                    fontSize: 11, fontWeight: 600, cursor: 'pointer', padding: 0,
+                    fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: 0,
                     opacity: !tgBotToken || tgPollInterval !== null || tgBinding ? 0.5 : 1,
                   }}
                   type="button"
@@ -427,13 +417,20 @@ export function NumbersPage({ ws }: { ws: ReturnType<typeof useWebSocket> }) {
                 </button>
               </div>
               <input
-                type="text"
-                value={tgChatId}
-                onChange={e => setTgChatId(e.target.value)}
-                placeholder="Chat ID Telegram"
+                type="password"
+                value={tgBotToken}
+                onChange={e => setTgBotToken(e.target.value)}
+                placeholder="Token Bot Telegram"
                 style={{ ...inputS, background: '#202c33', border: '1px solid #222e35', color: '#e9edef' }}
               />
             </div>
+
+            {tgChatId && !tgDetectName && (
+              <div style={{ fontSize: 12, color: '#8696a0', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#00a884' }}></span>
+                ID Chat Telegram Aktif: <strong style={{ color: '#e9edef' }}>{tgChatId}</strong>
+              </div>
+            )}
           </div>
 
           {tgVerificationCode && (
