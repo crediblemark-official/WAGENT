@@ -180,8 +180,9 @@ describe('model-catalog', () => {
   describe('refreshModelCatalog', () => {
     it('should succeed with valid catalog data from fetch', async () => {
       const validData: Record<string, any> = {};
+      const names = ['OpenAI', 'Anthropic', 'Google', 'Groq', 'DeepSeek', 'Mistral', 'xAI', 'Cohere', 'Fireworks', 'Together'];
       for (let i = 0; i < 10; i++) {
-        validData[`provider${i}`] = { name: `Provider ${i}`, id: `provider${i}` };
+        validData[`prov${i}`] = { name: names[i], id: `prov${i}`, npm: `@ai-sdk/compat`, env: [`PROV${i}_KEY`], api: `https://api.prov${i}.com/v1` };
       }
       globalThis.fetch = vi.fn().mockResolvedValue({
         ok: true,
@@ -231,8 +232,9 @@ describe('model-catalog', () => {
 
     it('should skip entries without name property', async () => {
       const data: Record<string, any> = {};
+      const names = ['OpenAI', 'Anthropic', 'Google', 'Groq', 'DeepSeek', 'Mistral', 'xAI', 'Cohere', 'Fireworks', 'Together'];
       for (let i = 0; i < 10; i++) {
-        data[`p${i}`] = { name: `Provider ${i}` };
+        data[`prov${i}`] = { name: names[i], npm: `@ai-sdk/compat`, env: [`PROV${i}_KEY`], api: `https://api.prov${i}.com/v1` };
       }
       data['invalid'] = { noName: true };
       data['alsoInvalid'] = null;
@@ -244,7 +246,7 @@ describe('model-catalog', () => {
       const providers = await getCatalogProviders();
       expect(providers['invalid']).toBeUndefined();
       expect(providers['alsoInvalid']).toBeUndefined();
-      expect(providers['p0']).toBeDefined();
+      expect(providers['prov0']).toBeDefined();
     });
   });
 
@@ -257,9 +259,13 @@ describe('model-catalog', () => {
         ok: true,
         json: async () => {
           const data: Record<string, any> = {};
+          const names = ['OpenAI', 'Anthropic', 'Google', 'Groq', 'DeepSeek', 'Mistral', 'xAI', 'Cohere', 'Fireworks', 'Together'];
           for (let i = 0; i < 10; i++) {
-            data[`p${i}`] = {
-              name: `Provider ${i}`,
+            data[`prov${i}`] = {
+              name: names[i],
+              npm: `@ai-sdk/compat`,
+              env: [`PROV${i}_KEY`],
+              api: `https://api.prov${i}.com/v1`,
               models: {
                 model1: { id: 'model1', name: 'Model 1' },
                 model2: { id: 'model2', name: 'Model 2' },
@@ -282,8 +288,9 @@ describe('model-catalog', () => {
         ok: true,
         json: async () => {
           const data: Record<string, any> = {};
+          const names = ['OpenAI', 'Anthropic', 'Google', 'Groq', 'DeepSeek', 'Mistral', 'xAI', 'Cohere', 'Fireworks', 'Together'];
           for (let i = 0; i < 10; i++) {
-            data[`p${i}`] = { name: `Provider ${i}` };
+            data[`prov${i}`] = { name: names[i], npm: `@ai-sdk/compat`, env: [`PROV${i}_KEY`], api: `https://api.prov${i}.com/v1` };
           }
           return data;
         },
@@ -320,9 +327,13 @@ describe('model-catalog', () => {
         ok: true,
         json: async () => {
           const data: Record<string, any> = {};
+          const names = ['OpenAI', 'Anthropic', 'Google', 'Groq', 'DeepSeek', 'Mistral', 'xAI', 'Cohere', 'Fireworks', 'Together'];
           for (let i = 0; i < 10; i++) {
-            data[`p${i}`] = {
-              name: `Provider ${i}`,
+            data[`prov${i}`] = {
+              name: names[i],
+              npm: `@ai-sdk/compat`,
+              env: [`PROV${i}_KEY`],
+              api: `https://api.prov${i}.com/v1`,
               models: {
                 'model-a': { id: 'model-a', name: 'Model A' },
                 'model-b': { id: 'model-b', name: 'Model B' },
@@ -332,7 +343,7 @@ describe('model-catalog', () => {
           return data;
         },
       });
-      const models = await getModelsForProviderCatalog('p0');
+      const models = await getModelsForProviderCatalog('prov0');
       expect(models.length).toBe(2);
       expect(models[0]).toEqual({ value: 'model-a', label: 'Model A' });
       expect(models[1]).toEqual({ value: 'model-b', label: 'Model B' });
@@ -350,13 +361,14 @@ describe('model-catalog', () => {
         ok: true,
         json: async () => {
           const data: Record<string, any> = {};
+          const names = ['OpenAI', 'Anthropic', 'Google', 'Groq', 'DeepSeek', 'Mistral', 'xAI', 'Cohere', 'Fireworks', 'Together'];
           for (let i = 0; i < 10; i++) {
-            data[`p${i}`] = { name: `Provider ${i}` };
+            data[`prov${i}`] = { name: names[i], npm: `@ai-sdk/compat`, env: [`PROV${i}_KEY`], api: `https://api.prov${i}.com/v1` };
           }
           return data;
         },
       });
-      const models = await getModelsForProviderCatalog('p0');
+      const models = await getModelsForProviderCatalog('prov0');
       expect(models).toEqual([]);
     });
 
@@ -366,9 +378,13 @@ describe('model-catalog', () => {
         ok: true,
         json: async () => {
           const data: Record<string, any> = {};
+          const names = ['OpenAI', 'Anthropic', 'Google', 'Groq', 'DeepSeek', 'Mistral', 'xAI', 'Cohere', 'Fireworks', 'Together'];
           for (let i = 0; i < 10; i++) {
-            data[`p${i}`] = {
-              name: `Provider ${i}`,
+            data[`prov${i}`] = {
+              name: names[i],
+              npm: `@ai-sdk/compat`,
+              env: [`PROV${i}_KEY`],
+              api: `https://api.prov${i}.com/v1`,
               models: {
                 'm1': { id: 'm1' },
               },
@@ -377,7 +393,7 @@ describe('model-catalog', () => {
           return data;
         },
       });
-      const models = await getModelsForProviderCatalog('p0');
+      const models = await getModelsForProviderCatalog('prov0');
       expect(models[0]).toEqual({ value: 'm1', label: 'm1' });
     });
   });
