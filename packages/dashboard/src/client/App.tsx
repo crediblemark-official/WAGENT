@@ -220,7 +220,7 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '8px 12px',
     borderRadius: 6,
     border: 'none',
-    background: 'transparent',
+    backgroundColor: 'transparent',
     color: '#8696a0', // WhatsApp muted text
     fontSize: 13,
     cursor: 'pointer',
