@@ -23,7 +23,18 @@ export function NumbersPage({ ws }: { ws: ReturnType<typeof useWebSocket> }) {
 
   useEffect(() => {
     ws.send({ type: 'get:numbers' });
-    const unsubList = ws.on('numbers:list', (d) => { if (d.numbers) setNumbers(d.numbers); });
+    const unsubList = ws.on('numbers:list', (d) => {
+      if (d.numbers) {
+        setNumbers(d.numbers);
+        const initialQrs: { [id: string]: string } = {};
+        for (const n of d.numbers) {
+          if (n.status === 'qr' && (n as any).qrCode) {
+            initialQrs[n.id] = (n as any).qrCode;
+          }
+        }
+        setQrCodes(prev => ({ ...prev, ...initialQrs }));
+      }
+    });
     const unsubUpdate = ws.on('number:update', (d) => {
       if (!d.number) return;
       setNumbers(prev => {

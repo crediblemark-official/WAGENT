@@ -29,6 +29,7 @@ import { getLogger } from '@wagent/core';
 export class BaileysAdapter implements WhatsAppAdapter {
   public readonly numberId: string;
   public _userJid: string = '';
+  public lastQr: string | null = null;
   private sock: WASocket | null = null;
   private eventHandler: ((event: GatewayEvent) => void) | null = null;
   private status: ConnectionStatus = 'disconnected';
@@ -153,6 +154,7 @@ export class BaileysAdapter implements WhatsAppAdapter {
 
       if (qr) {
         this.status = 'qr';
+        this.lastQr = qr;
         this.reconnectCount = 0; // Reset counter when QR is shown
         this.emit({ type: 'connection:update', status: 'qr' });
         this.emit({ type: 'qr:received', qr });
@@ -178,6 +180,7 @@ export class BaileysAdapter implements WhatsAppAdapter {
       }
 
       if (connection === 'close') {
+        this.lastQr = null;
         const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode;
         const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
 
@@ -245,6 +248,7 @@ export class BaileysAdapter implements WhatsAppAdapter {
         }
       } else if (connection === 'open') {
         this.status = 'connected';
+        this.lastQr = null;
         this.reconnectCount = 0; // Reset counter on successful connection
         this._userJid = this.sock?.user?.id || '';
         this.emit({ type: 'connection:update', status: 'connected' });

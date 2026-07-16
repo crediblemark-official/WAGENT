@@ -185,6 +185,7 @@ export class MultiWhatsAppAdapter implements WhatsAppAdapter {
         sessionName: cfg.sessionName,
         label: cfg.label || cfg.sessionName,
         status: adapter?.getConnectionStatus() || 'disconnected',
+        qrCode: (adapter as any)?.lastQr || undefined,
       });
     }
     return result;
