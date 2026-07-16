@@ -411,6 +411,10 @@ export class Agent {
     return this.provider.name;
   }
 
+  getProvider(): any {
+    return this.provider;
+  }
+
   getTools(): ToolDefinition[] {
     return this.tools;
   }

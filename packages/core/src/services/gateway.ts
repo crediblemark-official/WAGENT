@@ -1,3 +1,5 @@
+import { existsSync } from 'fs';
+import { join } from 'path';
 import { Logger } from 'pino';
 import { EventBus } from '../utils/event-bus.js';
 import { Agent } from '../agent/agent.js';
@@ -21,6 +23,9 @@ import { ProactiveScheduler } from './proactive-scheduler.js';
 import { promptLoader } from '../agent/prompt-loader.js';
 import { ToolSandbox } from '../tools/tool-sandbox.js';
 import { TelegramBot, TelegramGatewayAdapter } from './telegram-bot.js';
+import { PromptGenerator } from '../agent/prompt-generator.js';
+
+
 
 // ── Helpers ─────────────────────────────────────────────────────
 
@@ -290,14 +295,32 @@ export class Gateway {
             if (userJid) {
               const history = this.db.getConversationHistory(userJid);
               if (history.length === 0) {
-                const intro = [
-                  `👋 *Halo Owner! Saya Asisten AI Anda.*`,
-                  ``,
-                  `Saya baru saja terhubung dan siap membantu. Anda bisa mengobrol langsung dengan saya di sini (self-chat) untuk memberikan instruksi, bertanya, atau menguji respons saya secara real-time.`,
-                  ``,
-                  `💡 *Tips:* Kirim \`/help\` untuk melihat perintah kontrol yang tersedia.`,
-                ].join('\n');
-                await this.whatsapp.sendMessage(userJid, intro);
+                if (!this.hasCustomPrompts()) {
+                  const setupWelcome = [
+                    `👋 *Halo Owner! Selamat datang di WAGENT.*`,
+                    ``,
+                    `Saya mendeteksi bahwa sistem ini belum dikonfigurasi. Mari kita setup kepribadian dan instruksi saya agar saya tidak generik dan bisa melayani Anda/customer Anda secara maksimal.`,
+                    ``,
+                    `*Pertanyaan 1:* Apakah Anda ingin menggunakan saya sebagai:`,
+                    `1. Bisnis / Customer Service (CS)`,
+                    `2. Asisten Pribadi (Personal Assistant)`,
+                    `3. Campuran (Hybrid)`,
+                    ``,
+                    `👉 Silakan ketik pilihan Anda untuk memulai interview setup!`,
+                    `💡 _Tips: Kirim \`/skip\` kapan saja untuk menggunakan konfigurasi asisten default._`,
+                  ].join('\n');
+                  this.db.addConversation(userJid, 'assistant', setupWelcome);
+                  await this.whatsapp.sendMessage(userJid, setupWelcome);
+                } else {
+                  const intro = [
+                    `👋 *Halo Owner! Saya Asisten AI Anda.*`,
+                    ``,
+                    `Saya baru saja terhubung dan siap membantu. Anda bisa mengobrol langsung dengan saya di sini (self-chat) untuk memberikan instruksi, bertanya, atau menguji respons saya secara real-time.`,
+                    ``,
+                    `💡 *Tips:* Kirim \`/help\` untuk melihat perintah kontrol yang tersedia.`,
+                  ].join('\n');
+                  await this.whatsapp.sendMessage(userJid, intro);
+                }
               }
             }
           } catch (err: any) {
@@ -427,29 +450,69 @@ export class Gateway {
     this.logger.info({ text }, 'Self-chat message received');
     const sc = promptLoader.getSelfChatConfig();
 
-    // If not a command starting with /, process with AI Agent
-    if (!text.startsWith('/')) {
-      const composing = () => this.whatsapp.sendPresenceUpdate?.('composing', msg.from)?.catch(() => {});
-      await composing();
-      const typingInterval = setInterval(composing, 8_000);
-      try {
-        const contactName = 'Owner';
-        const result = await this.agent.processMessage(
-          `[SELF-CHAT CONVERSATION WITH OWNER]
-Pesan dari owner: "${text}"`, 
-          msg.from, 
-          contactName
-        );
-        clearInterval(typingInterval);
-        this.whatsapp.sendPresenceUpdate?.('paused', msg.from)?.catch(() => {});
-        await this.whatsapp.sendMessage(msg.from, result.response);
-      } catch (err: any) {
-        clearInterval(typingInterval);
-        this.whatsapp.sendPresenceUpdate?.('paused', msg.from)?.catch(() => {});
-        this.logger.error({ error: err.message }, 'Self-chat AI processing error');
-        await this.whatsapp.sendMessage(msg.from, `❌ Error: ${err.message}`);
+    // Check if system prompts have been configured yet
+    if (!this.hasCustomPrompts()) {
+      // Allow /skip or /skipsetup to generate fallback prompts and skip the interview
+      if (text === '/skip' || text === '/skipsetup') {
+        try {
+          const generator = new PromptGenerator(this.config);
+          const defaultAnswers = {
+            businessName: 'My WAGENT',
+            businessType: 'general-assistant',
+            businessDescription: 'Asisten AI pintar serbaguna',
+            targetCustomer: 'Owner',
+            tone: 'casual' as const,
+            emojiUsage: 'moderate' as const,
+            language: 'id',
+            frequentQuestions: [],
+            orderProcess: '',
+            paymentMethods: '',
+            shippingTime: '',
+            returnPolicy: '',
+            forbiddenActions: [],
+            escalationTriggers: [],
+            workingHours: '24 jam',
+            features: ['web_search', 'reminder'],
+          };
+          await generator.generateAll(defaultAnswers);
+          await this.whatsapp.sendMessage(msg.from, `👋 *Setup dilewati!*\n\nBerkas prompt default telah ditulis ke folder \`prompts/\`.\nBot akan me-restart secara otomatis dalam 2 detik.`);
+          setTimeout(() => process.exit(0), 2000);
+        } catch (err: any) {
+          await this.whatsapp.sendMessage(msg.from, `❌ Error skipping setup: ${err.message}`);
+        }
+        return;
       }
-      return;
+
+      // If not a command starting with /, process as setup interview
+      if (!text.startsWith('/')) {
+        await this.handleSetupInterviewMessage(msg);
+        return;
+      }
+    } else {
+      // If not a command starting with /, process with AI Agent (Normal Mode)
+      if (!text.startsWith('/')) {
+        const composing = () => this.whatsapp.sendPresenceUpdate?.('composing', msg.from)?.catch(() => {});
+        await composing();
+        const typingInterval = setInterval(composing, 8_000);
+        try {
+          const contactName = 'Owner';
+          const result = await this.agent.processMessage(
+            `[SELF-CHAT CONVERSATION WITH OWNER]
+Pesan dari owner: "${text}"`, 
+            msg.from, 
+            contactName
+          );
+          clearInterval(typingInterval);
+          this.whatsapp.sendPresenceUpdate?.('paused', msg.from)?.catch(() => {});
+          await this.whatsapp.sendMessage(msg.from, result.response);
+        } catch (err: any) {
+          clearInterval(typingInterval);
+          this.whatsapp.sendPresenceUpdate?.('paused', msg.from)?.catch(() => {});
+          this.logger.error({ error: err.message }, 'Self-chat AI processing error');
+          await this.whatsapp.sendMessage(msg.from, `❌ Error: ${err.message}`);
+        }
+        return;
+      }
     }
 
     const [command, ...args] = text.split(/\s+/);
@@ -839,6 +902,174 @@ ${this.config.welcomeMessage ? `Gunakan sambutan seperti: "${this.config.welcome
     this.proactiveScheduler.start();
     this.telegramBot.start();
     this.logger.info('WAGENT Gateway started successfully');
+  }
+
+  private hasCustomPrompts(): boolean {
+    const customPath = join(process.cwd(), 'prompts/system.toon');
+    return existsSync(customPath);
+  }
+
+  private async handleSetupInterviewMessage(msg: Message): Promise<void> {
+    const text = msg.content.trim();
+    const userJid = this.whatsapp.userJid;
+    if (!userJid) return;
+
+    // 1. Show typing status
+    const composing = () => this.whatsapp.sendPresenceUpdate?.('composing', msg.from)?.catch(() => {});
+    await composing();
+    const typingInterval = setInterval(composing, 8_000);
+
+    try {
+      // 2. Add owner's message to DB history
+      this.db.addConversation(userJid, 'user', text);
+
+      // 3. Retrieve chat history
+      const history = this.db.getConversationHistory(userJid);
+      
+      // Limit context to last 20 messages for efficiency and model focus
+      const recentHistory = history.slice(-20);
+
+      // 4. Map history to LLM format
+      const setupInterviewConfig = promptLoader.load('setup-interview.toon');
+      const systemPrompt = setupInterviewConfig?.prompt || `Kamu adalah Setup Assistant AI untuk WAGENT.
+Tugasmu adalah memandu Owner (pemilik) melalui chat WhatsApp untuk mengonfigurasi AI WhatsApp Agent mereka.
+
+Lakukan interview satu per satu secara interaktif dan santai. Jangan tanyakan banyak hal sekaligus.
+Tanyakan hal-hal berikut secara berurutan:
+1. Kebutuhan utama (Bisnis / Asisten Pribadi / Campuran).
+2. Jika Bisnis: Nama bisnis, jenis usaha, deskripsi singkat, dan target customer.
+   Jika Personal: Nama asisten AI yang diinginkan, dan konteks bantuan harian (misal: jadwal, reminder, dll).
+3. Gaya bicara yang diinginkan (Santai, Formal, Profesional, atau Ramah) dan apakah boleh menggunakan emoji.
+4. Jam operasional (jika ada).
+5. Aturan penting (apa saja yang boleh dan TIDAK boleh dilakukan AI).
+
+Begitu semua informasi penting terkumpul:
+1. Buatlah rangkuman ringkas tentang racikan tersebut kepada Owner.
+2. Panggil tool 'save_prompt_setup' dengan argumen data JSON yang lengkap untuk menulis konfigurasi tersebut ke sistem.
+3. Beritahu Owner bahwa bot akan di-restart otomatis untuk menerapkan konfigurasi tersebut.
+
+Penting: Jawab dengan bahasa Indonesia yang ramah, sopan, dan to-the-point. Tanyakan HANYA satu pertanyaan/topik dalam satu respons.`;
+
+      const messages = [
+        { role: 'system', content: systemPrompt },
+        ...recentHistory.map(h => ({
+          role: h.role === 'user' ? 'user' : 'assistant',
+          content: h.content,
+        }))
+      ];
+
+      // 5. Setup tool definition for saving
+      const tools: ToolDefinition[] = [
+        {
+          name: 'save_prompt_setup',
+          description: 'Simpan konfigurasi hasil interview setup ke file prompt kustom dan restart bot.',
+          parameters: {
+            type: 'object',
+            properties: {
+              useCase: { type: 'string', enum: ['business', 'personal', 'hybrid'] },
+              businessName: { type: 'string' },
+              businessType: { type: 'string' },
+              businessDescription: { type: 'string' },
+              targetCustomer: { type: 'string' },
+              personalName: { type: 'string' },
+              personalContext: { type: 'string' },
+              tone: { type: 'string', enum: ['casual', 'formal', 'professional', 'friendly'] },
+              emojiUsage: { type: 'string', enum: ['rare', 'moderate', 'frequent'] },
+              language: { type: 'string' },
+              greeting: { type: 'string' },
+              workingHours: { type: 'string' },
+              forbiddenActions: { type: 'array', items: { type: 'string' } },
+              escalationTriggers: { type: 'array', items: { type: 'string' } },
+              features: { type: 'array', items: { type: 'string' } }
+            },
+            required: ['useCase', 'tone', 'emojiUsage']
+          },
+          handler: async (args: Record<string, any>) => {
+            const useCase = args.useCase || 'personal';
+            const answers = {
+              businessName: args.businessName || args.personalName || 'My WAGENT',
+              businessType: args.businessType || (useCase === 'personal' ? 'personal-assistant' : 'general'),
+              businessDescription: args.businessDescription || args.personalContext || 'Asisten pribadi cerdas',
+              targetCustomer: args.targetCustomer || 'Owner',
+              tone: (args.tone || 'casual') as 'casual' | 'formal' | 'professional' | 'friendly',
+              emojiUsage: (args.emojiUsage || 'moderate') as 'rare' | 'moderate' | 'frequent',
+              language: args.language || 'id',
+              greeting: args.greeting || 'Halo!',
+              frequentQuestions: args.frequentQuestions || [],
+              orderProcess: args.orderProcess || '',
+              paymentMethods: args.paymentMethods || '',
+              shippingTime: args.shippingTime || '',
+              returnPolicy: args.returnPolicy || '',
+              forbiddenActions: args.forbiddenActions || [],
+              escalationTriggers: args.escalationTriggers || [],
+              workingHours: args.workingHours || '24 jam',
+              features: args.features || ['web_search', 'reminder'],
+              welcomeMessage: args.welcomeMessage || args.greeting || 'Halo! Ada yang bisa saya bantu?',
+              errorMessage: args.errorMessage || 'Maaf, saya mengalami kendala teknis.',
+              offlineMessage: args.offlineMessage || 'Di luar jam operasional.',
+            };
+
+            try {
+              const generator = new PromptGenerator(this.config);
+              await generator.generateWithAI(answers);
+              
+              // Send confirmation message to owner
+              await this.whatsapp.sendMessage(userJid, `✅ *Konfigurasi Berhasil Disimpan!*\n\nBerkas kustom Anda telah ditulis ke direktori \`prompts/\`.\nBot akan me-restart secara otomatis dalam 2 detik untuk menerapkan kepribadian baru Anda.`);
+              
+              // Schedule exit after sending response
+              setTimeout(() => {
+                this.logger.info('Restarting bot after setup completion');
+                process.exit(0);
+              }, 2000);
+
+              return JSON.stringify({ success: true, message: 'Configuration saved and bot restart scheduled.' });
+            } catch (err: any) {
+              return JSON.stringify({ success: false, error: err.message });
+            }
+          }
+        }
+      ];
+
+      // 6. Get the AI response using provider.chat
+      const provider = this.agent.getProvider();
+      const response = await provider.chat(messages, tools);
+
+      clearInterval(typingInterval);
+      this.whatsapp.sendPresenceUpdate?.('paused', msg.from)?.catch(() => {});
+
+      // 7. Handle LLM output or tool calls
+      if (response.toolCalls && response.toolCalls.length > 0) {
+        for (const toolCall of response.toolCalls) {
+          if (toolCall.function.name === 'save_prompt_setup') {
+            const tool = tools[0];
+            const args = JSON.parse(toolCall.function.arguments || '{}');
+            const toolContext = {
+              logger: this.logger,
+              db: this.db,
+              config: this.config,
+              contactId: userJid,
+            };
+            await tool.handler!(args, toolContext);
+            return;
+          }
+        }
+      }
+
+      // If no tool call, reply with assistant text response
+      const aiReply = response.content || '';
+      if (aiReply) {
+        this.db.addConversation(userJid, 'assistant', aiReply);
+        await this.whatsapp.sendMessage(userJid, aiReply);
+      } else {
+        await this.whatsapp.sendMessage(userJid, 'Maaf, saya tidak mengerti. Bisa diulang?');
+      }
+
+    } catch (err: any) {
+      clearInterval(typingInterval);
+      this.whatsapp.sendPresenceUpdate?.('paused', msg.from)?.catch(() => {});
+      this.logger.error({ error: err.message }, 'Error in setup interview');
+      await this.whatsapp.sendMessage(msg.from, `❌ Error during setup: ${err.message}`);
+    }
   }
 
   async stop(): Promise<void> {
