@@ -30,6 +30,12 @@ export function NumbersPage({ ws }: { ws: ReturnType<typeof useWebSocket> }) {
   const [tgTestSuccess, setTgTestSuccess] = useState<boolean | null>(null);
   const [rawConfig, setRawConfig] = useState<any>(null);
 
+  // Auto-Detect States
+  const [tgVerificationCode, setTgVerificationCode] = useState<string | null>(null);
+  const [tgPollInterval, setTgPollInterval] = useState<any>(null);
+  const [tgTimeLeft, setTgTimeLeft] = useState(60);
+  const [tgDetectName, setTgDetectName] = useState<string | null>(null);
+
   useEffect(() => {
     ws.send({ type: 'get:numbers' });
     const unsubList = ws.on('numbers:list', (d) => {
@@ -148,6 +154,78 @@ export function NumbersPage({ ws }: { ws: ReturnType<typeof useWebSocket> }) {
       setTgTesting(false);
     }
   };
+
+  const handleAutoDetectChatId = async () => {
+    if (!tgBotToken) {
+      alert('Masukkan Token Bot terlebih dahulu!');
+      return;
+    }
+    setTgTestError(null);
+    setTgTestSuccess(null);
+    setTgDetectName(null);
+    try {
+      const response = await fetch('/api/escalation/bind', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ botToken: tgBotToken.trim() }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Gagal memulai binding');
+
+      setTgVerificationCode(data.code);
+      setTgTimeLeft(60);
+
+      // Polling logic
+      let currentOffset = data.offset;
+      const deadline = Date.now() + 60000;
+
+      const interval = setInterval(async () => {
+        const remaining = Math.round((deadline - Date.now()) / 1000);
+        if (remaining <= 0) {
+          clearInterval(interval);
+          setTgVerificationCode(null);
+          setTgPollInterval(null);
+          setTgTestError('Waktu deteksi habis. Silakan coba lagi.');
+          return;
+        }
+        setTgTimeLeft(remaining);
+
+        try {
+          const pollRes = await fetch('/api/escalation/poll', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              botToken: tgBotToken.trim(),
+              code: data.code,
+              offset: currentOffset,
+            }),
+          });
+          const pollData = await pollRes.json();
+          if (pollData.offset) currentOffset = pollData.offset;
+
+          if (pollData.found && pollData.chatId) {
+            clearInterval(interval);
+            setTgChatId(pollData.chatId);
+            setTgDetectName(pollData.chatName);
+            setTgVerificationCode(null);
+            setTgPollInterval(null);
+            setTgTestSuccess(true);
+            setTimeout(() => setTgTestSuccess(null), 5000);
+          }
+        } catch { /* retry silently */ }
+      }, 2000);
+
+      setTgPollInterval(interval);
+    } catch (err: any) {
+      setTgTestError(err.message || 'Gagal mendeteksi Chat ID');
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (tgPollInterval) clearInterval(tgPollInterval);
+    };
+  }, [tgPollInterval]);
 
   const handleAdd = () => {
     if (!form.id || !form.sessionName) return;
@@ -324,7 +402,21 @@ export function NumbersPage({ ws }: { ws: ReturnType<typeof useWebSocket> }) {
               />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <label style={{ fontSize: 12, color: '#e9edef', fontWeight: 500 }}>Chat ID / ID Grup</label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <label style={{ fontSize: 12, color: '#e9edef', fontWeight: 500 }}>Chat ID / ID Grup</label>
+                <button
+                  onClick={handleAutoDetectChatId}
+                  disabled={!tgBotToken || tgPollInterval !== null}
+                  style={{
+                    border: 'none', background: 'transparent', color: '#00a884',
+                    fontSize: 11, fontWeight: 600, cursor: 'pointer', padding: 0,
+                    opacity: !tgBotToken || tgPollInterval !== null ? 0.5 : 1,
+                  }}
+                  type="button"
+                >
+                  🔗 Deteksi Otomatis (Binding)
+                </button>
+              </div>
               <input
                 type="text"
                 value={tgChatId}
@@ -334,6 +426,34 @@ export function NumbersPage({ ws }: { ws: ReturnType<typeof useWebSocket> }) {
               />
             </div>
           </div>
+
+          {tgVerificationCode && (
+            <div style={{
+              background: '#0b141a', padding: 14, borderRadius: 8,
+              border: '1px dashed #00a884', display: 'flex', flexDirection: 'column',
+              alignItems: 'center', gap: 8, marginTop: 4
+            }}>
+              <div style={{ fontSize: 12, color: '#8696a0', textAlign: 'center' }}>
+                Kirim kode verifikasi berikut ke bot Telegram Anda (bisa di chat pribadi atau di grup):
+              </div>
+              <div style={{
+                fontSize: 18, fontWeight: 700, letterSpacing: 1, color: '#e9edef',
+                background: '#202c33', padding: '6px 16px', borderRadius: 4,
+                border: '1px solid #222e35'
+              }}>
+                {tgVerificationCode}
+              </div>
+              <div style={{ fontSize: 11, color: '#eab308' }}>
+                ⏳ Menunggu pesan verifikasi... (Waktu Tersisa: {tgTimeLeft} detik)
+              </div>
+            </div>
+          )}
+
+          {tgDetectName && (
+            <div style={{ fontSize: 12, color: '#25d366', fontWeight: 500, textAlign: 'center', marginTop: 4 }}>
+              ✓ Terdeteksi Chat: <b>{tgDetectName}</b> (ID: {tgChatId})
+            </div>
+          )}
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
             <button

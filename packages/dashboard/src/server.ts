@@ -716,6 +716,70 @@ export class DashboardServer implements DashboardAdapter {
       }
     });
 
+    this.app.post('/api/escalation/bind', async (req, res) => {
+      const { botToken } = req.body;
+      if (!botToken) {
+        return res.status(400).json({ error: 'Token bot wajib diisi' });
+      }
+
+      // Generate verification code
+      const code = `WGNT-${Math.floor(1000 + Math.random() * 9000)}`;
+
+      // Ambil offset awal untuk memindai pesan baru saja
+      let offset = 0;
+      try {
+        const init = await fetch(`https://api.telegram.org/bot${botToken}/getUpdates?limit=1&offset=-1`);
+        const initJson = await init.json() as any;
+        const updates = initJson.result || [];
+        if (updates.length > 0) {
+          offset = updates[updates.length - 1].update_id + 1;
+        }
+      } catch { /* abaikan */ }
+
+      res.json({ code, offset });
+    });
+
+    this.app.post('/api/escalation/poll', async (req, res) => {
+      const { botToken, code, offset } = req.body;
+      if (!botToken || !code) {
+        return res.status(400).json({ error: 'Parameter tidak lengkap' });
+      }
+
+      try {
+        const response = await fetch(`https://api.telegram.org/bot${botToken}/getUpdates?limit=10&timeout=1&offset=${offset || 0}`);
+        const json = await response.json() as any;
+        if (!json.ok) {
+          return res.status(400).json({ error: 'Token tidak valid' });
+        }
+
+        let foundChatId = '';
+        let foundChatName = '';
+        let nextOffset = offset || 0;
+
+        for (const update of json.result || []) {
+          nextOffset = update.update_id + 1;
+          const text: string = update.message?.text || update.channel_post?.text || '';
+          if (text.includes(code)) {
+            const chat = update.message?.chat || update.channel_post?.chat;
+            if (chat) {
+              foundChatId = String(chat.id);
+              foundChatName = chat.title || chat.first_name || foundChatId;
+              break;
+            }
+          }
+        }
+
+        res.json({
+          found: !!foundChatId,
+          chatId: foundChatId,
+          chatName: foundChatName,
+          offset: nextOffset
+        });
+      } catch (err: any) {
+        res.status(500).json({ error: err.message });
+      }
+    });
+
     // Serve static files in production
     const publicDir = resolve(__dirname, 'public');
     if (existsSync(publicDir)) {
