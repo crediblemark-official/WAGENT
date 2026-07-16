@@ -728,13 +728,26 @@ export class DashboardServer implements DashboardAdapter {
       // Ambil offset awal untuk memindai pesan baru saja
       let offset = 0;
       try {
-        const init = await fetch(`https://api.telegram.org/bot${botToken}/getUpdates?limit=1&offset=-1`);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 4000);
+        const init = await fetch(`https://api.telegram.org/bot${botToken}/getUpdates?limit=1&offset=-1`, {
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
         const initJson = await init.json() as any;
+        if (initJson.ok === false) {
+          return res.status(400).json({ error: `Token Telegram tidak valid: ${initJson.description || 'Forbidden'}` });
+        }
         const updates = initJson.result || [];
         if (updates.length > 0) {
           offset = updates[updates.length - 1].update_id + 1;
         }
-      } catch { /* abaikan */ }
+      } catch (err: any) {
+        if (err.name === 'AbortError') {
+          return res.status(408).json({ error: 'Koneksi ke Telegram API timeout. Silakan periksa koneksi internet server Anda.' });
+        }
+        return res.status(500).json({ error: `Gagal menghubungi Telegram: ${err.message}` });
+      }
 
       res.json({ code, offset });
     });
@@ -746,7 +759,12 @@ export class DashboardServer implements DashboardAdapter {
       }
 
       try {
-        const response = await fetch(`https://api.telegram.org/bot${botToken}/getUpdates?limit=10&timeout=1&offset=${offset || 0}`);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 4000);
+        const response = await fetch(`https://api.telegram.org/bot${botToken}/getUpdates?limit=10&timeout=1&offset=${offset || 0}`, {
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
         const json = await response.json() as any;
         if (!json.ok) {
           return res.status(400).json({ error: 'Token tidak valid' });
@@ -776,6 +794,9 @@ export class DashboardServer implements DashboardAdapter {
           offset: nextOffset
         });
       } catch (err: any) {
+        if (err.name === 'AbortError') {
+          return res.json({ found: false, offset: offset || 0, timeout: true });
+        }
         res.status(500).json({ error: err.message });
       }
     });

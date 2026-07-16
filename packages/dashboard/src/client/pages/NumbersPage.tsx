@@ -31,6 +31,7 @@ export function NumbersPage({ ws }: { ws: ReturnType<typeof useWebSocket> }) {
   const [rawConfig, setRawConfig] = useState<any>(null);
 
   // Auto-Detect States
+  const [tgBinding, setTgBinding] = useState(false);
   const [tgVerificationCode, setTgVerificationCode] = useState<string | null>(null);
   const [tgPollInterval, setTgPollInterval] = useState<any>(null);
   const [tgTimeLeft, setTgTimeLeft] = useState(60);
@@ -160,9 +161,11 @@ export function NumbersPage({ ws }: { ws: ReturnType<typeof useWebSocket> }) {
       alert('Masukkan Token Bot terlebih dahulu!');
       return;
     }
+    setTgBinding(true);
     setTgTestError(null);
     setTgTestSuccess(null);
     setTgDetectName(null);
+    setTgVerificationCode(null);
     try {
       const response = await fetch('/api/escalation/bind', {
         method: 'POST',
@@ -218,6 +221,8 @@ export function NumbersPage({ ws }: { ws: ReturnType<typeof useWebSocket> }) {
       setTgPollInterval(interval);
     } catch (err: any) {
       setTgTestError(err.message || 'Gagal mendeteksi Chat ID');
+    } finally {
+      setTgBinding(false);
     }
   };
 
@@ -406,15 +411,15 @@ export function NumbersPage({ ws }: { ws: ReturnType<typeof useWebSocket> }) {
                 <label style={{ fontSize: 12, color: '#e9edef', fontWeight: 500 }}>Chat ID / ID Grup</label>
                 <button
                   onClick={handleAutoDetectChatId}
-                  disabled={!tgBotToken || tgPollInterval !== null}
+                  disabled={!tgBotToken || tgPollInterval !== null || tgBinding}
                   style={{
                     border: 'none', background: 'transparent', color: '#00a884',
                     fontSize: 11, fontWeight: 600, cursor: 'pointer', padding: 0,
-                    opacity: !tgBotToken || tgPollInterval !== null ? 0.5 : 1,
+                    opacity: !tgBotToken || tgPollInterval !== null || tgBinding ? 0.5 : 1,
                   }}
                   type="button"
                 >
-                  🔗 Deteksi Otomatis (Binding)
+                  {tgBinding ? '⏳ Menghubungkan...' : '🔗 Deteksi Otomatis (Binding)'}
                 </button>
               </div>
               <input
