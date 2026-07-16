@@ -367,8 +367,9 @@ export class Gateway {
 
     let entry = this.rateLimitMap.get(contactId);
     if (!entry || now - entry.windowStart > windowMs) {
-      entry = { count: 0, windowStart: now };
+      entry = { count: 1, windowStart: now };
       this.rateLimitMap.set(contactId, entry);
+      return true;
     }
 
     entry.count++;
@@ -438,7 +439,7 @@ export class Gateway {
     const userJid = this.whatsapp.userJid;
     if (!userJid) return false;
     // msg.to is the recipient — if it matches own JID, it's self-chat
-    return msg.to === userJid || msg.to === userJid.replace('@s.whatsapp.net', '@s.whatsapp.net');
+    return msg.to === userJid;
   }
 
   /**
@@ -538,13 +539,13 @@ Pesan dari owner: "${text}"`,
         }
 
         case '/pause': {
-          this._paused = true;
+          this.setPaused(true);
           await this.whatsapp.sendMessage(msg.from, `⏸️ ${sc.pause_done}`);
           break;
         }
 
         case '/resume': {
-          this._paused = false;
+          this.setPaused(false);
           await this.whatsapp.sendMessage(msg.from, `▶️ ${sc.resume_done}`);
           break;
         }

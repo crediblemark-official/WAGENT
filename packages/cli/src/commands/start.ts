@@ -192,10 +192,15 @@ export async function startCommand(options: { port?: string; dashboard?: boolean
     console.log('');
 
     let lastQrTime = 0;
+    let everConnected = false;
     bus.on('qr:received', (e: any) => {
       const now = Date.now();
       // Debounce tampilan QR di terminal agar tidak terlalu rapat (tiap 15 detik)
       if (now - lastQrTime > 15000) {
+        // Jangan tampilkan pesan "memerlukan pemindaian" jika sesi pernah/sudah terhubung
+        // (QR bisa muncul sesaat saat reconnect walaupun sesi valid — ini false positive)
+        if (everConnected) return;
+
         lastQrTime = now;
         qrWasShown = true;
 
@@ -231,6 +236,7 @@ export async function startCommand(options: { port?: string; dashboard?: boolean
       if (shuttingDown) return; // Jangan cetak status saat proses shutdown
       const status = e.status;
       if (status === 'connected') {
+        everConnected = true;
         console.log(color.green('  ✓ WhatsApp terhubung!'));
 
         // Jika QR sempat muncul (artinya sesi fresh pairing/scan), otomatis hand-off ke background service

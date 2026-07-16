@@ -81,7 +81,7 @@ export function saveContact(db: BetterSqlite3.Database, contact: Contact): void 
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
     ON CONFLICT(id) DO UPDATE SET
       name = COALESCE(NULLIF(EXCLUDED.name, ''), contacts.name),
-      push_name = COALESCE(EXCLUDED.push_name, contacts.push_name),
+      push_name = COALESCE(NULLIF(EXCLUDED.push_name, ''), contacts.push_name),
       avatar = COALESCE(EXCLUDED.avatar, contacts.avatar),
       last_seen = COALESCE(EXCLUDED.last_seen, contacts.last_seen),
       tags = COALESCE(EXCLUDED.tags, contacts.tags),

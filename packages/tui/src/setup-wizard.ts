@@ -350,12 +350,12 @@ export async function setupWizard(): Promise<void> {
     // Manual run — start gateway in foreground so QR appears
     spawnSync('systemctl', ['--user', 'stop', 'wagent'], { encoding: 'utf-8', stdio: 'pipe' });
 
-    // Hapus session lama agar Baileys pasti generate QR baru
+    // Hapus session lama agar Baileys pasti generate QR baru (hanya jika user ganti session)
     try {
       const { existsSync: fsExists, rmSync: fsRm } = await import('fs');
       const { join: pathJoin } = await import('path');
       const sessionDir = pathJoin(process.cwd(), '.sessions', config.session);
-      if (fsExists(sessionDir)) {
+      if (!skipSession && fsExists(sessionDir)) {
         fsRm(sessionDir, { recursive: true, force: true });
         console.log(color.dim(`  Session lama dihapus → QR baru akan muncul`));
       }
@@ -417,13 +417,14 @@ export async function setupWizard(): Promise<void> {
 
 function parseJsonc(content: string): any {
   try {
-    let cleaned = content.replace(/\/\/.*$/gm, (match) => {
-      const idx = content.indexOf(match);
-      const before = content.substring(0, idx);
+    // Strip single-line comments outside strings
+    const stripped = content.replace(/\/\/.*$/gm, (match, _offset, str) => {
+      const idx = str.indexOf(match);
+      const before = str.substring(0, idx);
       const openQuotes = (before.match(/"/g) || []).length;
       return openQuotes % 2 === 0 ? '' : match;
     });
-    cleaned = cleaned.replace(/\/\*[\s\S]*?\*\//g, '');
+    let cleaned = stripped.replace(/\/\*[\s\S]*?\*\//g, '');
     cleaned = cleaned.replace(/,\s*([}\]])/g, '$1');
     return JSON.parse(cleaned);
   } catch {
@@ -455,8 +456,8 @@ function generateJsonConfig(config: WizardConfig, providers: any): string {
   providerEntries.forEach(([pId, pConfig]: [string, any], index) => {
     lines.push(`    "${pId}": {`);
     const fields: string[] = [];
-    if (pConfig.apiKey) fields.push(`      "apiKey": "${pConfig.apiKey}"`);
-    if (pConfig.baseUrl) fields.push(`      "baseUrl": "${pConfig.baseUrl}"`);
+    if (pConfig.apiKey) fields.push(`      "apiKey": "${escapeJson(pConfig.apiKey)}"`);
+    if (pConfig.baseUrl) fields.push(`      "baseUrl": "${escapeJson(pConfig.baseUrl)}"`);
     if (fields.length) lines.push(fields.join(',\n'));
     lines.push(index === providerEntries.length - 1 ? '    }' : '    },');
   });

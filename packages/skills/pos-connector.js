@@ -299,7 +299,7 @@ export default function createPOSConnectorSkill() {
         },
         handler: async (args, context) => {
           try {
-            const updateData: any = { status: args.status };
+            const updateData = { status: args.status };
             if (args.resi) updateData.tracking_number = args.resi;
 
             await callAPI(

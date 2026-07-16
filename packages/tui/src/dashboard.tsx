@@ -190,7 +190,7 @@ export function Dashboard({ version, model, dashboardUrl, sessionName, onConnect
         setStats(prev => ({ total: prev.total + 1, today: prev.today + 1 }));
       };
     }
-  });
+  }, []);
 
   return (
     <Box flexDirection="column" paddingX={1} paddingY={0}>

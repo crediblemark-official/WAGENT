@@ -704,26 +704,18 @@ function generatePersonalityPrompt(answers: PromptAnswers): string {
   const lines: string[] = [];
 
   lines.push('tones:');
-  lines.push('  casual:');
-  lines.push('    description: santai dan natural');
-  lines.push('    instruction: Gunakan bahasa yang santai dan natural. Boleh pakai slang dan bahasa sehari-hari.');
-  lines.push('');
-  lines.push('  formal:');
-  lines.push('    description: formal dan sopan');
-  lines.push('    instruction: Gunakan bahasa yang formal dan sopan. Hindari slang dan singkatan.');
-  lines.push('');
-  lines.push('  professional:');
-  lines.push('    description: profesional dan ramah');
-  lines.push('    instruction: Gunakan bahasa profesional namun tetap ramah. Seimbang antara formal dan santai.');
-  lines.push('');
-  lines.push('  friendly:');
-  lines.push('    description: ramah dan hangat');
-  lines.push('    instruction: Gunakan bahasa yang ramah dan hangat. Gunakan emoji secukupnya.');
-  lines.push('');
-  lines.push('  mixed:');
-  lines.push('    description: adaptif mengikuti lawan bicara');
-  lines.push('    instruction: Sesuaikan gaya dengan konteks percakapan. Ikuti gaya dari lawan bicara.');
-  lines.push('');
+  const toneInstructions: Record<string, string> = {
+    casual: 'santai dan natural',
+    formal: 'formal dan sopan',
+    professional: 'profesional dan ramah',
+    friendly: 'ramah dan hangat',
+  };
+  for (const [key, desc] of Object.entries(toneInstructions)) {
+    lines.push(`  ${key}:`);
+    lines.push(`    description: ${desc}`);
+    lines.push(`    instruction: Gunakan bahasa ${desc}.`);
+    lines.push('');
+  }
 
   lines.push('emoji:');
   lines.push('  rare: Hindari emoji.');

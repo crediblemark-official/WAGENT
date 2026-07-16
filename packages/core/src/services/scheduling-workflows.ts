@@ -1,4 +1,6 @@
 import { Logger } from 'pino';
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
+import { join, dirname } from 'path';
 import { Database } from '../storage/index.js';
 import { EventBus } from '../utils/event-bus.js';
 import { getLogger } from '../utils/logger.js';
@@ -55,12 +57,22 @@ export class SchedulingWorkflows {
   private activeRuns: Map<string, SequenceRun> = new Map();
   private timer: ReturnType<typeof setInterval> | null = null;
   private checkIntervalMs = 60_000; // Check every minute
+  private persistPath: string;
 
   constructor(
     private db: Database,
-    private eventBus: EventBus
+    private eventBus: EventBus,
+    persistPath?: string
   ) {
     this.logger = getLogger().child({ module: 'scheduling-workflows' });
+    this.persistPath = persistPath || join(process.cwd(), 'data', 'scheduling-workflows.json');
+
+    const dir = dirname(this.persistPath);
+    if (!existsSync(dir)) {
+      mkdirSync(dir, { recursive: true });
+    }
+
+    this.load();
   }
 
   /**
@@ -95,6 +107,7 @@ export class SchedulingWorkflows {
     };
 
     this.sequences.set(id, fullSequence);
+    this.save();
     this.logger.info({ id, name: sequence.name }, 'Follow-up sequence created');
 
     return fullSequence;
@@ -147,6 +160,7 @@ export class SchedulingWorkflows {
     };
 
     this.activeRuns.set(run.id, run);
+    this.save();
 
     this.logger.info(
       { runId: run.id, sequence: sequence.name, contact: contactName },
@@ -164,6 +178,7 @@ export class SchedulingWorkflows {
     if (run) {
       run.status = 'cancelled';
       this.activeRuns.delete(runId);
+      this.save();
       this.logger.info({ runId }, 'Sequence run cancelled');
       return true;
     }
@@ -200,6 +215,7 @@ export class SchedulingWorkflows {
         // Sequence completed
         run.status = 'completed';
         this.activeRuns.delete(runId);
+        this.save();
         this.logger.info({ runId }, 'Sequence completed');
         continue;
       }
@@ -262,12 +278,14 @@ export class SchedulingWorkflows {
       // Sequence completed
       run.status = 'completed';
       this.activeRuns.delete(run.id);
+      this.save();
       this.logger.info({ runId: run.id }, 'Sequence completed');
     } else {
       // Schedule next step
       const nextStep = sequence.steps[run.currentStep];
       run.nextRunAt = new Date(Date.now() + nextStep.delayHours * 60 * 60 * 1000);
       run.status = 'pending';
+      this.save();
     }
   }
 
@@ -338,6 +356,65 @@ export class SchedulingWorkflows {
       }
     }
 
-    return this.sequences.delete(id);
+    const deleted = this.sequences.delete(id);
+    if (deleted) this.save();
+    return deleted;
+  }
+
+  // ── Persistence ───────────────────────────────────────────────
+
+  private save(): void {
+    try {
+      const data = {
+        sequences: Array.from(this.sequences.values()).map(s => ({
+          ...s,
+          createdAt: s.createdAt.toISOString(),
+        })),
+        activeRuns: Array.from(this.activeRuns.values()).map(r => ({
+          ...r,
+          nextRunAt: r.nextRunAt.toISOString(),
+          lastSentAt: r.lastSentAt?.toISOString(),
+          createdAt: r.createdAt.toISOString(),
+        })),
+      };
+      writeFileSync(this.persistPath, JSON.stringify(data, null, 2), 'utf-8');
+    } catch (err: any) {
+      this.logger.warn({ error: err.message }, 'Failed to persist scheduling workflows');
+    }
+  }
+
+  private load(): void {
+    try {
+      if (!existsSync(this.persistPath)) return;
+      const content = readFileSync(this.persistPath, 'utf-8');
+      const data = JSON.parse(content) as any;
+
+      if (data.sequences) {
+        for (const item of data.sequences) {
+          const sequence: FollowUpSequence = {
+            ...item,
+            createdAt: new Date(item.createdAt),
+          };
+          this.sequences.set(sequence.id, sequence);
+        }
+      }
+
+      if (data.activeRuns) {
+        for (const item of data.activeRuns) {
+          const run: SequenceRun = {
+            ...item,
+            nextRunAt: new Date(item.nextRunAt),
+            lastSentAt: item.lastSentAt ? new Date(item.lastSentAt) : undefined,
+            createdAt: new Date(item.createdAt),
+          };
+          this.activeRuns.set(run.id, run);
+        }
+      }
+
+      this.logger.info('Loaded %d sequences and %d active runs from disk',
+        this.sequences.size, this.activeRuns.size);
+    } catch (err: any) {
+      this.logger.warn({ error: err.message }, 'Failed to load scheduling workflows');
+    }
   }
 }

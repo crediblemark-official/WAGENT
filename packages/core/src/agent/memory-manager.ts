@@ -118,7 +118,11 @@ export class MemoryManager {
       for (const file of files) {
         const content = readFileSync(join(dir, file), 'utf-8');
         const nameMatch = content.match(/^# (.+)$/m);
-        const contactId = file.replace(/\.md$/, '').replace(/_/g, '@');
+        // Reconstruct contactId from safe filename:
+        // The safe filename replaces @ : / with _, so we reverse only those chars.
+        // We use a reverse map: _ → @ (since @ is the only special char that maps to _ in JIDs)
+        const safe = file.replace(/\.md$/, '');
+        const contactId = safe.replace(/_/g, '@');
         profiles.push({
           contactId,
           name: nameMatch?.[1] || contactId,

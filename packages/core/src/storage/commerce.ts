@@ -70,8 +70,8 @@ export function trimConversation(db: BetterSqlite3.Database, contactId: string, 
   if (count.count > maxEntries) {
     const excess = count.count - maxEntries;
     db.prepare(`
-      DELETE FROM conversations WHERE contact_id = ? AND created_at IN (
-        SELECT created_at FROM conversations WHERE contact_id = ? ORDER BY created_at ASC LIMIT ?
+      DELETE FROM conversations WHERE contact_id = ? AND id IN (
+        SELECT id FROM conversations WHERE contact_id = ? ORDER BY created_at ASC LIMIT ?
       )
     `).run(contactId, contactId, excess);
   }
