@@ -1,5 +1,5 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync } from 'fs';
-import { join } from 'path';
+import { join, extname } from 'path';
 import color from 'picocolors';
 import { SkillLoader } from '@wagent/core';
 
@@ -16,7 +16,7 @@ export async function listSkills(): Promise<void> {
 
   if (skills.length === 0) {
     console.log(color.dim('  Tidak ada skill terinstall.'));
-    console.log(color.dim(`  Letakkan file .js skill di: ${SKILLS_DIR}`));
+    console.log(color.dim(`  Letakkan file .ts atau .js skill di: ${SKILLS_DIR}`));
     console.log(color.dim('  Atau install: wagent skill install <path>'));
     console.log('');
     return;
@@ -45,7 +45,8 @@ export async function installSkill(skillPath: string): Promise<void> {
     mkdirSync(SKILLS_DIR, { recursive: true });
   }
 
-  const filename = `skill-${Date.now()}.js`;
+  const ext = extname(resolvedPath) || '.ts';
+  const filename = `skill-${Date.now()}${ext}`;
   const destPath = join(SKILLS_DIR, filename);
 
   const content = readFileSync(resolvedPath, 'utf-8');

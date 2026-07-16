@@ -53,7 +53,7 @@ export class SkillLoader {
 
     const entries = readdirSync(this.skillsDir);
     const skillFiles = entries.filter(f =>
-      (f.endsWith('.js') || f.endsWith('.mjs')) &&
+      (f.endsWith('.js') || f.endsWith('.mjs') || f.endsWith('.ts')) &&
       statSync(join(this.skillsDir, f)).isFile()
     );
 
@@ -107,7 +107,7 @@ export class SkillLoader {
       const entry = this.skillsDir;
       const files = readdirSync(entry);
       for (const file of files) {
-        if (file.endsWith('.js') || file.endsWith('.mjs')) {
+        if (file.endsWith('.js') || file.endsWith('.mjs') || file.endsWith('.ts')) {
           const filePath = join(entry, file);
           const cacheBustPath = `${filePath}?t=${Date.now()}`;
           const module = await import(cacheBustPath);
@@ -136,7 +136,7 @@ export class SkillLoader {
   async findSkillFile(name: string): Promise<string | null> {
     if (!existsSync(this.skillsDir)) return null;
     const files = readdirSync(this.skillsDir).filter(f =>
-      (f.endsWith('.js') || f.endsWith('.mjs')) &&
+      (f.endsWith('.js') || f.endsWith('.mjs') || f.endsWith('.ts')) &&
       statSync(join(this.skillsDir, f)).isFile()
     );
     for (const file of files) {

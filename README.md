@@ -202,7 +202,7 @@ wagent service disable
 
 # Buat skill untuk integrasi API klien
 mkdir -p skills
-cat > skills/client-api.js << 'EOF'
+cat > skills/client-api.ts << 'EOF'
 export default () => ({
   manifest: { name: 'client-api', version: '1.0.0', description: 'Client API integration' },
   tools: [{
@@ -261,7 +261,7 @@ EOF
 ```bash
 # Buat skill custom
 mkdir -p skills
-cat > skills/my-skill.js << 'EOF'
+cat > skills/my-skill.ts << 'EOF'
 export default () => ({
   manifest: { name: 'my-skill', version: '1.0.0', description: 'Custom skill' },
   tools: [{
