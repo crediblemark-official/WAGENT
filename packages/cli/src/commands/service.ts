@@ -91,7 +91,7 @@ export function serviceInstall(): boolean {
     '',
     '[Service]',
     'Type=simple',
-    'WorkingDirectory=%h',
+    `WorkingDirectory=${process.cwd()}`,
     `ExecStart=${wagentBin} start`,
     'Restart=always',
     'RestartSec=10',
@@ -139,7 +139,11 @@ function ensureServiceUpdated(serviceFile: string): void {
   } else {
     try {
       const content = readFileSync(serviceFile, 'utf-8');
-      if (content.includes('Restart=on-failure') || !content.includes('WAGENT_SERVICE=1')) {
+      if (
+        content.includes('Restart=on-failure') ||
+        !content.includes('WAGENT_SERVICE=1') ||
+        !content.includes(`WorkingDirectory=${process.cwd()}`)
+      ) {
         console.log(color.cyan(`  ⚙ Memperbarui unit file wagent.service ke format terbaru (Restart=always)...`));
         serviceInstall();
       }
