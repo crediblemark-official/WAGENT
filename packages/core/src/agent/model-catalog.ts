@@ -216,10 +216,10 @@ async function loadCatalog(): Promise<CatalogCache> {
     try {
       const data = JSON.parse(readFileSync(CACHE_FILE, 'utf-8')) as CatalogCache;
       if (Date.now() - data.timestamp < CACHE_DURATION) {
-        // Validate cache isn't corrupted (e.g., synthetic "p0"/"Provider 0" entries)
+        // Validate cache isn't corrupted (e.g., ALL entries are synthetic "p0"/"Provider 0")
         const providerIds = Object.keys(data.providers || {});
-        const hasRealProviders = providerIds.some(id => !/^p\d+$/.test(id) && !/^Provider \d+$/.test(data.providers[id]?.name));
-        if (hasRealProviders || providerIds.length === 0) {
+        const allSynthetic = providerIds.length > 0 && providerIds.every(id => /^p\d+$/.test(id) && /^Provider \d+$/.test(data.providers[id]?.name));
+        if (!allSynthetic) {
           cache = data;
           return cache;
         }
@@ -256,11 +256,7 @@ async function refreshCatalog(): Promise<void> {
       if (!providerData || typeof providerData !== 'object' || !providerData.name) continue;
       
       // Skip synthetic/test entries (e.g., "p0", "p1" with generic "Provider 0" names)
-      if (/^p\d+$/.test(id)) continue;
-      if (/^Provider \d+$/.test(providerData.name)) continue;
-      
-      // Real providers have at least one of: npm, env, api
-      if (!providerData.npm && !providerData.env && !providerData.api) continue;
+      if (/^p\d+$/.test(id) && /^Provider \d+$/.test(providerData.name)) continue;
       
       providers[id] = {
         id,
