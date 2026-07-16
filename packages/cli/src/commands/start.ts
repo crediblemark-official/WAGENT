@@ -149,8 +149,11 @@ export async function startCommand(options: { port?: string; dashboard?: boolean
       }
     }
 
-    // Redam QR dari qrcode-terminal — kita tampilkan sendiri lewat event bus
-    process.env.WAGENT_DASHBOARD = '1';
+    // Redam QR dari qrcode-terminal hanya jika dashboard aktif
+    // Jika tanpa dashboard, QR tetap tampil di terminal
+    if (dashboard) {
+      process.env.WAGENT_DASHBOARD = '1';
+    }
 
     // Load skills untuk AI agent
     const skillLoader = new SkillLoader();
@@ -192,7 +195,13 @@ export async function startCommand(options: { port?: string; dashboard?: boolean
     bus.on('qr:received', (e: any) => {
       if (!qrWasShown) {
         qrWasShown = true;
-        console.log(color.cyan('  📱 Sesi WhatsApp memerlukan pemindaian. Silakan buka Web Dashboard untuk memindai QR Code.'));
+        if (dashboard) {
+          // Ada dashboard — arahkan user ke web dashboard
+          const displayHost = config.dashboardHost === '0.0.0.0' ? 'localhost' : config.dashboardHost;
+          console.log(color.cyan(`  📱 Sesi WhatsApp memerlukan pemindaian. Silakan buka Web Dashboard untuk memindai QR Code.`));
+          console.log(color.cyan(`     Dashboard: http://${displayHost}:${config.dashboardPort}`));
+        }
+        // Jika tanpa dashboard: QR sudah otomatis tampil di terminal via whatsapp/client.ts
       }
     });
 

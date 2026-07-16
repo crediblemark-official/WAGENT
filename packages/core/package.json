@@ -1,6 +1,6 @@
 {
   "name": "@wagent/core",
-  "version": "0.2.26",
+  "version": "0.2.27",
   "description": "WAGENT Core - Gateway, Agent Engine, Memory",
   "type": "module",
   "main": "./dist/index.js",
