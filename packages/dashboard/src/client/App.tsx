@@ -195,6 +195,36 @@ export function App() {
 
       {/* Main Content */}
       <main style={styles.main}>
+        {connectionStatus === 'qr' && currentPage !== 'numbers' && (
+          <div style={{
+            background: 'var(--tag-bg)',
+            borderBottom: '1px solid var(--border-color)',
+            padding: '10px 20px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            boxSizing: 'border-box',
+          }}>
+            <span style={{ fontSize: 13, color: 'var(--text-main)', fontWeight: 500 }}>
+              ⚠️ Sesi WhatsApp Anda memerlukan pemindaian QR Code.
+            </span>
+            <button 
+              onClick={() => setCurrentPage('numbers')}
+              style={{
+                background: 'var(--text-active)',
+                color: '#fff',
+                border: 'none',
+                padding: '6px 14px',
+                borderRadius: 20,
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              Pindai Sekarang
+            </button>
+          </div>
+        )}
         {renderPage()}
       </main>
     </div>

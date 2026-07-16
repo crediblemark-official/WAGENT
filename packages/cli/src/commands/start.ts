@@ -1,5 +1,7 @@
 import { createServer } from 'net';
 import color from 'picocolors';
+// @ts-ignore
+import qrcode from 'qrcode-terminal';
 import {
   loadConfig,
   ensureDirectories,
@@ -192,16 +194,23 @@ export async function startCommand(options: { port?: string; dashboard?: boolean
     console.log('');
 
     // Listener untuk QR Code
+    let lastQrTime = 0;
     bus.on('qr:received', (e: any) => {
-      if (!qrWasShown) {
+      const now = Date.now();
+      // Debounce tampilan QR di terminal agar tidak terlalu rapat (tiap 15 detik)
+      if (now - lastQrTime > 15000) {
+        lastQrTime = now;
         qrWasShown = true;
+        
         if (dashboard) {
-          // Ada dashboard — arahkan user ke web dashboard
           const displayHost = config.dashboardHost === '0.0.0.0' ? 'localhost' : config.dashboardHost;
-          console.log(color.cyan(`  📱 Sesi WhatsApp memerlukan pemindaian. Silakan buka Web Dashboard untuk memindai QR Code.`));
+          console.log('');
+          console.log(color.cyan(`  📱 Sesi WhatsApp memerlukan pemindaian. Scan QR Code di bawah atau buka Web Dashboard.`));
           console.log(color.cyan(`     Dashboard: http://${displayHost}:${config.dashboardPort}`));
+          console.log('');
+          qrcode.generate(e.qr, { small: true });
+          console.log('');
         }
-        // Jika tanpa dashboard: QR sudah otomatis tampil di terminal via whatsapp/client.ts
       }
     });
 
