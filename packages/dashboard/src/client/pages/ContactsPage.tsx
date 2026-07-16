@@ -78,8 +78,8 @@ export function ContactsPage({ ws }: { ws: ReturnType<typeof useWebSocket> }) {
                 {selected.name.charAt(0)}
               </div>
               <div>
-                <h3 style={{ fontSize: 18, fontWeight: 600, color: '#f1f5f9' }}>{selected.name}</h3>
-                <p style={{ fontSize: 14, color: '#64748b' }}>{formatPhone(selected.id)}</p>
+                <h3 style={{ fontSize: 18, fontWeight: 600, color: 'var(--text-heading)' }}>{selected.name}</h3>
+                <p style={{ fontSize: 14, color: 'var(--text-subtle)' }}>{formatPhone(selected.id)}</p>
               </div>
             </div>
 
@@ -123,7 +123,7 @@ export function ContactsPage({ ws }: { ws: ReturnType<typeof useWebSocket> }) {
         ) : (
           <div style={styles.emptyState}>
             <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#334155" strokeWidth="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-            <p style={{ color: '#475569', marginTop: 16 }}>Pilih kontak untuk lihat detail</p>
+            <p style={{ color: 'var(--text-subtle)', marginTop: 16 }}>Pilih kontak untuk lihat detail</p>
           </div>
         )}
       </div>
@@ -133,22 +133,22 @@ export function ContactsPage({ ws }: { ws: ReturnType<typeof useWebSocket> }) {
 
 const styles: Record<string, React.CSSProperties> = {
   container: { display: 'flex', height: '100%' },
-  listPanel: { width: 360, borderRight: '1px solid #1e2030', display: 'flex', flexDirection: 'column', flexShrink: 0 },
-  header: { padding: '16px 20px', borderBottom: '1px solid #1e2030', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
-  title: { fontSize: 16, fontWeight: 600, color: '#f1f5f9' },
-  count: { fontSize: 12, color: '#94a3b8', background: '#1e2030', padding: '2px 8px', borderRadius: 10 },
-  searchInput: { margin: '12px 16px', padding: '10px 14px', borderRadius: 8, border: '1px solid #1e2030', background: '#0f1117', color: '#e2e8f0', fontSize: 13, outline: 'none' },
-  contactItem: { display: 'flex', gap: 12, padding: '10px 20px', border: 'none', background: 'transparent', color: '#e2e8f0', cursor: 'pointer', width: '100%', textAlign: 'left' as const, borderBottom: '1px solid #1a1c2e', alignItems: 'center' },
+  listPanel: { width: 360, borderRight: '1px solid var(--surface-border)', display: 'flex', flexDirection: 'column', flexShrink: 0 },
+  header: { padding: '16px 20px', borderBottom: '1px solid var(--surface-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+  title: { fontSize: 16, fontWeight: 600, color: 'var(--text-heading)' },
+  count: { fontSize: 12, color: 'var(--text-subtle)', background: 'var(--surface-border)', padding: '2px 8px', borderRadius: 10 },
+  searchInput: { margin: '12px 16px', padding: '10px 14px', borderRadius: 8, border: '1px solid var(--surface-border)', background: 'var(--input-bg)', color: 'var(--text-body)', fontSize: 13, outline: 'none' },
+  contactItem: { display: 'flex', gap: 12, padding: '10px 20px', border: 'none', background: 'transparent', color: 'var(--text-body)', cursor: 'pointer', width: '100%', textAlign: 'left' as const, borderBottom: '1px solid var(--divider)', alignItems: 'center' },
   contactItemActive: { background: 'rgba(139, 92, 246, 0.08)' },
   avatar: { width: 40, height: 40, borderRadius: '50%', background: 'linear-gradient(135deg, #8b5cf6, #6366f1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 600, color: '#fff', flexShrink: 0 },
-  contactName: { fontSize: 14, fontWeight: 500, color: '#f1f5f9' },
-  contactNumber: { fontSize: 12, color: '#64748b', marginTop: 1 },
+  contactName: { fontSize: 14, fontWeight: 500, color: 'var(--text-heading)' },
+  contactNumber: { fontSize: 12, color: 'var(--text-subtle)', marginTop: 1 },
   tagChip: { fontSize: 11, padding: '2px 8px', borderRadius: 10, background: 'rgba(139, 92, 246, 0.1)', color: '#8b5cf6', flexShrink: 0 },
   detailPanel: { flex: 1, overflow: 'auto' },
   infoGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 },
-  infoItem: { padding: '12px 16px', background: '#161822', borderRadius: 8, border: '1px solid #1e2030' },
-  label: { fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase' as const, letterSpacing: '0.05em' },
-  value: { fontSize: 14, color: '#e2e8f0', marginTop: 4 },
+  infoItem: { padding: '12px 16px', background: 'var(--surface-bg)', borderRadius: 8, border: '1px solid var(--surface-border)' },
+  label: { fontSize: 11, fontWeight: 600, color: 'var(--text-subtle)', textTransform: 'uppercase' as const, letterSpacing: '0.05em' },
+  value: { fontSize: 14, color: 'var(--text-body)', marginTop: 4 },
   tag: { fontSize: 12, padding: '4px 10px', borderRadius: 12, background: 'rgba(99, 102, 241, 0.1)', color: '#818cf8' },
   emptyState: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' },
 };

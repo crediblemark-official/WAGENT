@@ -218,7 +218,12 @@ async function loadCatalog(): Promise<CatalogCache> {
       if (Date.now() - data.timestamp < CACHE_DURATION) {
         // Validate cache isn't corrupted (e.g., ALL entries are synthetic "p0"/"Provider 0")
         const providerIds = Object.keys(data.providers || {});
-        const allSynthetic = providerIds.length > 0 && providerIds.every(id => /^p\d+$/.test(id) && /^Provider \d+$/.test(data.providers[id]?.name));
+        const isSyntheticId = (id: string) => /^p(rov)?\d+$/.test(id);
+        const isSyntheticName = (name: string) => /^Provider \d+$/.test(name || '');
+        const allSynthetic = providerIds.length > 0 && providerIds.every(id => {
+          const p = data.providers[id];
+          return isSyntheticId(id) && isSyntheticName(p?.name);
+        });
         if (!allSynthetic) {
           cache = data;
           return cache;
@@ -255,8 +260,8 @@ async function refreshCatalog(): Promise<void> {
       // Skip entries that don't look like valid providers
       if (!providerData || typeof providerData !== 'object' || !providerData.name) continue;
       
-      // Skip synthetic/test entries (e.g., "p0", "p1" with generic "Provider 0" names)
-      if (/^p\d+$/.test(id) && /^Provider \d+$/.test(providerData.name)) continue;
+       // Skip synthetic/test entries (e.g., "p0"/"prov0" with generic "Provider 0" names)
+       if (/^p(rov)?\d+$/.test(id) && /^Provider \d+$/.test(providerData.name || '')) continue;
       
       providers[id] = {
         id,

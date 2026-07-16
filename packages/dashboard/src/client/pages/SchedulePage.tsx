@@ -130,8 +130,8 @@ export function SchedulePage({ ws }: { ws: ReturnType<typeof useWebSocket> }) {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <div>
-          <h2 style={{ fontSize: 18, fontWeight: 600, color: '#f1f5f9' }}>Pesan Terjadwal</h2>
-          <p style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>
+          <h2 style={{ fontSize: 18, fontWeight: 600, color: 'var(--text-heading)' }}>Pesan Terjadwal</h2>
+          <p style={{ fontSize: 13, color: 'var(--text-subtle)', marginTop: 4 }}>
             Jadwalkan pesan otomatis ke kontak tertentu
           </p>
         </div>
@@ -150,13 +150,13 @@ export function SchedulePage({ ws }: { ws: ReturnType<typeof useWebSocket> }) {
 
       {/* Create Form */}
       {showForm && (
-        <div style={{
-          background: '#161822', borderRadius: 12, border: '1px solid #1e2030',
-          padding: 20, marginBottom: 24, display: 'flex', flexDirection: 'column', gap: 12,
-        }}>
+          <div style={{
+            background: 'var(--surface-bg)', borderRadius: 12, border: '1px solid var(--surface-border)',
+            padding: 20, marginBottom: 24, display: 'flex', flexDirection: 'column', gap: 12,
+          }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div>
-              <label style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', marginBottom: 6, display: 'block' }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-subtle)', marginBottom: 6, display: 'block' }}>
                 ID Kontak (JID)
               </label>
               <input
@@ -167,7 +167,7 @@ export function SchedulePage({ ws }: { ws: ReturnType<typeof useWebSocket> }) {
               />
             </div>
             <div>
-              <label style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', marginBottom: 6, display: 'block' }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-subtle)', marginBottom: 6, display: 'block' }}>
                 Nama Kontak
               </label>
               <input
@@ -180,8 +180,8 @@ export function SchedulePage({ ws }: { ws: ReturnType<typeof useWebSocket> }) {
           </div>
 
           <div>
-            <label style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', marginBottom: 6, display: 'block' }}>
-              Isi Pesan
+              <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-subtle)', marginBottom: 6, display: 'block' }}>
+                Isi Pesan
             </label>
             <textarea
               value={formData.content}
@@ -194,7 +194,7 @@ export function SchedulePage({ ws }: { ws: ReturnType<typeof useWebSocket> }) {
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
             <div>
-              <label style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', marginBottom: 6, display: 'block' }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-subtle)', marginBottom: 6, display: 'block' }}>
                 Tanggal
               </label>
               <input
@@ -205,7 +205,7 @@ export function SchedulePage({ ws }: { ws: ReturnType<typeof useWebSocket> }) {
               />
             </div>
             <div>
-              <label style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', marginBottom: 6, display: 'block' }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-subtle)', marginBottom: 6, display: 'block' }}>
                 Waktu
               </label>
               <input
@@ -216,7 +216,7 @@ export function SchedulePage({ ws }: { ws: ReturnType<typeof useWebSocket> }) {
               />
             </div>
             <div>
-              <label style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', marginBottom: 6, display: 'block' }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-subtle)', marginBottom: 6, display: 'block' }}>
                 Ulangi
               </label>
               <select
@@ -248,13 +248,13 @@ export function SchedulePage({ ws }: { ws: ReturnType<typeof useWebSocket> }) {
 
       {/* Upcoming Messages */}
       <div style={{ flex: 1, overflow: 'auto' }}>
-        <h3 style={{ fontSize: 14, fontWeight: 600, color: '#94a3b8', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+        <h3 style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-subtle)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
           Akan Datang ({upcoming.length})
         </h3>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24 }}>
           {upcoming.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: 24, color: '#475569' }}>
-              <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#334155" strokeWidth="1.5" style={{ margin: '0 auto 8px' }}>
+            <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-subtle)' }}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--text-subtle)" strokeWidth="1.5" style={{ margin: '0 auto 8px' }}>
                 <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
               </svg>
               <p style={{ fontSize: 13 }}>Belum ada jadwal</p>
@@ -262,13 +262,13 @@ export function SchedulePage({ ws }: { ws: ReturnType<typeof useWebSocket> }) {
           ) : (
             upcoming.map(msg => (
               <div key={msg.id} style={{
-                background: '#161822', borderRadius: 10, border: '1px solid #1e2030',
+                background: 'var(--surface-bg)', borderRadius: 10, border: '1px solid var(--surface-border)',
                 padding: '14px 18px',
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div style={{ flex: 1, marginRight: 16 }}>
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
-                      <span style={{ fontSize: 14, color: '#e2e8f0', fontWeight: 500 }}>{msg.contactName}</span>
+                      <span style={{ fontSize: 14, color: 'var(--text-body)', fontWeight: 500 }}>{msg.contactName}</span>
                       <span style={{
                         fontSize: 10, padding: '2px 8px', borderRadius: 6,
                         background: `${statusColors[msg.status]}20`,
@@ -277,8 +277,8 @@ export function SchedulePage({ ws }: { ws: ReturnType<typeof useWebSocket> }) {
                         {statusLabels[msg.status] || msg.status}
                       </span>
                     </div>
-                    <p style={{ fontSize: 13, color: '#94a3b8', marginBottom: 8 }}>{msg.content}</p>
-                    <div style={{ display: 'flex', gap: 16, fontSize: 11, color: '#64748b' }}>
+                    <p style={{ fontSize: 13, color: 'var(--text-subtle)', marginBottom: 8 }}>{msg.content}</p>
+                    <div style={{ display: 'flex', gap: 16, fontSize: 11, color: 'var(--text-subtle)' }}>
                       <span>📅 {formatTime(msg.scheduledAt)}</span>
                       {msg.repeat !== 'none' && <span>🔄 {repeatLabels[msg.repeat]}</span>}
                       {msg.sentCount > 0 && <span>✅ Terkirim: {msg.sentCount}x</span>}
@@ -291,7 +291,7 @@ export function SchedulePage({ ws }: { ws: ReturnType<typeof useWebSocket> }) {
                       </button>
                     )}
                     <button onClick={() => handleDelete(msg.id)} style={iconBtnStyle} title="Hapus">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-subtle)" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                     </button>
                   </div>
                 </div>
@@ -303,19 +303,19 @@ export function SchedulePage({ ws }: { ws: ReturnType<typeof useWebSocket> }) {
         {/* History */}
         {history.length > 0 && (
           <>
-            <h3 style={{ fontSize: 14, fontWeight: 600, color: '#94a3b8', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            <h3 style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-subtle)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               Riwayat ({history.length})
             </h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {history.map(msg => (
                 <div key={msg.id} style={{
-                  background: '#161822', borderRadius: 10, border: '1px solid #1e2030',
+                  background: 'var(--surface-bg)', borderRadius: 10, border: '1px solid var(--surface-border)',
                   padding: '12px 18px', opacity: 0.7,
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
                       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4 }}>
-                        <span style={{ fontSize: 13, color: '#e2e8f0' }}>{msg.contactName}</span>
+                        <span style={{ fontSize: 13, color: 'var(--text-body)' }}>{msg.contactName}</span>
                         <span style={{
                           fontSize: 10, padding: '1px 6px', borderRadius: 6,
                           background: `${statusColors[msg.status]}20`,
@@ -324,9 +324,9 @@ export function SchedulePage({ ws }: { ws: ReturnType<typeof useWebSocket> }) {
                           {statusLabels[msg.status] || msg.status}
                         </span>
                       </div>
-                      <p style={{ fontSize: 12, color: '#64748b' }}>{msg.content.substring(0, 60)}{msg.content.length > 60 ? '...' : ''}</p>
+                      <p style={{ fontSize: 12, color: 'var(--text-subtle)' }}>{msg.content.substring(0, 60)}{msg.content.length > 60 ? '...' : ''}</p>
                     </div>
-                    <div style={{ fontSize: 11, color: '#475569' }}>
+                    <div style={{ fontSize: 11, color: 'var(--text-subtle)' }}>
                       {formatTime(msg.scheduledAt)} {msg.repeat !== 'none' && `· ${repeatLabels[msg.repeat]}`}
                     </div>
                   </div>
@@ -341,8 +341,8 @@ export function SchedulePage({ ws }: { ws: ReturnType<typeof useWebSocket> }) {
 }
 
 const inputStyle: React.CSSProperties = {
-  width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #1e2030',
-  background: '#0f1117', color: '#e2e8f0', fontSize: 13, outline: 'none',
+  width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid var(--surface-border)',
+  background: 'var(--input-bg)', color: 'var(--text-body)', fontSize: 13, outline: 'none',
   boxSizing: 'border-box' as const,
 };
 

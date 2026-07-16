@@ -11,6 +11,7 @@ import {
   Message,
   Contact,
   AudioMessageData,
+  ImageMessageData,
 } from '../types.js';
 import { getLogger } from '../utils/logger.js';
 
@@ -113,13 +114,46 @@ export class MultiWhatsAppAdapter implements WhatsAppAdapter {
   }
 
   downloadAudio?(msg: any): Promise<AudioMessageData> {
-    // Audio download is handled per-adapter; msg should contain numberId
-    const numberId = msg?.numberId || 'default';
+    const numberId = this.resolveNumberId(msg);
     const adapter = this.adapters.get(numberId);
     if (adapter?.downloadAudio) {
       return adapter.downloadAudio(msg);
     }
     throw new Error(`No download method for number ${numberId}`);
+  }
+
+  downloadImage?(msg: any): Promise<ImageMessageData> {
+    const numberId = this.resolveNumberId(msg);
+    const adapter = this.adapters.get(numberId);
+    if (adapter?.downloadImage) {
+      return adapter.downloadImage(msg);
+    }
+    throw new Error(`No download method for number ${numberId}`);
+  }
+
+  /**
+   * Resolve which adapter/numberId owns a raw Baileys message.
+   * The incoming message carries numberId in metadata (when routed through
+   * enrichEvent) or via key.remoteJid in the JID routing table. Falls back to
+   * the first connected adapter when no match is found.
+   */
+  private resolveNumberId(msg: any): string {
+    const fromTop = msg?.numberId;
+    if (fromTop && this.adapters.has(fromTop)) return fromTop;
+
+    const fromMeta = msg?.metadata?.numberId;
+    if (fromMeta && this.adapters.has(fromMeta)) return fromMeta;
+
+    const remoteJid = msg?.key?.remoteJid || msg?.message?.key?.remoteJid;
+    if (remoteJid) {
+      const routed = this.jidRouteTable.get(remoteJid);
+      if (routed && this.adapters.has(routed)) return routed;
+    }
+
+    for (const [id, adapter] of this.adapters) {
+      if (adapter.isConnected()) return id;
+    }
+    return 'default';
   }
 
   async sendPresenceUpdate(type: 'composing' | 'paused' | 'available' | 'unavailable', toJid?: string): Promise<void> {

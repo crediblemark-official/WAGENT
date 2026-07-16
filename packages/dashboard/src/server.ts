@@ -827,7 +827,21 @@ export class DashboardServer implements DashboardAdapter {
     if (this.isRunning) return;
 
     return new Promise((resolve) => {
+      const onError = (err: NodeJS.ErrnoException) => {
+        this.isRunning = false;
+        if (err.code === 'EADDRINUSE') {
+          this.logger.error(
+            `Dashboard port ${port} sudah digunakan. Jalankan dengan --port <lain> atau ubah dashboard.port di config. Dashboard tidak aktif, bot tetap jalan.`
+          );
+        } else {
+          this.logger.error(`Dashboard gagal start: ${err.message}`);
+        }
+        resolve();
+      };
+
+      this.server.once('error', onError);
       this.server.listen(port, host, () => {
+        this.server.removeListener('error', onError);
         this.isRunning = true;
         this.logger.info(`Dashboard running at http://${host}:${port}`);
         resolve();

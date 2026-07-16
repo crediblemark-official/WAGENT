@@ -42,12 +42,12 @@ const styles: Record<string, React.CSSProperties> = {
     height: '100%',
     display: 'flex',
     flexDirection: 'column',
-    backgroundColor: '#f8fafc',
+    backgroundColor: 'var(--surface-2)',
   },
   header: {
     padding: '16px 24px',
-    backgroundColor: '#fff',
-    borderBottom: '1px solid #e2e8f0',
+    backgroundColor: 'var(--surface-bg)',
+    borderBottom: '1px solid var(--surface-border)',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -55,7 +55,7 @@ const styles: Record<string, React.CSSProperties> = {
   title: {
     fontSize: '20px',
     fontWeight: '600',
-    color: '#1e293b',
+    color: 'var(--text-body)',
     margin: 0,
   },
   actions: {
@@ -79,8 +79,8 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '14px',
     fontWeight: '500',
     cursor: 'pointer',
-    backgroundColor: '#e2e8f0',
-    color: '#64748b',
+    backgroundColor: 'var(--hover-bg)',
+    color: 'var(--text-subtle)',
   },
   activeTab: {
     backgroundColor: '#3b82f6',
@@ -92,9 +92,9 @@ const styles: Record<string, React.CSSProperties> = {
     gap: '12px',
   },
   actionCard: {
-    backgroundColor: '#fff',
+    backgroundColor: 'var(--surface-bg)',
     borderRadius: '8px',
-    border: '1px solid #e2e8f0',
+    border: '1px solid var(--surface-border)',
     padding: '16px',
   },
   actionHeader: {
@@ -106,19 +106,19 @@ const styles: Record<string, React.CSSProperties> = {
   actionTitle: {
     fontSize: '16px',
     fontWeight: '600',
-    color: '#1e293b',
+    color: 'var(--text-body)',
     margin: 0,
   },
   actionDescription: {
     fontSize: '14px',
-    color: '#64748b',
+    color: 'var(--text-subtle)',
     marginBottom: '12px',
   },
   actionMeta: {
     display: 'flex',
     gap: '16px',
     fontSize: '13px',
-    color: '#94a3b8',
+    color: 'var(--text-subtle)',
     marginBottom: '12px',
   },
   actionButtons: {
@@ -146,7 +146,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   ghostButton: {
     backgroundColor: 'transparent',
-    color: '#64748b',
+    color: 'var(--text-subtle)',
   },
   badge: {
     padding: '4px 10px',
@@ -169,7 +169,7 @@ const styles: Record<string, React.CSSProperties> = {
   empty: {
     textAlign: 'center',
     padding: '40px',
-    color: '#94a3b8',
+    color: 'var(--text-subtle)',
   },
 };
 

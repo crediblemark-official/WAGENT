@@ -158,7 +158,7 @@ export function ChatPage({ ws, selectedChatId, onSelectChat }: Props) {
                     <span style={styles.humanBadge}>🟡 Human</span>
                   )}
                 </div>
-                <div style={{ fontSize: 12, color: '#64748b' }}>
+                <div style={{ fontSize: 12, color: 'var(--text-subtle)' }}>
                   {formatPhone(selectedChatId)}
                 </div>
               </div>
@@ -198,7 +198,7 @@ export function ChatPage({ ws, selectedChatId, onSelectChat }: Props) {
         ) : (
           <div style={styles.emptyState}>
             <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#334155" strokeWidth="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-            <p style={{ color: '#475569', marginTop: 16 }}>Pilih percakapan untuk mulai chat</p>
+            <p style={{ color: 'var(--text-subtle)', marginTop: 16 }}>Pilih percakapan untuk mulai chat</p>
           </div>
         )}
       </div>

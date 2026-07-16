@@ -627,80 +627,71 @@ describe('Gateway', () => {
       vi.mocked(existsSync).mockReturnValue(true);
     });
 
-    it('/status returns connection status info', async () => {
-      gw.setStatus('connected');
-      mockDb.getAllContacts.mockReturnValue([]);
+    it('self-chat message is escalation target (no Telegram forwarding)', async () => {
       mockSendMessage.mockResolvedValue({ id: 's1', content: '', timestamp: Date.now(), fromMe: true, to: 'user@whatsapp' });
 
       await eventHandler({ type: 'message:received', message: selfChatMsg('/status') });
 
-      expect(mockSendMessage).toHaveBeenCalledWith(
-        'user@whatsapp',
-        expect.stringContaining('Status: connected')
-      );
+      // Self-chat is the escalation target; no reply sent (just acknowledged)
+      expect(mockSendMessage).not.toHaveBeenCalled();
     });
 
-    it('/pause pauses the gateway', async () => {
-      mockSendMessage.mockResolvedValue({ id: 'p1', content: '', timestamp: Date.now(), fromMe: true, to: 'user@whatsapp' });
-
-      await eventHandler({ type: 'message:received', message: selfChatMsg('/pause') });
-
-      expect(gw.isPaused()).toBe(true);
-      expect(mockSendMessage).toHaveBeenCalledWith(
-        'user@whatsapp',
-        expect.stringContaining('di-pause')
-      );
-    });
-
-    it('/resume resumes the gateway', async () => {
-      gw.setPaused(true);
-      vi.clearAllMocks();
-      mockSendMessage.mockResolvedValue({ id: 'r1', content: '', timestamp: Date.now(), fromMe: true, to: 'user@whatsapp' });
-
-      await eventHandler({ type: 'message:received', message: selfChatMsg('/resume') });
-
-      expect(gw.isPaused()).toBe(false);
-      expect(mockSendMessage).toHaveBeenCalledWith(
-        'user@whatsapp',
-        expect.stringContaining('di-resume')
-      );
-    });
-
-    it('/help returns help text', async () => {
-      mockSendMessage.mockResolvedValue({ id: 'h1', content: '', timestamp: Date.now(), fromMe: true, to: 'user@whatsapp' });
-
-      await eventHandler({ type: 'message:received', message: selfChatMsg('/help') });
-
-      expect(mockSendMessage).toHaveBeenCalledWith(
-        'user@whatsapp',
-        expect.stringContaining('/status')
-      );
-    });
-
-    it('/stats returns statistics', async () => {
-      mockDb.getAllContacts.mockReturnValue([
-        { id: 'c1', name: 'Alice', number: '123', isGroup: false, createdAt: new Date(), updatedAt: new Date() },
-      ]);
-      mockSendMessage.mockResolvedValue({ id: 'st1', content: '', timestamp: Date.now(), fromMe: true, to: 'user@whatsapp' });
-
-      await eventHandler({ type: 'message:received', message: selfChatMsg('/stats') });
-
-      expect(mockSendMessage).toHaveBeenCalledWith(
-        'user@whatsapp',
-        expect.stringContaining('Total kontak: 1')
-      );
-    });
-
-    it('non-command self-chat message goes to agent', async () => {
-      mockProcessMessage.mockResolvedValueOnce({ response: 'Owner response', pendingMessages: [] });
+    it('non-command self-chat message is escalation target', async () => {
       mockSendMessage.mockResolvedValue({ id: 'nc1', content: '', timestamp: Date.now(), fromMe: true, to: 'user@whatsapp' });
 
-      const p = eventHandler({ type: 'message:received', message: selfChatMsg('Hello from owner') });
+      await eventHandler({ type: 'message:received', message: selfChatMsg('Hello from owner') });
+
+      // Self-chat is the escalation target; no reply sent
+      expect(mockSendMessage).not.toHaveBeenCalled();
+    });
+  });
+
+  // ── Delegation to self-chat ────────────────────────────────────
+
+  describe('delegation to self-chat', () => {
+    it('audio message escalates to owner self-chat (own WA number)', async () => {
+      mockProcessMessage.mockResolvedValue({ response: 'AI response', pendingMessages: [] });
+      mockSendMessage.mockResolvedValue({ id: 'd1', content: '', timestamp: Date.now(), fromMe: true, to: 'user@whatsapp' });
+      vi.clearAllMocks();
+      mockProcessMessage.mockResolvedValue({ response: 'AI response', pendingMessages: [] });
+
+      const msg = makeMessage({
+        from: 'cust@s.whatsapp.net',
+        type: 'audio',
+        content: '🎤 [Pesan Suara]',
+        metadata: { rawMessage: { message: { audioMessage: { ptt: true } } } },
+      });
+      const p = eventHandler({ type: 'message:received', message: msg });
       await flushWithTimers();
       await p;
 
-      expect(mockProcessMessage).toHaveBeenCalled();
-      expect(mockSendMessage).toHaveBeenCalledWith('user@whatsapp', 'Owner response');
+      // Should notify owner's own WA number (self-chat) with escalation info
+      expect(mockSendMessage).toHaveBeenCalledWith(
+        'user@whatsapp',
+        expect.stringContaining('Eskalasi')
+      );
+    });
+
+    it('video message escalates to owner self-chat', async () => {
+      mockProcessMessage.mockResolvedValue({ response: 'AI response', pendingMessages: [] });
+      mockSendMessage.mockResolvedValue({ id: 'd2', content: '', timestamp: Date.now(), fromMe: true, to: 'user@whatsapp' });
+      vi.clearAllMocks();
+      mockProcessMessage.mockResolvedValue({ response: 'AI response', pendingMessages: [] });
+
+      const msg = makeMessage({
+        from: 'cust@s.whatsapp.net',
+        type: 'video',
+        content: '[Video]',
+        metadata: { rawMessage: { message: { videoMessage: {} } } },
+      });
+      const p = eventHandler({ type: 'message:received', message: msg });
+      await flushWithTimers();
+      await p;
+
+      expect(mockSendMessage).toHaveBeenCalledWith(
+        'user@whatsapp',
+        expect.stringContaining('Eskalasi')
+      );
     });
   });
 

@@ -126,6 +126,25 @@ Scan QR code WhatsApp. Selesai!
 
 ---
 
+## 📱 Termux / Android
+
+WAGENT **jalan di Termux** karena menggunakan **Bun** (`bun:sqlite` — tidak perlu kompilasi native).
+
+```bash
+pkg install git
+curl -fsSL https://bun.sh/install | bash
+source ~/.bashrc
+curl -fsSL https://raw.githubusercontent.com/crediblemark-official/WAGENT/main/install.sh | bash
+wagent start          # buka http://localhost:3030 di browser HP
+```
+
+Catatan:
+- `install.sh` otomatis mendeteksi Termux dan memasang `build-essential` + `python` sebagai cadangan (jika suatu saat memakai Node + `better-sqlite3`).
+- `patchBaileys()` otomatis menyesuaikan platform agar WhatsApp Web berfungsi di Android.
+- Systemd tidak tersedia di Termux — cukup jalankan `wagent start` (background via `nohup wagent start &`).
+
+---
+
 ## ⚙️ Production / Deployment (systemd)
 
 WAGENT dilengkapi dengan manajer layanan systemd internal yang memudahkan Anda mendeploy asisten AI ini sebagai daemon latar belakang di server produksi Linux Anda.

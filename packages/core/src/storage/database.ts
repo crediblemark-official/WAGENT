@@ -46,9 +46,56 @@ export class Database {
     }
 
     this.db = new SqliteDatabase(resolvedPath);
-    this.db.exec('PRAGMA journal_mode = WAL');
-    this.db.exec('PRAGMA foreign_keys = ON');
+    try {
+      this.db.exec('PRAGMA journal_mode = WAL');
+    } catch {
+      // Some engines (e.g. node:sqlite) may not support WAL mode — non-fatal.
+    }
+    try {
+      this.db.exec('PRAGMA foreign_keys = ON');
+    } catch {
+      // Non-fatal on engines without foreign-key pragma support.
+    }
     this.initialize();
+  }
+
+  /**
+   * Creates the FTS5 virtual table + sync triggers for the knowledge base.
+   * Guarded: engines without FTS5 support (e.g. node:sqlite on some builds)
+   * simply skip it — keyword search falls back to a LIKE scan in knowledge.ts.
+   */
+  private createFtsIndex(): void {
+    try {
+      this.db.exec(`
+        CREATE VIRTUAL TABLE IF NOT EXISTS kb_chunks_fts USING fts5(
+          content,
+          section_heading,
+          content='kb_chunks',
+          content_rowid='rowid'
+        );
+      `);
+
+      this.db.exec(`
+        CREATE TRIGGER IF NOT EXISTS kb_chunks_ai AFTER INSERT ON kb_chunks BEGIN
+          INSERT INTO kb_chunks_fts(rowid, content, section_heading)
+          VALUES (new.rowid, new.content, new.section_heading);
+        END;
+
+        CREATE TRIGGER IF NOT EXISTS kb_chunks_ad AFTER DELETE ON kb_chunks BEGIN
+          INSERT INTO kb_chunks_fts(kb_chunks_fts, rowid, content, section_heading)
+          VALUES('delete', old.rowid, old.content, old.section_heading);
+        END;
+
+        CREATE TRIGGER IF NOT EXISTS kb_chunks_au AFTER UPDATE ON kb_chunks BEGIN
+          INSERT INTO kb_chunks_fts(kb_chunks_fts, rowid, content, section_heading)
+          VALUES('delete', old.rowid, old.content, old.section_heading);
+          INSERT INTO kb_chunks_fts(rowid, content, section_heading)
+          VALUES (new.rowid, new.content, new.section_heading);
+        END;
+      `);
+    } catch (err: any) {
+      getLogger().warn({ error: err.message }, 'FTS5 unavailable — using LIKE fallback for knowledge search');
+    }
   }
 
   private initialize(): void {
@@ -202,33 +249,15 @@ export class Database {
       );
 
       CREATE INDEX IF NOT EXISTS idx_chunks_file_id ON kb_chunks(file_id);
+    `);
 
-      -- FTS5 full-text search index for knowledge base chunks
-      CREATE VIRTUAL TABLE IF NOT EXISTS kb_chunks_fts USING fts5(
-        content,
-        section_heading,
-        content='kb_chunks',
-        content_rowid='rowid'
-      );
+    // FTS5 full-text search index for knowledge base chunks.
+    // Guarded in JS: some SQLite engines (e.g. node:sqlite on certain Node
+    // builds) do not ship FTS5. Keyword search automatically falls back to a
+    // substring (LIKE) scan in knowledge.ts, so the app still works.
+    this.createFtsIndex();
 
-      -- Triggers to keep FTS index in sync
-      CREATE TRIGGER IF NOT EXISTS kb_chunks_ai AFTER INSERT ON kb_chunks BEGIN
-        INSERT INTO kb_chunks_fts(rowid, content, section_heading)
-        VALUES (new.rowid, new.content, new.section_heading);
-      END;
-
-      CREATE TRIGGER IF NOT EXISTS kb_chunks_ad AFTER DELETE ON kb_chunks BEGIN
-        INSERT INTO kb_chunks_fts(kb_chunks_fts, rowid, content, section_heading)
-        VALUES('delete', old.rowid, old.content, old.section_heading);
-      END;
-
-      CREATE TRIGGER IF NOT EXISTS kb_chunks_au AFTER UPDATE ON kb_chunks BEGIN
-        INSERT INTO kb_chunks_fts(kb_chunks_fts, rowid, content, section_heading)
-        VALUES('delete', old.rowid, old.content, old.section_heading);
-        INSERT INTO kb_chunks_fts(rowid, content, section_heading)
-        VALUES (new.rowid, new.content, new.section_heading);
-      END;
-
+    this.db.exec(`
       -- Orders (real-time e-commerce)
       CREATE TABLE IF NOT EXISTS orders (
         id TEXT PRIMARY KEY,

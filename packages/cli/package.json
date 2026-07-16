@@ -1,6 +1,6 @@
 {
   "name": "@wagent/cli",
-  "version": "0.2.48",
+  "version": "0.2.54",
   "description": "WAGENT CLI - Command-line interface",
   "type": "module",
   "main": "./dist/bootstrap.js",
@@ -14,6 +14,7 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
+    "test": "cd ../core && ./node_modules/.bin/vitest run --config vitest.workspace.ts",
     "start": "node ./dist/bootstrap.js"
   },
   "dependencies": {
@@ -28,6 +29,7 @@
   },
   "devDependencies": {
     "typescript": "^5.7.0",
-    "@types/node": "^22.0.0"
+    "@types/node": "^22.0.0",
+    "vitest": "^4.1.10"
   }
 }

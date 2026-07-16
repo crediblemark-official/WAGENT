@@ -19,6 +19,7 @@ import {
   Contact,
   WAgentConfig,
   AudioMessageData,
+  ImageMessageData,
   isEncryptionAvailable,
   getEncryptionKey,
   decryptDirectory,
@@ -281,53 +282,139 @@ export class BaileysAdapter implements WhatsAppAdapter {
           this.cacheMessage(key.id, msg.message);
         }
 
-        // Check for voice note first
-        if (this.isVoiceNote(msg)) {
-          const message: Message = {
-            id: key.id || `${Date.now()}-${Math.random().toString(36).substring(2)}`,
-            from: key.remoteJid,
-            to: this._userJid,
-            content: '🎤 [Pesan Suara]',
-            type: 'audio',
-            timestamp: msg.messageTimestamp
-              ? new Date(Number(msg.messageTimestamp) * 1000)
-              : new Date(),
-            fromMe: !!key.fromMe,
-            metadata: {
-              pushName: msg.pushName || '',
-              isVoiceNote: true,
-              rawMessage: msg,
-            },
-          };
-          this.emit({ type: 'message:received', message });
-          continue;
-        }
-
-        const content = this.extractMessageContent(msg);
-        if (!content) continue;
-
-        // Extract @mentions from extended text messages for group detection
-        const mentionedJid = this.extractMentionedJids(msg);
-
-        const message: Message = {
-          id: key.id || `${Date.now()}-${Math.random().toString(36).substring(2)}`,
-          from: key.remoteJid,
-          to: this._userJid,
-          content,
-          type: 'text',
-          timestamp: msg.messageTimestamp
-            ? new Date(Number(msg.messageTimestamp) * 1000)
-            : new Date(),
-          fromMe: !!key.fromMe,
-          metadata: {
-            pushName: msg.pushName || '',
-            ...(mentionedJid.length > 0 ? { mentionedJid } : {}),
-          },
-        };
-
+        const message = this.parseIncomingMessage(msg, key);
+        if (!message) continue;
         this.emit({ type: 'message:received', message });
       }
     });
+  }
+
+  /**
+   * Build a normalized Message from a raw Baileys upsert message.
+   * Returns null for messages that should be ignored (unsupported types, etc).
+   */
+  private parseIncomingMessage(msg: any, key: any): Message | null {
+    if (!key || !key.remoteJid) return null;
+
+    const messageId = key.id || `${Date.now()}-${Math.random().toString(36).substring(2)}`;
+    const from = key.remoteJid;
+    const fromMe = !!key.fromMe;
+    const timestamp = msg.messageTimestamp
+      ? new Date(Number(msg.messageTimestamp) * 1000)
+      : new Date();
+
+    const baseMeta = { pushName: msg.pushName || '' };
+
+    // Check for audio message (voice note PTT or regular audio)
+    if (msg.message?.audioMessage) {
+      const isPtt = msg.message.audioMessage.ptt === true;
+      return {
+        id: messageId,
+        from,
+        to: this._userJid,
+        content: isPtt ? '🎤 [Pesan Suara]' : '🎵 [Audio]',
+        type: 'audio',
+        timestamp,
+        fromMe,
+        metadata: {
+          ...baseMeta,
+          isVoiceNote: isPtt,
+          rawMessage: msg,
+        },
+      };
+    }
+
+    // Check for image message
+    if (msg.message?.imageMessage) {
+      const caption = msg.message.imageMessage.caption || '';
+      return {
+        id: messageId,
+        from,
+        to: this._userJid,
+        content: caption || '[Gambar]',
+        type: 'image',
+        timestamp,
+        fromMe,
+        metadata: {
+          ...baseMeta,
+          rawMessage: msg,
+        },
+      };
+    }
+
+    // Check for video message
+    if (msg.message?.videoMessage) {
+      const caption = msg.message.videoMessage.caption || '';
+      return {
+        id: messageId,
+        from,
+        to: this._userJid,
+        content: caption || '[Video]',
+        type: 'video',
+        timestamp,
+        fromMe,
+        metadata: {
+          ...baseMeta,
+          rawMessage: msg,
+        },
+      };
+    }
+
+    // Check for document message
+    if (msg.message?.documentMessage) {
+      const caption = msg.message.documentMessage.caption || '';
+      const fileName = msg.message.documentMessage.fileName || 'file';
+      return {
+        id: messageId,
+        from,
+        to: this._userJid,
+        content: caption || `[Dokumen: ${fileName}]`,
+        type: 'document',
+        timestamp,
+        fromMe,
+        metadata: {
+          ...baseMeta,
+          rawMessage: msg,
+        },
+      };
+    }
+
+    // Check for sticker message
+    if (msg.message?.stickerMessage) {
+      return {
+        id: messageId,
+        from,
+        to: this._userJid,
+        content: '[Stiker]',
+        type: 'sticker',
+        timestamp,
+        fromMe,
+        metadata: {
+          ...baseMeta,
+          rawMessage: msg,
+        },
+      };
+    }
+
+    const content = this.extractMessageContent(msg);
+    if (!content) return null;
+
+    // Extract @mentions from extended text messages for group detection
+    const mentionedJid = this.extractMentionedJids(msg);
+
+    return {
+      id: messageId,
+      from,
+      to: this._userJid,
+      content,
+      type: 'text',
+      timestamp,
+      fromMe,
+      metadata: {
+        ...baseMeta,
+        ...(mentionedJid.length > 0 ? { mentionedJid } : {}),
+      },
+    };
   }
 
   private extractMessageContent(msg: any): string | null {
@@ -336,9 +423,12 @@ export class BaileysAdapter implements WhatsAppAdapter {
     const m = msg.message;
     if (m.conversation) return m.conversation;
     if (m.extendedTextMessage?.text) return m.extendedTextMessage.text;
-    if (m.imageMessage?.caption) return m.imageMessage.caption;
-    if (m.videoMessage?.caption) return m.videoMessage.caption;
-    if (m.documentMessage?.caption) return m.documentMessage.caption;
+    if (m.imageMessage) return m.imageMessage.caption || '[Gambar]';
+    if (m.videoMessage) return m.videoMessage.caption || '[Video]';
+    if (m.documentMessage) return m.documentMessage.caption || `[Dokumen: ${m.documentMessage.fileName || 'file'}]`;
+    if (m.stickerMessage) return '[Stiker]';
+    if (m.locationMessage) return `[Lokasi: ${m.locationMessage.name || ''}]`.trim() || '[Lokasi]';
+    if (m.contactMessage) return `[Kontak: ${m.contactMessage.displayName || ''}]`.trim() || '[Kontak]';
     if (m.buttonsResponseMessage?.selectedButtonId) return m.buttonsResponseMessage.selectedButtonId;
     if (m.listResponseMessage?.singleSelectReply?.selectedRowId)
       return m.listResponseMessage.singleSelectReply.selectedRowId;
@@ -396,6 +486,28 @@ export class BaileysAdapter implements WhatsAppAdapter {
       mimetype: audioMsg.mimetype || 'audio/ogg',
       duration: audioMsg.seconds ? Number(audioMsg.seconds) : undefined,
       fileSize: audioMsg.fileLength ? Number(audioMsg.fileLength) : undefined,
+    };
+  }
+
+  async downloadImage(msg: any): Promise<ImageMessageData> {
+    const imageMsg = msg.message?.imageMessage;
+    if (!imageMsg) {
+      throw new Error('No image message found');
+    }
+
+    this.logger.info('Downloading image message...');
+    const stream = await downloadContentFromMessage(imageMsg, 'image');
+
+    let buffer = Buffer.from([]);
+    for await (const chunk of stream) {
+      buffer = Buffer.concat([buffer, chunk]);
+    }
+
+    return {
+      buffer,
+      mimetype: imageMsg.mimetype || 'image/jpeg',
+      caption: imageMsg.caption || undefined,
+      fileSize: imageMsg.fileLength ? Number(imageMsg.fileLength) : undefined,
     };
   }
 

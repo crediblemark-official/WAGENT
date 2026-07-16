@@ -63,8 +63,8 @@ export function BroadcastPage({ ws }: { ws: ReturnType<typeof useWebSocket> }) {
     <div style={{ padding: 24, height: '100%', display: 'flex', flexDirection: 'column' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <div>
-          <h2 style={{ fontSize: 18, fontWeight: 600, color: '#f1f5f9' }}>Broadcast</h2>
-          <p style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>Kirim pesan massal ke kontak</p>
+          <h2 style={{ fontSize: 18, fontWeight: 600, color: 'var(--text-heading)' }}>Broadcast</h2>
+          <p style={{ fontSize: 13, color: 'var(--text-subtle)', marginTop: 4 }}>Kirim pesan massal ke kontak</p>
         </div>
         <button
           onClick={() => setShowForm(!showForm)}
@@ -80,8 +80,8 @@ export function BroadcastPage({ ws }: { ws: ReturnType<typeof useWebSocket> }) {
 
       {/* New Broadcast Form */}
       {showForm && (
-        <div style={{ background: '#161822', borderRadius: 12, border: '1px solid #1e2030', padding: 20, marginBottom: 24 }}>
-          <label style={{ fontSize: 12, fontWeight: 600, color: '#94a3b8', marginBottom: 8, display: 'block' }}>
+        <div style={{ background: 'var(--surface-bg)', borderRadius: 12, border: '1px solid var(--surface-border)', padding: 20, marginBottom: 24 }}>
+          <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-subtle)', marginBottom: 8, display: 'block' }}>
             Isi Pesan Broadcast
           </label>
           <textarea
@@ -90,8 +90,8 @@ export function BroadcastPage({ ws }: { ws: ReturnType<typeof useWebSocket> }) {
             placeholder="Tulis pesan yang akan dikirim ke semua kontak..."
             rows={4}
             style={{
-              width: '100%', padding: 12, borderRadius: 8, border: '1px solid #1e2030',
-              background: '#0f1117', color: '#e2e8f0', fontSize: 14, resize: 'vertical' as const,
+              width: '100%', padding: 12, borderRadius: 8, border: '1px solid var(--surface-border)',
+              background: 'var(--input-bg)', color: 'var(--text-body)', fontSize: 14, resize: 'vertical' as const,
               outline: 'none', fontFamily: 'inherit',
             }}
           />
@@ -101,7 +101,7 @@ export function BroadcastPage({ ws }: { ws: ReturnType<typeof useWebSocket> }) {
               disabled={!message.trim()}
               style={{
                 padding: '10px 24px', borderRadius: 8, border: 'none',
-                background: message.trim() ? '#8b5cf6' : '#334155',
+                background: message.trim() ? '#8b5cf6' : 'var(--text-subtle)',
                 color: '#fff', fontSize: 13, fontWeight: 600, cursor: message.trim() ? 'pointer' : 'not-allowed',
               }}
             >
@@ -114,8 +114,8 @@ export function BroadcastPage({ ws }: { ws: ReturnType<typeof useWebSocket> }) {
       {/* Broadcast History */}
       <div style={{ flex: 1, overflow: 'auto' }}>
         {broadcasts.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: 40, color: '#475569' }}>
-            <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#334155" strokeWidth="1.5" style={{ margin: '0 auto 12px' }}>
+          <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-subtle)' }}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--text-subtle)" strokeWidth="1.5" style={{ margin: '0 auto 12px' }}>
               <polygon points="22 2 15 22 11 13 2 9 22 2"/>
             </svg>
             <p>Belum ada broadcast</p>
@@ -124,11 +124,11 @@ export function BroadcastPage({ ws }: { ws: ReturnType<typeof useWebSocket> }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {broadcasts.map(b => (
               <div key={b.id} style={{
-                background: '#161822', borderRadius: 10, border: '1px solid #1e2030',
+                background: 'var(--surface-bg)', borderRadius: 10, border: '1px solid var(--surface-border)',
                 padding: '14px 18px',
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <div style={{ fontSize: 14, color: '#e2e8f0', flex: 1, marginRight: 16 }}>{b.content}</div>
+                  <div style={{ fontSize: 14, color: 'var(--text-body)', flex: 1, marginRight: 16 }}>{b.content}</div>
                   <span style={{
                     fontSize: 11, padding: '2px 8px', borderRadius: 6,
                     background: `${statusColors[b.status]}20`,
@@ -138,7 +138,7 @@ export function BroadcastPage({ ws }: { ws: ReturnType<typeof useWebSocket> }) {
                     {b.status}
                   </span>
                 </div>
-                <div style={{ display: 'flex', gap: 16, fontSize: 12, color: '#64748b' }}>
+                <div style={{ display: 'flex', gap: 16, fontSize: 12, color: 'var(--text-subtle)' }}>
                   <span>Total: {b.totalContacts}</span>
                   <span style={{ color: '#22c55e' }}>Terkirim: {b.sentCount}</span>
                   <span style={{ color: '#ef4444' }}>Gagal: {b.failedCount}</span>

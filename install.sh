@@ -85,6 +85,21 @@ ok "Bun $(bun --version)"
 ok "Git $(git --version | awk '{print $3}')"
 echo ""
 
+# ── Termux / Android detection ──────────────────────────────
+# WAGENT runs on Termux via Bun (bun:sqlite needs no native compile).
+# If the user later installs with plain npm (Node + better-sqlite3) they
+# need a C/C++ toolchain so the native addon can build. We pre-wire that
+# here so both paths work out of the box.
+if [ -d "/data/data/com.termux" ] || grep -qi "termux" <<< "$(uname -a 2>/dev/null)"; then
+  info "Termux detected — ensuring build toolchain is available..."
+  if command -v pkg &>/dev/null; then
+    pkg install -y build-essential python nodejs >/dev/null 2>&1 || true
+    ok "Termux build tools ready (build-essential, python, nodejs)"
+  fi
+  info "Tip: WAGENT uses Bun on Termux (no native compile needed)."
+fi
+
+
 # ── Step 2: Clone or Update ────────────────────────────────────
 step "②" "Preparing WAGENT..."
 if [ -d "$INSTALL_DIR" ]; then

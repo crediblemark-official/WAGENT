@@ -171,6 +171,13 @@ export interface AudioMessageData {
   fileSize?: number;
 }
 
+export interface ImageMessageData {
+  buffer: Buffer;
+  mimetype: string;
+  caption?: string;
+  fileSize?: number;
+}
+
 // ── AI Types ───────────────────────────────────────────────────
 
 export interface AIMessage {

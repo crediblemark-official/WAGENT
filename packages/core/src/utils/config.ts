@@ -293,7 +293,7 @@ function buildConfig(jsonConfig: WAgentJsonConfig, resolved: ResolvedModel): WAg
     
     // Dashboard
     dashboardPort: jsonConfig.dashboard?.port || 3030,
-    dashboardHost: jsonConfig.dashboard?.host || '0.0.0.0',
+    dashboardHost: jsonConfig.dashboard?.host || '127.0.0.1',
     
     // Database
     databaseType: jsonConfig.database?.type || 'sqlite',
@@ -343,7 +343,8 @@ export function createDefaultConfig(): void {
   
   // Dashboard
   "dashboard": {
-    "port": 3030
+    "port": 3030,
+    "host": "127.0.0.1"
   }
 }`;
   

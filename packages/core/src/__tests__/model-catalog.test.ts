@@ -248,6 +248,23 @@ describe('model-catalog', () => {
       expect(providers['alsoInvalid']).toBeUndefined();
       expect(providers['prov0']).toBeDefined();
     });
+
+    it('should skip synthetic "provN" entries with generic "Provider N" names', async () => {
+      const data: Record<string, any> = {};
+      for (let i = 0; i < 10; i++) {
+        data[`prov${i}`] = { name: `Provider ${i}`, npm: `@ai-sdk/compat`, env: [`PROV${i}_KEY`], api: `https://api.prov${i}.com/v1` };
+      }
+      data['openai'] = { name: 'OpenAI', npm: '@ai-sdk/openai', env: ['OPENAI_API_KEY'] };
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => data,
+      });
+      await refreshModelCatalog();
+      const providers = await getCatalogProviders();
+      expect(providers['prov0']).toBeUndefined();
+      expect(providers['prov3']).toBeUndefined();
+      expect(providers['openai']).toBeDefined();
+    });
   });
 
   // ── getAllModels ───────────────────────────────────────────

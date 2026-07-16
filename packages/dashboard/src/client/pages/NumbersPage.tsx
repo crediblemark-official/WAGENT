@@ -347,7 +347,7 @@ export function NumbersPage({ ws }: { ws: ReturnType<typeof useWebSocket> }) {
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: statusColors[n.status] || '#64748b' }} />
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: statusColors[n.status] || 'var(--text-subtle)' }} />
                       <span style={{ fontSize: 12, color: statusColors[n.status] || 'var(--text-muted)' }}>{statusLabels[n.status] || n.status}</span>
                     </div>
                     <div style={{ display: 'flex', gap: 4 }}>

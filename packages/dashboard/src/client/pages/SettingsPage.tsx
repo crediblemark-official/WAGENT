@@ -13,7 +13,6 @@ export function SettingsPage() {
 
   // States untuk setelan
   const [model, setModel] = useState('google/gemini-3.1-flash-lite');
-  const [systemPrompt, setSystemPrompt] = useState('');
   const [welcomeMessage, setWelcomeMessage] = useState('Halo! Ada yang bisa saya bantu?');
   
   // API Keys (Dinamis)
@@ -73,7 +72,6 @@ export function SettingsPage() {
             setSelectedProvider(parts[0]);
           }
         }
-        if (settingsData.systemPrompt) setSystemPrompt(settingsData.systemPrompt);
         if (cfg.agent?.welcomeMessage) setWelcomeMessage(cfg.agent.welcomeMessage);
         
         // Map API keys
@@ -182,7 +180,6 @@ export function SettingsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           config: updatedConfig,
-          systemPrompt: systemPrompt
         }),
       });
 
@@ -210,7 +207,7 @@ export function SettingsPage() {
   };
 
   if (loading) {
-    return <div style={{ padding: 16, color: '#8696a0', fontSize: 13 }}>Memuat pengaturan...</div>;
+    return <div style={{ padding: 16, color: 'var(--text-subtle)', fontSize: 13 }}>Memuat pengaturan...</div>;
   }
 
   return (
@@ -223,10 +220,10 @@ export function SettingsPage() {
       color: 'var(--text-main)',
       boxSizing: 'border-box'
     }}>
-      <div style={{ maxWidth: 850, margin: '0 auto' }}>
+      <div style={{ maxWidth: '100%', padding: 0 }}>
       <div style={{ marginBottom: 20 }}>
-        <h2 style={{ fontSize: 18, fontWeight: 600, color: '#e9edef', margin: 0 }}>Pengaturan WAGENT</h2>
-        <p style={{ fontSize: 12, color: '#8696a0', marginTop: 4, margin: 0 }}>
+        <h2 style={{ fontSize: 18, fontWeight: 600, color: 'var(--text-heading)', margin: 0 }}>Pengaturan WAGENT</h2>
+        <p style={{ fontSize: 12, color: 'var(--text-subtle)', marginTop: 4, margin: 0 }}>
           Konfigurasi model AI dari models.dev, kredensial provider API, dan respon WhatsApp Anda.
         </p>
       </div>
@@ -252,7 +249,7 @@ export function SettingsPage() {
               
               {/* Dropdown Provider */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                <label style={{ fontSize: 12, color: '#e9edef', minWidth: 100 }}>AI Provider</label>
+                <label style={{ fontSize: 12, color: 'var(--text-heading)', minWidth: 100 }}>AI Provider</label>
                 <select
                   value={selectedProvider}
                   onChange={(e) => handleProviderChange(e.target.value)}
@@ -268,7 +265,7 @@ export function SettingsPage() {
 
               {/* Dropdown Model */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                <label style={{ fontSize: 12, color: '#e9edef', minWidth: 100 }}>Model AI</label>
+                <label style={{ fontSize: 12, color: 'var(--text-heading)', minWidth: 100 }}>Model AI</label>
                 <select
                   value={model}
                   onChange={(e) => setModel(e.target.value)}
@@ -288,7 +285,7 @@ export function SettingsPage() {
 
               {/* Input Manual / Edit Model ID */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, borderTop: '1px solid #222e35', paddingTop: 10, marginTop: 4 }}>
-                <label style={{ fontSize: 11, color: '#8696a0', minWidth: 100 }}>Model ID Aktif</label>
+                <label style={{ fontSize: 11, color: 'var(--text-subtle)', minWidth: 100 }}>Model ID Aktif</label>
                 <input
                   type="text"
                   value={model}
@@ -338,7 +335,7 @@ export function SettingsPage() {
           <Section title="Rate Limiting (Anti-Spam)" description="Batasi pesan per pengguna untuk mencegah spam">
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                <label style={{ fontSize: 12, color: '#e9edef', minWidth: 100 }}>Maks. Pesan</label>
+                <label style={{ fontSize: 12, color: 'var(--text-heading)', minWidth: 100 }}>Maks. Pesan</label>
                 <input
                   type="number"
                   value={rlMax}
@@ -347,7 +344,7 @@ export function SettingsPage() {
                 />
               </div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                <label style={{ fontSize: 12, color: '#e9edef', minWidth: 100 }}>Durasi (Detik)</label>
+                <label style={{ fontSize: 12, color: 'var(--text-heading)', minWidth: 100 }}>Durasi (Detik)</label>
                 <input
                   type="number"
                   value={rlWindow}
@@ -356,7 +353,7 @@ export function SettingsPage() {
                 />
               </div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                <label style={{ fontSize: 12, color: '#e9edef', minWidth: 100 }}>Pesan Peringatan</label>
+                <label style={{ fontSize: 12, color: 'var(--text-heading)', minWidth: 100 }}>Pesan Peringatan</label>
                 <input
                   type="text"
                   value={rlMsg}
@@ -419,7 +416,7 @@ export function SettingsPage() {
             {whEnabled && (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.2fr', gap: 12, borderTop: '1px solid #222e35', paddingTop: 12, marginTop: 4 }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <label style={{ fontSize: 11, color: '#8696a0' }}>Jam Mulai</label>
+                  <label style={{ fontSize: 11, color: 'var(--text-subtle)' }}>Jam Mulai</label>
                   <input
                     type="time"
                     value={whStart}
@@ -428,7 +425,7 @@ export function SettingsPage() {
                   />
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <label style={{ fontSize: 11, color: '#8696a0' }}>Jam Selesai</label>
+                  <label style={{ fontSize: 11, color: 'var(--text-subtle)' }}>Jam Selesai</label>
                   <input
                     type="time"
                     value={whEnd}
@@ -437,7 +434,7 @@ export function SettingsPage() {
                   />
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <label style={{ fontSize: 11, color: '#8696a0' }}>Zona Waktu</label>
+                  <label style={{ fontSize: 11, color: 'var(--text-subtle)' }}>Zona Waktu</label>
                   <select
                     value={whTimezone}
                     onChange={(e) => setWhTimezone(e.target.value)}
@@ -454,7 +451,7 @@ export function SettingsPage() {
             
             {whEnabled && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <label style={{ fontSize: 11, color: '#8696a0' }}>Pesan Offline</label>
+                <label style={{ fontSize: 11, color: 'var(--text-subtle)' }}>Pesan Offline</label>
                 <input
                   type="text"
                   value={whOfflineMsg}
@@ -465,25 +462,6 @@ export function SettingsPage() {
               </div>
             )}
           </div>
-        </Section>
-      </div>
-
-      {/* Baris Penuh: System Prompt */}
-      <div style={{ marginBottom: 20 }}>
-        <Section title="Instruksi System Prompt AI" description="Persona, gaya bicara, dan aturan utama agen (disimpan langsung di system.md)">
-          <textarea
-            value={systemPrompt}
-            onChange={(e) => setSystemPrompt(e.target.value)}
-            rows={7}
-            placeholder="Tulis instruksi sistem untuk AI Anda di sini..."
-            style={{
-              ...styles.input,
-              resize: 'vertical',
-              fontFamily: 'monospace',
-              fontSize: 12,
-              lineHeight: 1.5,
-            }}
-          />
         </Section>
       </div>
 
@@ -501,11 +479,11 @@ export function SettingsPage() {
           alignItems: 'center',
           justifyContent: 'center',
           zIndex: 9999,
-          color: '#e9edef'
+          color: 'var(--text-heading)'
         }}>
           <div style={{ fontSize: 32, marginBottom: 16 }}>⚙️</div>
           <h3 style={{ fontSize: 18, fontWeight: 600, margin: '0 0 8px 0' }}>Memuat Ulang Sistem...</h3>
-          <p style={{ fontSize: 13, color: '#8696a0', margin: 0, textAlign: 'center', maxWidth: 320 }}>
+          <p style={{ fontSize: 13, color: 'var(--text-subtle)', margin: 0, textAlign: 'center', maxWidth: 320 }}>
             Menyimpan perubahan dan memulai ulang engine AI. Halaman akan siap kembali dalam beberapa detik.
           </p>
         </div>

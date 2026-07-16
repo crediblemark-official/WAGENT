@@ -1,6 +1,6 @@
 {
   "name": "@wagent/wagent",
-  "version": "0.2.48",
+  "version": "0.2.54",
   "description": "WAGENT - WhatsApp AI Agent Platform",
   "type": "module",
   "main": "./bin/wagent",
@@ -21,7 +21,7 @@
     "prepublishOnly": "npm run build",
     "start": "./bin/wagent start",
     "dev": "./bin/wagent start --no-dashboard",
-    "test": "cd packages/core && npx vitest run",
+    "test": "cd packages/core && bunx vitest run && bunx vitest run --config vitest.workspace.ts",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf packages/*/dist node_modules",
     "prepare": "husky"

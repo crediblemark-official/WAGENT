@@ -15,6 +15,7 @@ import {
   GatewayEvent,
   ToolDefinition,
   AudioMessageData,
+  ImageMessageData,
 } from '../types.js';
 import { getLogger } from '../utils/logger.js';
 import { EscalationService, EscalationEvent } from './escalation.js';
@@ -78,6 +79,7 @@ export interface WhatsAppAdapter {
   isConnected(): boolean;
   onEvent(handler: (event: GatewayEvent) => void): void;
   downloadAudio?(msg: any): Promise<AudioMessageData>;
+  downloadImage?(msg: any): Promise<ImageMessageData>;
   /** Show typing indicator / update online presence */
   sendPresenceUpdate?(type: 'composing' | 'paused' | 'available' | 'unavailable', toJid?: string): Promise<void>;
   /** Mark incoming message(s) as read */
@@ -239,7 +241,10 @@ export class Gateway {
       // by our bot code (not in DB), a human replied from WhatsApp Web.
       // Mark this conversation as "human active" and save the
       // human's reply to DB so history is complete across restarts.
-      if (msg.fromMe && msg.id) {
+      // Skip self-chat messages (owner sending to own number)
+      const userJid = this.whatsapp.userJid;
+      const isSelfChatMsg = userJid && msg.to === userJid;
+      if (msg.fromMe && msg.id && !isSelfChatMsg) {
         const exists = this.db.messageExists(msg.id);
         if (!exists) {
           this.logger.info({ from: msg.from }, 'Human reply detected — AI will pause for this conversation');
@@ -443,158 +448,58 @@ export class Gateway {
   }
 
   /**
-   * Handle self-chat commands (WA control plane)
-   * Supports: /status, /pause, /resume, /stats, /help, /contacts
+   * Handle self-chat:
+   * - If prompts not configured yet: run personalization setup interview
+   * - If configured: self-chat is the escalation target (owner receives
+   *   notifications on their own WA number). Owner can reply here to take
+   *   over a conversation. No Telegram forwarding (Telegram is for control only).
    */
   private async handleSelfChatCommand(msg: Message): Promise<void> {
     const text = msg.content.trim();
-    this.logger.info({ text }, 'Self-chat message received');
-    const sc = promptLoader.getSelfChatConfig();
+    this.logger.info({ text }, 'Self-chat message from owner');
 
-    // Check if system prompts have been configured yet
+    // If system prompts not configured yet, run setup interview for personalization
     if (!this.hasCustomPrompts()) {
-      // Allow /skip or /skipsetup to generate fallback prompts and skip the interview
-      if (text === '/skip' || text === '/skipsetup') {
-        try {
-          const generator = new PromptGenerator(this.config);
-          const defaultAnswers = {
-            businessName: 'My WAGENT',
-            businessType: 'general-assistant',
-            businessDescription: 'Asisten AI pintar serbaguna',
-            targetCustomer: 'Owner',
-            tone: 'casual' as const,
-            emojiUsage: 'moderate' as const,
-            language: 'id',
-            frequentQuestions: [],
-            orderProcess: '',
-            paymentMethods: '',
-            shippingTime: '',
-            returnPolicy: '',
-            forbiddenActions: [],
-            escalationTriggers: [],
-            workingHours: '24 jam',
-            features: ['web_search', 'reminder'],
-          };
-          await generator.generateAll(defaultAnswers);
-          await this.whatsapp.sendMessage(msg.from, `👋 *Setup dilewati!*\n\nBerkas prompt default telah ditulis ke folder \`prompts/\`.\nBot akan me-restart secara otomatis dalam 2 detik.`);
-          setTimeout(() => process.exit(0), 2000);
-        } catch (err: any) {
-          await this.whatsapp.sendMessage(msg.from, `❌ Error skipping setup: ${err.message}`);
-        }
-        return;
-      }
-
-      // If not a command starting with /, process as setup interview
-      if (!text.startsWith('/')) {
-        await this.handleSetupInterviewMessage(msg);
-        return;
-      }
-    } else {
-      // If not a command starting with /, process with AI Agent (Normal Mode)
-      if (!text.startsWith('/')) {
-        const composing = () => this.whatsapp.sendPresenceUpdate?.('composing', msg.from)?.catch(() => {});
-        await composing();
-        const typingInterval = setInterval(composing, 8_000);
-        try {
-          const contactName = 'Owner';
-          const result = await this.agent.processMessage(
-            `[SELF-CHAT CONVERSATION WITH OWNER]
-Pesan dari owner: "${text}"`, 
-            msg.from, 
-            contactName
-          );
-          clearInterval(typingInterval);
-          this.whatsapp.sendPresenceUpdate?.('paused', msg.from)?.catch(() => {});
-          await this.whatsapp.sendMessage(msg.from, result.response);
-        } catch (err: any) {
-          clearInterval(typingInterval);
-          this.whatsapp.sendPresenceUpdate?.('paused', msg.from)?.catch(() => {});
-          this.logger.error({ error: err.message }, 'Self-chat AI processing error');
-          await this.whatsapp.sendMessage(msg.from, `❌ Error: ${err.message}`);
-        }
-        return;
-      }
-    }
-
-    const [command, ...args] = text.split(/\s+/);
-    const cmd = command.toLowerCase();
-
-    try {
-      switch (cmd) {
-        case '/status': {
-          const status = this.getStatus();
-          const uptime = this._startTime ? Math.floor((Date.now() - this._startTime) / 1000) : 0;
-          const mem = process.memoryUsage();
-          const response = [
-            `📊 *${sc.status_header}*`,
-            ``,
-            `Status: ${status}`,
-            `Uptime: ${Math.floor(uptime / 60)}m ${uptime % 60}s`,
-            `Memory: ${Math.round(mem.heapUsed / 1024 / 1024)}MB`,
-            `Paused: ${this._paused ? 'Yes' : 'No'}`,
-            `Contacts: ${this.db.getAllContacts().length}`,
-          ].join('\n');
-          await this.whatsapp.sendMessage(msg.from, response);
-          break;
-        }
-
-        case '/pause': {
-          this.setPaused(true);
-          await this.whatsapp.sendMessage(msg.from, `⏸️ ${sc.pause_done}`);
-          break;
-        }
-
-        case '/resume': {
-          this.setPaused(false);
-          await this.whatsapp.sendMessage(msg.from, `▶️ ${sc.resume_done}`);
-          break;
-        }
-
-        case '/stats': {
-          const contacts = this.db.getAllContacts();
-          const response = [
-            `📈 *Statistik*`,
-            ``,
-            `Total kontak: ${contacts.length}`,
-            `Agent status: ${this._paused ? 'Paused' : 'Active'}`,
-          ].join('\n');
-          await this.whatsapp.sendMessage(msg.from, response);
-          break;
-        }
-
-        case '/contacts': {
-          const contacts = this.db.getAllContacts().slice(0, 10);
-          if (contacts.length === 0) {
-            await this.whatsapp.sendMessage(msg.from, sc.contacts_empty);
-          } else {
-            const list = contacts.map((c, i) => `${i + 1}. ${c.name || c.number}`).join('\n');
-            await this.whatsapp.sendMessage(msg.from, `👥 *${sc.contacts_header}*\n\n${list}`);
+      if (text.startsWith('/')) {
+        // Allow /skip to use default prompts
+        if (text === '/skip' || text === '/skipsetup') {
+          try {
+            const generator = new PromptGenerator(this.config);
+            const defaultAnswers = {
+              businessName: 'My WAGENT',
+              businessType: 'general-assistant',
+              businessDescription: 'Asisten AI pintar serbaguna',
+              targetCustomer: 'Owner',
+              tone: 'casual' as const,
+              emojiUsage: 'moderate' as const,
+              language: 'id',
+              frequentQuestions: [],
+              orderProcess: '',
+              paymentMethods: '',
+              shippingTime: '',
+              returnPolicy: '',
+              forbiddenActions: [],
+              escalationTriggers: [],
+              workingHours: '24 jam',
+              features: ['web_search', 'reminder'],
+            };
+            await generator.generateAll(defaultAnswers);
+            await this.whatsapp.sendMessage(msg.from, `👋 *Setup dilewati!*\n\nBerkas prompt default telah ditulis ke folder \`prompts/\`.\nBot akan me-restart secara otomatis dalam 2 detik.`);
+            setTimeout(() => process.exit(0), 2000);
+          } catch (err: any) {
+            await this.whatsapp.sendMessage(msg.from, `❌ Error skipping setup: ${err.message}`);
           }
-          break;
+          return;
         }
-
-        case '/help': {
-          const help = [
-            `📱 *${sc.help_header}*`,
-            ``,
-            `/status — ${sc.help_status}`,
-            `/pause — ${sc.help_pause}`,
-            `/resume — ${sc.help_resume}`,
-            `/stats — ${sc.help_stats}`,
-            `/contacts — ${sc.help_contacts}`,
-            `/help — ${sc.help_help}`,
-          ].join('\n');
-          await this.whatsapp.sendMessage(msg.from, help);
-          break;
-        }
-
-        default:
-          await this.whatsapp.sendMessage(msg.from, `${sc.command_unknown}: ${cmd}\n${sc.help_hint}`);
       }
-    } catch (err: any) {
-      this.logger.error({ error: err.message }, 'Self-chat command error');
-      await this.whatsapp.sendMessage(msg.from, `${sc.command_error}: ${err.message}`);
+      // Non-command or unknown command → run setup interview
+      await this.handleSetupInterviewMessage(msg);
+      return;
     }
+
+    // Prompts already configured → self-chat is escalation target.
+    // Acknowledge receipt; owner can reply here to take over a conversation.
+    this.logger.info({ text }, 'Self-chat received (escalation target)');
   }
 
   private async handleIncomingMessage(msg: Message): Promise<void> {
@@ -668,21 +573,77 @@ Pesan dari owner: "${text}"`,
     this.db.saveContact(contact);
 
     let messageContent = msg.content;
-    if (msg.type === 'audio' && msg.metadata?.isVoiceNote && msg.metadata?.rawMessage) {
+    if (msg.type === 'audio' && msg.metadata?.rawMessage) {
       try {
         if (this.transcriber.isAvailable() && this.whatsapp.downloadAudio) {
           const audioData = await this.whatsapp.downloadAudio(msg.metadata.rawMessage);
+          this.logger.info({ from: msg.from, mimetype: audioData.mimetype, size: audioData.fileSize, isPtt: msg.metadata?.isVoiceNote }, 'Audio downloaded for transcription');
           const transcription = await this.transcriber.transcribe(audioData);
           messageContent = transcription.text;
           msg.content = `🎤 ${messageContent}`;
           msg.metadata = { ...msg.metadata, transcribed: true, originalType: 'audio', transcriptionProvider: transcription.provider };
         } else {
-          messageContent = '[Pesan suara — transkripsi tidak tersedia]';
+          this.logger.warn({ from: msg.from, transcriberAvailable: this.transcriber.isAvailable(), hasDownloadAudio: !!this.whatsapp.downloadAudio }, 'Audio cannot be transcribed');
+          messageContent = '[Pesan audio — transkripsi tidak tersedia]';
         }
       } catch (err: any) {
-        messageContent = '[Pesan suara — gagal ditranskripsi]';
+        this.logger.error({ from: msg.from, error: err.message, stack: err.stack }, 'Audio transcription failed');
+        messageContent = '[Pesan audio — gagal ditranskripsi]';
         msg.content = `🎤 [Transkripsi gagal: ${err.message}]`;
       }
+    }
+
+    // ── Image Description ──────────────────────────────────────
+    if (msg.type === 'image' && msg.metadata?.rawMessage) {
+      try {
+        if (this.transcriber.isAvailable() && this.whatsapp.downloadImage) {
+          const imageData = await this.whatsapp.downloadImage(msg.metadata.rawMessage);
+          this.logger.info({ from: msg.from, mimetype: imageData.mimetype, size: imageData.fileSize }, 'Image downloaded for description');
+          const description = await this.transcriber.describeImage(imageData);
+          const captionPart = msg.content !== '[Gambar]' ? ` (caption: "${msg.content}")` : '';
+          messageContent = `${description}${captionPart}`;
+          msg.content = `🖼️ ${messageContent}`;
+          msg.metadata = { ...msg.metadata, described: true, originalType: 'image' };
+        } else {
+          this.logger.warn({ from: msg.from, transcriberAvailable: this.transcriber.isAvailable(), hasDownloadImage: !!this.whatsapp.downloadImage }, 'Image cannot be described');
+          messageContent = msg.content === '[Gambar]' ? '[Gambar tanpa deskripsi]' : msg.content;
+        }
+      } catch (err: any) {
+        this.logger.error({ from: msg.from, error: err.message, stack: err.stack }, 'Image description failed');
+        messageContent = msg.content === '[Gambar]' ? '[Gambar — gagal dideskripsikan]' : msg.content;
+        msg.content = `🖼️ [Deskripsi gagal: ${err.message}]`;
+      }
+    }
+
+    // ── Delegate audio/video/document to human ──────────────────
+    const delegatedTypes = ['audio', 'video', 'document'];
+    if (delegatedTypes.includes(msg.type)) {
+      this.logger.info({ from: msg.from, type: msg.type }, 'Delegating to human agent');
+
+      // Notify owner via self-chat (WA own number) for fast human notification
+      try {
+        const userJid = this.whatsapp.userJid;
+        const typeName = msg.type === 'audio' ? 'Pesan Suara' : msg.type === 'video' ? 'Video' : 'Dokumen';
+        const phoneNumber = msg.from.replace('@s.whatsapp.net', '').replace('@g.us', '');
+        const notif = `🚨 *Eskalasi: ${typeName}*\n\n` +
+          `👤 Customer: ${contact.name || phoneNumber}\n` +
+          `📱 Nomor: ${phoneNumber}\n` +
+          `${msg.content !== `[${typeName}]` ? `💬 Pesan: ${msg.content}\n` : ''}` +
+          `\n⚠️ Pesan ini perlu ditangani oleh manusia. Balas di chat customer untuk mengambil alih.`;
+        if (userJid) {
+          await this.whatsapp.sendMessage(userJid, notif);
+        }
+      } catch (err: any) {
+        this.logger.error({ error: err.message }, 'Failed to send escalation to self-chat');
+      }
+
+      // Let AI generate a natural response (not hardcoded)
+      const typeLabel = msg.type === 'audio' ? 'pesan suara' : msg.type === 'video' ? 'video' : 'dokumen';
+      messageContent = `[CUSTOMER MENGIRIM ${typeLabel.toUpperCase()}]
+Customer mengirimkan ${typeLabel}. Pesan ini perlu ditangani oleh tim manusia.
+Balas dengan ramah dalam bahasa Indonesia: akui penerimaan ${typeLabel} tersebut dan beri tahu bahwa tim kami akan menangani pesan ini. Jangan sebutkan nama bot secara spesifik, gunakan kata "kami" atau "tim kami".`;
+
+      // Continue to AI processing below (don't return early)
     }
 
     const chatId = msg.from;

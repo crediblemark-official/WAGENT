@@ -37,15 +37,15 @@ export function AnalyticsPage({ ws }: { ws: ReturnType<typeof useWebSocket> }) {
     <div style={{ padding: 24, height: '100%', overflow: 'auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <div>
-          <h2 style={{ fontSize: 18, fontWeight: 600, color: '#f1f5f9' }}>Analytics</h2>
-          <p style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>Statistik dan performa AI agent</p>
+          <h2 style={{ fontSize: 18, fontWeight: 600, color: 'var(--text-heading)' }}>Analytics</h2>
+          <p style={{ fontSize: 13, color: 'var(--text-subtle)', marginTop: 4 }}>Statistik dan performa AI agent</p>
         </div>
         <select
           value={days}
           onChange={(e) => setDays(Number(e.target.value))}
           style={{
-            padding: '8px 12px', borderRadius: 8, border: '1px solid #1e2030',
-            background: '#161822', color: '#e2e8f0', fontSize: 13, outline: 'none',
+            padding: '8px 12px', borderRadius: 8, border: '1px solid var(--surface-border)',
+            background: 'var(--surface-bg)', color: 'var(--text-body)', fontSize: 13, outline: 'none',
           }}
         >
           <option value={7}>7 Hari</option>
@@ -64,10 +64,10 @@ export function AnalyticsPage({ ws }: { ws: ReturnType<typeof useWebSocket> }) {
           { label: 'Kontak Unik', value: formatNumber(totals.contacts), color: '#eab308' },
         ].map(card => (
           <div key={card.label} style={{
-            background: '#161822', borderRadius: 12, border: '1px solid #1e2030',
+            background: 'var(--surface-bg)', borderRadius: 12, border: '1px solid var(--surface-border)',
             padding: '16px 20px',
           }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-subtle)', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>
               {card.label}
             </div>
             <div style={{ fontSize: 28, fontWeight: 700, color: card.color, marginTop: 8 }}>
@@ -79,10 +79,10 @@ export function AnalyticsPage({ ws }: { ws: ReturnType<typeof useWebSocket> }) {
 
       {/* Bar Chart */}
       <div style={{
-        background: '#161822', borderRadius: 12, border: '1px solid #1e2030',
+        background: 'var(--surface-bg)', borderRadius: 12, border: '1px solid var(--surface-border)',
         padding: 20, marginBottom: 24,
       }}>
-        <h3 style={{ fontSize: 14, fontWeight: 600, color: '#f1f5f9', marginBottom: 16 }}>
+        <h3 style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-heading)', marginBottom: 16 }}>
           Pesan per Hari
         </h3>
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 160 }}>
@@ -96,7 +96,7 @@ export function AnalyticsPage({ ws }: { ws: ReturnType<typeof useWebSocket> }) {
                   transition: 'height 0.3s ease',
                   minHeight: 2,
                 }} />
-                <span style={{ fontSize: 9, color: '#64748b', whiteSpace: 'nowrap' as const }}>
+                <span style={{ fontSize: 9, color: 'var(--text-subtle)', whiteSpace: 'nowrap' as const }}>
                   {new Date(s.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
                 </span>
               </div>
@@ -107,15 +107,15 @@ export function AnalyticsPage({ ws }: { ws: ReturnType<typeof useWebSocket> }) {
 
       {/* Stats Table */}
       <div style={{
-        background: '#161822', borderRadius: 12, border: '1px solid #1e2030', overflow: 'hidden',
+        background: 'var(--surface-bg)', borderRadius: 12, border: '1px solid var(--surface-border)', overflow: 'hidden',
       }}>
-        <div style={{ padding: '14px 20px', borderBottom: '1px solid #1e2030' }}>
-          <h3 style={{ fontSize: 14, fontWeight: 600, color: '#f1f5f9' }}>Detail Harian</h3>
+        <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--surface-border)' }}>
+          <h3 style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-heading)' }}>Detail Harian</h3>
         </div>
         <div style={{ overflow: 'auto' }}>
           <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' as const }}>
             <thead>
-              <tr style={{ color: '#64748b', fontSize: 11, textTransform: 'uppercase' as const }}>
+              <tr style={{ color: 'var(--text-subtle)', fontSize: 11, textTransform: 'uppercase' as const }}>
                 <th style={th}>Tanggal</th>
                 <th style={th}>Total</th>
                 <th style={th}>Masuk</th>
@@ -126,7 +126,7 @@ export function AnalyticsPage({ ws }: { ws: ReturnType<typeof useWebSocket> }) {
             </thead>
             <tbody>
               {stats.map(s => (
-                <tr key={s.date} style={{ borderTop: '1px solid #1a1c2e' }}>
+                <tr key={s.date} style={{ borderTop: '1px solid var(--divider)' }}>
                   <td style={td}>
                     {new Date(s.date).toLocaleDateString('id-ID', {
                       weekday: 'short', day: 'numeric', month: 'short',
@@ -151,5 +151,5 @@ const th: React.CSSProperties = {
   textAlign: 'left' as const, padding: '10px 16px', fontWeight: 600,
 };
 const td: React.CSSProperties = {
-  padding: '10px 16px', color: '#e2e8f0',
+  padding: '10px 16px', color: 'var(--text-body)',
 };

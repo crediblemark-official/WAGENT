@@ -523,13 +523,66 @@ describe('MultiWhatsAppAdapter', () => {
       expect(result).toEqual(audioData);
     });
 
-    it('throws when adapter not found for numberId', () => {
+    it('throws when no adapter can be resolved for download', () => {
       const factory = vi.fn();
       const multi = new MultiWhatsAppAdapter(config, factory);
 
       expect(() => (multi as any).downloadAudio({ numberId: 'nonexistent' })).toThrow(
-        'No download method for number nonexistent'
+        /No download method for number/
       );
+    });
+
+    it('resolves adapter from raw message key.remoteJid via JID routing table', async () => {
+      const n1 = createNumber('n1');
+      const imageData = { buffer: Buffer.from('img'), mimetype: 'image/jpeg' };
+      const adapter = createMockAdapter({ connected: true, isConnected: vi.fn().mockReturnValue(true) });
+      (adapter as any).downloadImage = vi.fn().mockResolvedValue(imageData);
+      const factory = vi.fn().mockReturnValue(adapter as any);
+
+      const multi = new MultiWhatsAppAdapter(config, factory, [n1]);
+      multi.onEvent(() => {});
+      await multi.connect();
+
+      // Simulate the raw Baileys message exactly as the Gateway passes it
+      // (msg.metadata.rawMessage) — no top-level numberId, only key.remoteJid.
+      adapter.eventHandler?.({
+        type: 'message:received',
+        message: {
+          id: 'm1',
+          from: 'user-img@s.whatsapp.net',
+          to: 'bot',
+          content: '[Gambar]',
+          type: 'image',
+          timestamp: new Date(),
+          fromMe: false,
+          metadata: { rawMessage: { key: { remoteJid: 'user-img@s.whatsapp.net' } } },
+        },
+      });
+
+      const result = await (multi as any).downloadImage({
+        key: { remoteJid: 'user-img@s.whatsapp.net' },
+      });
+      expect(result).toEqual(imageData);
+      expect((adapter as any).downloadImage).toHaveBeenCalledWith({
+        key: { remoteJid: 'user-img@s.whatsapp.net' },
+      });
+    });
+
+    it('falls back to connected adapter when JID not in routing table', async () => {
+      const n1 = createNumber('n1');
+      const audioData = { buffer: Buffer.from('audio'), mimetype: 'audio/ogg' };
+      const adapter = createMockAdapter({ connected: true, isConnected: vi.fn().mockReturnValue(true) });
+      (adapter as any).downloadAudio = vi.fn().mockResolvedValue(audioData);
+      const factory = vi.fn().mockReturnValue(adapter as any);
+
+      const multi = new MultiWhatsAppAdapter(config, factory, [n1]);
+      await multi.connect();
+
+      // Raw message without numberId and unknown JID → use connected adapter
+      const result = await (multi as any).downloadAudio({
+        key: { remoteJid: 'unknown@s.whatsapp.net' },
+      });
+      expect(result).toEqual(audioData);
     });
   });
 

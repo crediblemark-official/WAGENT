@@ -48,11 +48,11 @@ const styles: Record<string, React.CSSProperties> = {
     height: '100%',
     display: 'flex',
     flexDirection: 'column',
-    backgroundColor: '#0f1117',
+    backgroundColor: 'var(--input-bg)',
   },
   header: {
     padding: '20px 24px',
-    borderBottom: '1px solid #1e2030',
+    borderBottom: '1px solid var(--surface-border)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -61,7 +61,7 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     alignItems: 'center',
     gap: 12,
-    color: '#f1f5f9',
+    color: 'var(--text-heading)',
     fontSize: 20,
     fontWeight: 600,
   },
@@ -74,8 +74,8 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#1a1d2e',
-    border: '1px solid #2a2d3e',
+    backgroundColor: 'var(--surface-bg)',
+    border: '1px solid var(--hover-bg)',
     borderRadius: 8,
     padding: '8px 12px',
     width: 240,
@@ -83,7 +83,7 @@ const styles: Record<string, React.CSSProperties> = {
   searchInput: {
     background: 'transparent',
     border: 'none',
-    color: '#e2e8f0',
+    color: 'var(--text-body)',
     fontSize: 13,
     outline: 'none',
     width: '100%',
@@ -109,15 +109,15 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     alignItems: 'center',
     gap: 8,
-    borderBottom: '1px solid #1e2030',
+    borderBottom: '1px solid var(--surface-border)',
   },
   filterChip: {
     padding: '4px 12px',
     borderRadius: 16,
     fontSize: 12,
-    border: '1px solid #2a2d3e',
+    border: '1px solid var(--hover-bg)',
     background: 'transparent',
-    color: '#94a3b8',
+    color: 'var(--text-subtle)',
     cursor: 'pointer',
     transition: 'all 0.15s ease',
     fontFamily: 'inherit',
@@ -133,8 +133,8 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '16px 24px',
   },
   entryCard: {
-    backgroundColor: '#1a1d2e',
-    border: '1px solid #2a2d3e',
+    backgroundColor: 'var(--surface-bg)',
+    border: '1px solid var(--hover-bg)',
     borderRadius: 10,
     padding: '16px 20px',
     marginBottom: 12,
@@ -148,7 +148,7 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: 8,
   },
   cardQuestion: {
-    color: '#e2e8f0',
+    color: 'var(--text-body)',
     fontSize: 14,
     fontWeight: 600,
     flex: 1,
@@ -187,7 +187,7 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#4ade80',
   },
   cardAnswer: {
-    color: '#94a3b8',
+    color: 'var(--text-subtle)',
     fontSize: 13,
     lineHeight: 1.6,
     maxHeight: 60,
@@ -203,7 +203,7 @@ const styles: Record<string, React.CSSProperties> = {
     left: 0,
     right: 0,
     height: 24,
-    background: 'linear-gradient(transparent, #1a1d2e)',
+    background: 'linear-gradient(transparent, var(--surface-bg))',
   },
   emptyState: {
     display: 'flex',
@@ -211,7 +211,7 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: 'center',
     justifyContent: 'center',
     padding: 60,
-    color: '#64748b',
+    color: 'var(--text-subtle)',
     textAlign: 'center',
   },
   emptyIcon: {
@@ -232,8 +232,8 @@ const styles: Record<string, React.CSSProperties> = {
     zIndex: 100,
   },
   modal: {
-    backgroundColor: '#1a1d2e',
-    border: '1px solid #2a2d3e',
+    backgroundColor: 'var(--surface-bg)',
+    border: '1px solid var(--hover-bg)',
     borderRadius: 14,
     padding: 28,
     width: 560,
@@ -241,7 +241,7 @@ const styles: Record<string, React.CSSProperties> = {
     overflow: 'auto',
   },
   modalTitle: {
-    color: '#f1f5f9',
+    color: 'var(--text-heading)',
     fontSize: 18,
     fontWeight: 600,
     marginBottom: 20,
@@ -250,7 +250,7 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: 16,
   },
   formLabel: {
-    color: '#94a3b8',
+    color: 'var(--text-subtle)',
     fontSize: 12,
     fontWeight: 600,
     marginBottom: 6,
@@ -261,10 +261,10 @@ const styles: Record<string, React.CSSProperties> = {
   formInput: {
     width: '100%',
     padding: '10px 12px',
-    backgroundColor: '#0f1117',
-    border: '1px solid #2a2d3e',
+    backgroundColor: 'var(--input-bg)',
+    border: '1px solid var(--hover-bg)',
     borderRadius: 8,
-    color: '#e2e8f0',
+    color: 'var(--text-body)',
     fontSize: 13,
     outline: 'none',
     fontFamily: 'inherit',
@@ -273,10 +273,10 @@ const styles: Record<string, React.CSSProperties> = {
   formTextarea: {
     width: '100%',
     padding: '10px 12px',
-    backgroundColor: '#0f1117',
-    border: '1px solid #2a2d3e',
+    backgroundColor: 'var(--input-bg)',
+    border: '1px solid var(--hover-bg)',
     borderRadius: 8,
-    color: '#e2e8f0',
+    color: 'var(--text-body)',
     fontSize: 13,
     outline: 'none',
     fontFamily: 'inherit',
@@ -293,9 +293,9 @@ const styles: Record<string, React.CSSProperties> = {
   cancelButton: {
     padding: '8px 16px',
     backgroundColor: 'transparent',
-    border: '1px solid #2a2d3e',
+    border: '1px solid var(--hover-bg)',
     borderRadius: 8,
-    color: '#94a3b8',
+    color: 'var(--text-subtle)',
     cursor: 'pointer',
     fontSize: 13,
     fontFamily: 'inherit',
@@ -513,7 +513,7 @@ export function KnowledgeBasePage() {
         <div style={styles.headerTitle}>
           <Icons.Book />
           <span>Knowledge Base</span>
-          {!loading && <span style={{ fontSize: 13, color: '#64748b', fontWeight: 400 }}>({entries.length} entri)</span>}
+          {!loading && <span style={{ fontSize: 13, color: 'var(--text-subtle)', fontWeight: 400 }}>({entries.length} entri)</span>}
         </div>
         <div style={styles.headerRight}>
           <div style={styles.searchBar}>
@@ -556,12 +556,12 @@ export function KnowledgeBasePage() {
       <div style={styles.content}>
         {loading ? (
           <div style={styles.emptyState}>
-            <div style={{color: '#64748b'}}>Memuat...</div>
+             <div style={{color: 'var(--text-subtle)'}}>Memuat...</div>
           </div>
         ) : filteredEntries.length === 0 ? (
           <div style={styles.emptyState}>
             <div style={styles.emptyIcon}><Icons.Book /></div>
-            <h3 style={{color: '#94a3b8', marginBottom: 8}}>Belum ada entri knowledge base</h3>
+             <h3 style={{color: 'var(--text-subtle)', marginBottom: 8}}>Belum ada entri knowledge base</h3>
             <p style={{fontSize: 13, marginBottom: 16}}>Tambah informasi produk, FAQ, dan kebijakan agar AI bisa menjawab dengan akurat.</p>
             <button style={styles.addButton} onClick={openAddModal}>
               <Icons.Plus />
@@ -581,7 +581,7 @@ export function KnowledgeBasePage() {
                   if (actions) actions.style.opacity = '1';
                 }}
                 onMouseLeave={e => {
-                  e.currentTarget.style.borderColor = '#2a2d3e';
+                  e.currentTarget.style.borderColor = 'var(--hover-bg)';
                   const actions = e.currentTarget.querySelector('.card-actions') as HTMLElement;
                   if (actions) actions.style.opacity = '0';
                 }}
@@ -594,7 +594,7 @@ export function KnowledgeBasePage() {
                   <div className="card-actions" style={styles.cardActions}>
                     <button
                       onClick={e => { e.stopPropagation(); openEditModal(entry); }}
-                      style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: 4 }}
+                      style={{ background: 'none', border: 'none', color: 'var(--text-subtle)', cursor: 'pointer', padding: 4 }}
                       title="Edit"
                     >
                       <Icons.Edit />
@@ -687,7 +687,7 @@ export function KnowledgeBasePage() {
                 />
                 <button
                   onClick={addKeyword}
-                  style={{ padding: '8px 12px', backgroundColor: '#2a2d3e', border: 'none', borderRadius: 8, color: '#94a3b8', cursor: 'pointer', fontFamily: 'inherit' }}
+                  style={{ padding: '8px 12px', backgroundColor: 'var(--hover-bg)', border: 'none', borderRadius: 8, color: 'var(--text-subtle)', cursor: 'pointer', fontFamily: 'inherit' }}
                 >
                   Tambah
                 </button>
@@ -714,7 +714,7 @@ export function KnowledgeBasePage() {
                 />
                 <button
                   onClick={addTag}
-                  style={{ padding: '8px 12px', backgroundColor: '#2a2d3e', border: 'none', borderRadius: 8, color: '#94a3b8', cursor: 'pointer', fontFamily: 'inherit' }}
+                  style={{ padding: '8px 12px', backgroundColor: 'var(--hover-bg)', border: 'none', borderRadius: 8, color: 'var(--text-subtle)', cursor: 'pointer', fontFamily: 'inherit' }}
                 >
                   Tambah
                 </button>
@@ -738,10 +738,10 @@ export function KnowledgeBasePage() {
                     onClick={() => setFormPriority(p)}
                     style={{
                       padding: '6px 12px',
-                      backgroundColor: formPriority === p ? 'rgba(139, 92, 246, 0.2)' : '#0f1117',
-                      border: formPriority === p ? '1px solid #8b5cf6' : '1px solid #2a2d3e',
+                      backgroundColor: formPriority === p ? 'rgba(139, 92, 246, 0.2)' : 'var(--input-bg)',
+                      border: formPriority === p ? '1px solid #8b5cf6' : '1px solid var(--hover-bg)',
                       borderRadius: 6,
-                      color: formPriority === p ? '#8b5cf6' : '#64748b',
+                      color: formPriority === p ? '#8b5cf6' : 'var(--text-subtle)',
                       cursor: 'pointer',
                       fontSize: 12,
                       fontFamily: 'inherit',

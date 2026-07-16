@@ -4,6 +4,7 @@ import {
   TranscriptionResult,
   TranscriptionProvider,
   AudioMessageData,
+  ImageMessageData,
 } from '../types.js';
 import { getLogger } from '../utils/logger.js';
 import { promptLoader } from '../agent/prompt-loader.js';
@@ -46,6 +47,17 @@ export class Transcriber {
         return this.transcribeWithGemini(audio);
       default:
         throw new Error('No transcription provider configured. Set OPENAI_API_KEY or GEMINI_API_KEY');
+    }
+  }
+
+  async describeImage(image: ImageMessageData): Promise<string> {
+    switch (this.provider) {
+      case 'openai':
+        return this.describeImageWithOpenAI(image);
+      case 'gemini':
+        return this.describeImageWithGemini(image);
+      default:
+        throw new Error('No vision provider configured. Set OPENAI_API_KEY or GEMINI_API_KEY');
     }
   }
 
@@ -143,6 +155,109 @@ export class Transcriber {
       duration: audio.duration,
       provider: 'gemini',
     };
+  }
+
+  // ── Image Description ─────────────────────────────────────────
+
+  private async describeImageWithOpenAI(image: ImageMessageData): Promise<string> {
+    this.logger.info('Describing image with OpenAI...');
+
+    const apiKey = (this.provider === 'openai' && this.config.resolvedModel?.apiKey) ? this.config.resolvedModel?.apiKey : process.env.OPENAI_API_KEY;
+    if (!apiKey) throw new Error('OpenAI API key not configured');
+
+    const base64Image = image.buffer.toString('base64');
+
+    const visionModel = this.resolveVisionModel('gpt-4o');
+    let baseUrl = this.config.resolvedModel?.baseUrl || 'https://api.openai.com/v1';
+    baseUrl = baseUrl.endsWith('/chat/completions') ? baseUrl.replace('/chat/completions', '') : baseUrl;
+    const endpoint = `${baseUrl.replace(/\/$/, '')}/chat/completions`;
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: visionModel,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'text', text: 'Deskripsikan gambar ini secara detail dalam Bahasa Indonesia. Fokus pada objek, teks, warna, dan konteks yang relevan.' },
+            {
+              type: 'image_url',
+              image_url: { url: `data:${image.mimetype};base64,${base64Image}` },
+            },
+          ],
+        }],
+        max_tokens: 500,
+      }),
+    });
+
+    if (!response.ok) {
+      const err = await response.text();
+      throw new Error(`OpenAI Vision API error: ${response.status} - ${err}`);
+    }
+
+    const data = await response.json() as any;
+    const text = data?.choices?.[0]?.message?.content || '';
+
+    this.logger.info('Image description successful: %s', text.substring(0, 60));
+    return text;
+  }
+
+  private resolveVisionModel(fallback: string): string {
+    const model = this.config.resolvedModel?.model;
+    if (!model) return fallback;
+    const visionModels = ['gpt-4o', 'gpt-4', 'gpt-4-turbo', 'gpt-4.1', 'o1', 'o3', 'vision'];
+    const lower = model.toLowerCase();
+    const isVision = visionModels.some((v) => lower.includes(v));
+    return isVision ? model : fallback;
+  }
+
+  private async describeImageWithGemini(image: ImageMessageData): Promise<string> {
+    this.logger.info('Describing image with Gemini...');
+
+    const apiKey = (this.config.resolvedModel?.provider === 'google' || this.config.resolvedModel?.provider === 'gemini') ? this.config.resolvedModel?.apiKey : process.env.GEMINI_API_KEY;
+    if (!apiKey) throw new Error('Gemini API key not configured');
+
+    const base64Image = image.buffer.toString('base64');
+
+    const body = {
+      contents: [{
+        parts: [
+          { text: 'Deskripsikan gambar ini secara detail dalam Bahasa Indonesia. Fokus pada objek, teks, warna, dan konteks yang relevan.' },
+          {
+            inlineData: {
+              mimeType: image.mimetype,
+              data: base64Image,
+            },
+          },
+        ],
+      }],
+    };
+
+    const model = (this.config.resolvedModel?.provider === 'google' || this.config.resolvedModel?.provider === 'gemini') ? this.config.resolvedModel?.model : 'gemini-2.0-flash';
+    const baseUrl = this.config.resolvedModel?.baseUrl || 'https://generativelanguage.googleapis.com/v1beta';
+    const response = await fetch(
+      `${baseUrl}/models/${model}:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      }
+    );
+
+    if (!response.ok) {
+      const err = await response.text();
+      throw new Error(`Gemini API error: ${response.status} - ${err}`);
+    }
+
+    const data = await response.json() as any;
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+    this.logger.info('Gemini image description successful: %s', text.substring(0, 60));
+    return text;
   }
 
   private getExtensionFromMime(mimetype: string): string {
