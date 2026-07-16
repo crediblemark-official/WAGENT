@@ -1,6 +1,6 @@
 {
   "name": "@wagent/cli",
-  "version": "0.2.42",
+  "version": "0.2.43",
   "description": "WAGENT CLI - Command-line interface",
   "type": "module",
   "main": "./dist/bootstrap.js",
