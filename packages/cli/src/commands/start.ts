@@ -208,7 +208,7 @@ export async function startCommand(options: { port?: string; dashboard?: boolean
           import('qrcode-terminal').then((qrTerm) => {
             const term = (qrTerm as any).generate ? qrTerm : (qrTerm as any).default;
             if (term && typeof term.generate === 'function') {
-              term.generate(e.qr, { small: true });
+              term.generate.call(term, e.qr, { small: true });
             } else {
               console.log('  [Error: qrcode-terminal generate function not found]');
             }
