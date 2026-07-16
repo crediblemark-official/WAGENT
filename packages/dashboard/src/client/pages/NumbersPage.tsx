@@ -21,6 +21,15 @@ export function NumbersPage({ ws }: { ws: ReturnType<typeof useWebSocket> }) {
   const [form, setForm] = useState({ id: '', sessionName: '', label: '' });
   const [qrCodes, setQrCodes] = useState<{ [numberId: string]: string }>({});
 
+  // Telegram Config States
+  const [tgBotToken, setTgBotToken] = useState('');
+  const [tgChatId, setTgChatId] = useState('');
+  const [tgSaved, setTgSaved] = useState(false);
+  const [tgTesting, setTgTesting] = useState(false);
+  const [tgTestError, setTgTestError] = useState<string | null>(null);
+  const [tgTestSuccess, setTgTestSuccess] = useState<boolean | null>(null);
+  const [rawConfig, setRawConfig] = useState<any>(null);
+
   useEffect(() => {
     ws.send({ type: 'get:numbers' });
     const unsubList = ws.on('numbers:list', (d) => {
@@ -62,6 +71,83 @@ export function NumbersPage({ ws }: { ws: ReturnType<typeof useWebSocket> }) {
     });
     return () => { unsubList(); unsubUpdate(); unsubQr(); unsubStatus(); };
   }, [ws]);
+
+  useEffect(() => {
+    // Memuat konfigurasi eskalasi Telegram
+    fetch('/api/settings')
+      .then(res => res.json())
+      .then(data => {
+        if (data.config) {
+          setRawConfig(data.config);
+          if (data.config.escalation?.telegramBotToken) {
+            setTgBotToken(data.config.escalation.telegramBotToken);
+          }
+          if (data.config.escalation?.telegramChatId) {
+            setTgChatId(data.config.escalation.telegramChatId);
+          }
+        }
+      })
+      .catch(err => console.error('Gagal memuat pengaturan:', err));
+  }, []);
+
+  const handleSaveTelegram = async () => {
+    try {
+      const response = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          config: {
+            ...rawConfig,
+            escalation: {
+              ...rawConfig?.escalation,
+              telegramBotToken: tgBotToken.trim(),
+              telegramChatId: tgChatId.trim(),
+            }
+          }
+        }),
+      });
+
+      if (!response.ok) throw new Error('Gagal menyimpan setelan Telegram');
+
+      setTgSaved(true);
+      setTimeout(() => setTgSaved(false), 3000);
+      
+      const data = await response.json();
+      if (data.config) {
+        setRawConfig(data.config);
+      }
+    } catch (err: any) {
+      alert(err.message || 'Gagal menyimpan setelan Telegram');
+    }
+  };
+
+  const handleTestTelegram = async () => {
+    setTgTesting(true);
+    setTgTestError(null);
+    setTgTestSuccess(null);
+    try {
+      const response = await fetch('/api/escalation/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          botToken: tgBotToken.trim(),
+          chatId: tgChatId.trim(),
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Gagal mengirim pesan uji coba');
+      }
+
+      setTgTestSuccess(true);
+      setTimeout(() => setTgTestSuccess(null), 5000);
+    } catch (err: any) {
+      setTgTestError(err.message || 'Gagal menguji bot Telegram');
+    } finally {
+      setTgTesting(false);
+    }
+  };
 
   const handleAdd = () => {
     if (!form.id || !form.sessionName) return;
@@ -176,6 +262,116 @@ export function NumbersPage({ ws }: { ws: ReturnType<typeof useWebSocket> }) {
             )}
           </div>
         ))}
+      </div>
+
+      {/* Setelan Telegram */}
+      <div style={{ marginTop: 28, borderTop: '1px solid #222e35', paddingTop: 20 }}>
+        <div style={{ marginBottom: 16 }}>
+          <h3 style={{ fontSize: 15, fontWeight: 600, color: '#e9edef', margin: '0 0 4px 0' }}>Setelan Eskalasi Telegram</h3>
+          <p style={{ fontSize: 12, color: '#8696a0', margin: 0 }}>
+            Konfigurasi penerusan notifikasi bantuan manusia ke bot Telegram ketika AI tidak mampu menjawab pesan.
+          </p>
+        </div>
+
+        {tgSaved && (
+          <div style={{
+            padding: 10, borderRadius: 6, background: 'rgba(37, 211, 102, 0.1)',
+            color: '#25d366', border: '1px solid rgba(37, 211, 102, 0.2)',
+            fontSize: 12, marginBottom: 14
+          }}>
+            ✓ Setelan Telegram berhasil disimpan! Sistem memuat ulang latar belakang...
+          </div>
+        )}
+
+        {tgTestSuccess && (
+          <div style={{
+            padding: 10, borderRadius: 6, background: 'rgba(37, 211, 102, 0.1)',
+            color: '#25d366', border: '1px solid rgba(37, 211, 102, 0.2)',
+            fontSize: 12, marginBottom: 14
+          }}>
+            ✓ Pesan uji coba berhasil dikirim! Silakan periksa grup/chat Telegram Anda.
+          </div>
+        )}
+
+        {tgTestError && (
+          <div style={{
+            padding: 10, borderRadius: 6, background: 'rgba(239, 68, 68, 0.1)',
+            color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.2)',
+            fontSize: 12, marginBottom: 14
+          }}>
+            ⚠️ {tgTestError}
+          </div>
+        )}
+
+        <div style={{
+          background: '#111b21',
+          borderRadius: 10,
+          border: '1px solid #222e35',
+          padding: 16,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 14
+        }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <label style={{ fontSize: 12, color: '#e9edef', fontWeight: 500 }}>Bot Token</label>
+              <input
+                type="password"
+                value={tgBotToken}
+                onChange={e => setTgBotToken(e.target.value)}
+                placeholder="Token Bot Telegram"
+                style={{ ...inputS, background: '#202c33', border: '1px solid #222e35', color: '#e9edef' }}
+              />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <label style={{ fontSize: 12, color: '#e9edef', fontWeight: 500 }}>Chat ID / ID Grup</label>
+              <input
+                type="text"
+                value={tgChatId}
+                onChange={e => setTgChatId(e.target.value)}
+                placeholder="Chat ID Telegram"
+                style={{ ...inputS, background: '#202c33', border: '1px solid #222e35', color: '#e9edef' }}
+              />
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
+            <button
+              onClick={handleTestTelegram}
+              disabled={!tgBotToken || !tgChatId || tgTesting}
+              style={{
+                padding: '8px 16px',
+                borderRadius: 20,
+                border: '1px solid #00a884',
+                background: 'transparent',
+                color: '#00a884',
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: 'pointer',
+                opacity: !tgBotToken || !tgChatId || tgTesting ? 0.5 : 1,
+              }}
+            >
+              {tgTesting ? 'Menguji...' : 'Uji Coba Kirim Notifikasi'}
+            </button>
+
+            <button
+              onClick={handleSaveTelegram}
+              style={{
+                padding: '10px 24px',
+                borderRadius: 20,
+                border: 'none',
+                background: '#00a884',
+                color: '#fff',
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: 'pointer',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+              }}
+            >
+              Simpan Setelan Telegram
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

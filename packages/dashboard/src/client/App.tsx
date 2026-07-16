@@ -69,7 +69,7 @@ const IconsSmall = {
 const navItems: NavItem[] = [
   { id: 'chats', label: 'Percakapan', icon: <Icons.Chat /> },
   { id: 'contacts', label: 'Kontak', icon: <Icons.Users /> },
-  { id: 'numbers', label: 'Nomor WA', icon: <Icons.Smartphone /> },
+  { id: 'numbers', label: 'WA & Tele Config', icon: <Icons.Smartphone /> },
   { id: 'broadcast', label: 'Broadcast', icon: <Icons.Send /> },
   { id: 'schedule', label: 'Terjadwal', icon: <Icons.Clock /> },
   { id: 'knowledge-base', label: 'Knowledge Base', icon: <IconsSmall.Book /> },

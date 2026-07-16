@@ -30,9 +30,7 @@ export function SettingsPage() {
   const [autoReply, setAutoReply] = useState(true);
   const [groupChatEnabled, setGroupChatEnabled] = useState(false);
 
-  // Telegram Escalation
-  const [tgBotToken, setTgBotToken] = useState('');
-  const [tgChatId, setTgChatId] = useState('');
+
 
   // Jam Kerja (Working Hours)
   const [whEnabled, setWhEnabled] = useState(false);
@@ -93,9 +91,7 @@ export function SettingsPage() {
         if (cfg.groupChat?.enabled !== undefined) setGroupChatEnabled(cfg.groupChat.enabled);
         if (cfg.agent?.autoReply !== undefined) setAutoReply(cfg.agent.autoReply);
 
-        // Map Telegram
-        if (cfg.escalation?.telegramBotToken) setTgBotToken(cfg.escalation.telegramBotToken);
-        if (cfg.escalation?.telegramChatId) setTgChatId(cfg.escalation.telegramChatId);
+
 
         // Map Jam Kerja (Working Hours)
         if (cfg.workingHours?.enabled !== undefined) setWhEnabled(cfg.workingHours.enabled);
@@ -164,11 +160,7 @@ export function SettingsPage() {
           ...rawConfig.groupChat,
           enabled: groupChatEnabled
         },
-        escalation: {
-          ...rawConfig.escalation,
-          telegramBotToken: tgBotToken.trim(),
-          telegramChatId: tgChatId.trim()
-        },
+
         workingHours: {
           ...rawConfig.workingHours,
           enabled: whEnabled,
@@ -398,12 +390,7 @@ export function SettingsPage() {
             />
           </Section>
 
-          <Section title="Eskalasi Telegram" description="Teruskan obrolan ke Telegram untuk penanganan manusia">
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <InputRow label="Bot Token" value={tgBotToken} onChange={setTgBotToken} placeholder="Token Bot Telegram" type="password" />
-              <InputRow label="Chat ID" value={tgChatId} onChange={setTgChatId} placeholder="Chat ID Telegram" />
-            </div>
-          </Section>
+
 
         </div>
 

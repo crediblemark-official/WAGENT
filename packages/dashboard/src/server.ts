@@ -685,6 +685,37 @@ export class DashboardServer implements DashboardAdapter {
       }
     });
 
+    this.app.post('/api/escalation/test', async (req, res) => {
+      const { botToken, chatId } = req.body;
+      if (!botToken || !chatId) {
+        return res.status(400).json({ error: 'Token bot dan Chat ID wajib diisi' });
+      }
+
+      try {
+        const { EscalationService } = await import('@wagent/core');
+        const tempConfig = {
+          telegramBotToken: botToken,
+          telegramChatId: chatId,
+        };
+        const escalation = new EscalationService(tempConfig as any);
+        const sent = await escalation.escalate({
+          contactId: 'test@s.whatsapp.net',
+          contactName: 'Penguji Dashboard',
+          customerMessage: 'Ini adalah pesan uji coba eskalasi Telegram dari dashboard WAGENT Anda. Bot Anda sukses dikonfigurasi! ✅',
+          reason: 'ai_explicit_escalation',
+          details: 'Uji coba bot Telegram',
+        });
+
+        if (sent) {
+          res.json({ success: true });
+        } else {
+          res.status(500).json({ error: 'Gagal mengirim pesan ke Telegram' });
+        }
+      } catch (err: any) {
+        res.status(500).json({ error: err.message });
+      }
+    });
+
     // Serve static files in production
     const publicDir = resolve(__dirname, 'public');
     if (existsSync(publicDir)) {
