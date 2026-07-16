@@ -311,7 +311,9 @@ export async function setupWizard(): Promise<void> {
   if (config.apiKey) {
     console.log(`  API Key    : ${config.apiKey.substring(0, 8)}...`);
   }
-  console.log(`  Dashboard  : ${config.dashboard.enabled ? color.green(`ON → http://localhost:${config.dashboard.port}`) : color.red('OFF')}`);
+  const configHost = existingConfig?.dashboard?.host || '0.0.0.0';
+  const displayHost = configHost === '0.0.0.0' ? 'localhost' : configHost;
+  console.log(`  Dashboard  : ${config.dashboard.enabled ? color.green(`ON → http://${displayHost}:${config.dashboard.port}`) : color.red('OFF')}`);
   console.log(`  Telegram   : ${config.escalation.telegramBotToken ? color.green('ON (Eskalasi Aktif)') : color.dim('OFF')}`);
   console.log('');
 

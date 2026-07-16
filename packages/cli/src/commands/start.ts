@@ -182,7 +182,8 @@ export async function startCommand(options: { port?: string; dashboard?: boolean
     console.log(`  ${color.dim('Model')}       ${color.yellow(modelInfo)}`);
     console.log(`  ${color.dim('Session')}     ${config.whatsappSessionName || 'default'}`);
     if (config.dashboardPort && options.dashboard !== false) {
-      console.log(`  ${color.dim('Dashboard')}   ${color.cyan(`http://localhost:${config.dashboardPort}`)}`);
+      const displayHost = config.dashboardHost === '0.0.0.0' ? 'localhost' : config.dashboardHost;
+      console.log(`  ${color.dim('Dashboard')}   ${color.cyan(`http://${displayHost}:${config.dashboardPort}`)}`);
     }
     console.log(`  ${color.dim('Stop')}        ${color.yellow('Ctrl+C')}`);
     console.log('');
