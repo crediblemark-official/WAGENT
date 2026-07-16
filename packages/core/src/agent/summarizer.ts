@@ -303,8 +303,10 @@ export class Summarizer {
     if (entries.length > 6) {
       const first = entries[0];
       const context = `Percakapan dimulai dengan: "${first.content.substring(0, 100)}"`;
-      parts.push(context);
-      totalLength += context.length;
+      if (totalLength + context.length <= maxLength) {
+        parts.push(context);
+        totalLength += context.length;
+      }
     }
 
     // Count messages per role for stats
@@ -313,15 +315,20 @@ export class Summarizer {
 
     if (userCount + agentCount > 0) {
       const stats = `\nStatistik: ${userCount} pesan dari customer, ${agentCount} dari agent.`;
-      parts.push(stats);
-      totalLength += stats.length;
+      if (totalLength + stats.length <= maxLength) {
+        parts.push(stats);
+        totalLength += stats.length;
+      }
     }
 
     // Recent messages
     const recentCount = Math.min(5, entries.length);
     const recent = entries.slice(-recentCount);
-    parts.push('\nPesan terbaru:');
-    totalLength += '\nPesan terbaru:'.length;
+    const header = '\nPesan terbaru:';
+    if (totalLength + header.length <= maxLength) {
+      parts.push(header);
+      totalLength += header.length;
+    }
 
     for (const entry of recent) {
       const prefix = entry.role === 'user' ? '👤 Customer' : '🤖 Agent';

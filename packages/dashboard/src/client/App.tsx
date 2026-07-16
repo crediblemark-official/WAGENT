@@ -31,6 +31,12 @@ const Icons = {
   Zap: () => (
     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
   ),
+  ChevronLeft: () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+  ),
+  ChevronRight: () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+  ),
 };
 
 // ── Pages ──────────────────────────────────────────────────────
@@ -84,7 +90,18 @@ export function App() {
   const [connectionStatus, setConnectionStatus] = useState<string>('disconnected');
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
   const [theme, setTheme] = useState<string>(() => localStorage.getItem('theme') || 'light');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
+    return localStorage.getItem('sidebarCollapsed') === 'true';
+  });
   const ws = useWebSocket();
+
+  const toggleSidebar = () => {
+    setSidebarCollapsed(prev => {
+      const next = !prev;
+      localStorage.setItem('sidebarCollapsed', String(next));
+      return next;
+    });
+  };
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -138,10 +155,37 @@ export function App() {
   return (
     <div style={styles.container}>
       {/* Sidebar */}
-      <aside style={styles.sidebar}>
-        <div style={styles.logo}>
-          <Icons.Zap />
-          <span style={styles.logoText}>WAGENT</span>
+      <aside style={{ ...styles.sidebar, width: sidebarCollapsed ? 64 : 230, transition: 'width 0.2s ease' }}>
+        <div style={{
+          ...styles.logo,
+          padding: sidebarCollapsed ? '16px 8px' : '16px 16px',
+          justifyContent: sidebarCollapsed ? 'center' : 'space-between',
+          flexDirection: sidebarCollapsed ? 'column' : 'row',
+          gap: sidebarCollapsed ? 12 : 8,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Icons.Zap />
+            {!sidebarCollapsed && <span style={styles.logoText}>WAGENT</span>}
+          </div>
+          <button
+            onClick={toggleSidebar}
+            title={sidebarCollapsed ? "Tampilkan Sidebar" : "Sembunyikan Sidebar"}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 24,
+              height: 24,
+              cursor: 'pointer',
+              border: 'none',
+              backgroundColor: 'var(--bg-active)',
+              borderRadius: '50%',
+              color: 'var(--text-active)',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+            }}
+          >
+            {sidebarCollapsed ? <Icons.ChevronRight /> : <Icons.ChevronLeft />}
+          </button>
         </div>
 
         <nav style={styles.nav}>
@@ -149,37 +193,50 @@ export function App() {
             <button
               key={item.id}
               onClick={() => setCurrentPage(item.id)}
+              title={sidebarCollapsed ? item.label : undefined}
               style={{
                 ...styles.navItem,
                 ...(currentPage === item.id ? styles.navItemActive : {}),
+                justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
+                padding: sidebarCollapsed ? '10px 0' : '8px 12px',
               }}
             >
               {item.icon}
-              <span>{item.label}</span>
+              {!sidebarCollapsed && <span>{item.label}</span>}
             </button>
           ))}
         </nav>
 
-        <div style={{
-          padding: '10px 16px',
-          fontSize: 10,
-          color: 'var(--text-muted)',
-          borderTop: '1px solid var(--border-color)',
-          textAlign: 'center',
-          boxSizing: 'border-box',
-        }}>
-          by <a href="https://crediblemark.com" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--text-active)', textDecoration: 'none', fontWeight: 600 }}>Rasyiqi - crediblemark.com</a>
-        </div>
+        {!sidebarCollapsed && (
+          <div style={{
+            padding: '10px 16px',
+            fontSize: 10,
+            color: 'var(--text-muted)',
+            borderTop: '1px solid var(--border-color)',
+            textAlign: 'center',
+            boxSizing: 'border-box',
+          }}>
+            by <a href="https://crediblemark.com" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--text-active)', textDecoration: 'none', fontWeight: 600 }}>Rasyiqi - crediblemark.com</a>
+          </div>
+        )}
 
-        <div style={styles.statusBar}>
+        <div style={{
+          ...styles.statusBar,
+          flexDirection: sidebarCollapsed ? 'column' : 'row',
+          gap: sidebarCollapsed ? 12 : 8,
+          padding: sidebarCollapsed ? '12px 8px' : '10px 14px',
+          justifyContent: sidebarCollapsed ? 'center' : 'space-between',
+        }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: statusColor }} />
-            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-              {connectionStatus === 'connected' ? 'Terkoneksi' :
-               connectionStatus === 'qr' ? 'Scan QR' :
-               connectionStatus === 'connecting' ? 'Menghubungkan...' :
-               connectionStatus}
-            </span>
+            <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: statusColor }} title={connectionStatus} />
+            {!sidebarCollapsed && (
+              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                {connectionStatus === 'connected' ? 'Terkoneksi' :
+                 connectionStatus === 'qr' ? 'Scan QR' :
+                 connectionStatus === 'connecting' ? 'Menghubungkan...' :
+                 connectionStatus}
+              </span>
+            )}
           </div>
 
           <button 
@@ -193,6 +250,8 @@ export function App() {
               borderRadius: 4,
               color: 'var(--text-muted)',
               cursor: 'pointer',
+              border: 'none',
+              background: 'transparent',
             }}
           >
             {theme === 'light' ? (

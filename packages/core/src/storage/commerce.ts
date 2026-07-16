@@ -26,8 +26,8 @@ export function rowToProduct(row: any): any {
 
 export function addConversation(db: BetterSqlite3.Database, contactId: string, role: string, content: string, tokenCount = 0): void {
   db.prepare(
-    'INSERT INTO conversations (contact_id, role, content, token_count) VALUES (?, ?, ?, ?)'
-  ).run(contactId, role, content, tokenCount);
+    'INSERT INTO conversations (contact_id, role, content, token_count, created_at) VALUES (?, ?, ?, ?, ?)'
+  ).run(contactId, role, content, tokenCount, new Date().toISOString());
 }
 
 export function getConversationHistory(db: BetterSqlite3.Database, contactId: string, limit = 30): { role: string; content: string }[] {

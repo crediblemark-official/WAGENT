@@ -324,13 +324,7 @@ export class ProactiveScheduler {
       }
     }
 
-    // Parse simple cron format: "minute hour * * *"
-    const parts = schedule.split(/\s+/);
-    if (parts.length === 5) {
-      return this.matchCron(parts, now);
-    }
-
-    // Parse "every N days at HH:mm"
+    // Parse "every N days at HH:mm" (must check before cron to avoid false 5-part match)
     const everyMatch = schedule.match(/^every\s+(\d+)\s+days?\s+at\s+(\d+):(\d+)$/i);
     if (everyMatch) {
       const intervalDays = parseInt(everyMatch[1], 10);
@@ -347,6 +341,12 @@ export class ProactiveScheduler {
       }
 
       return true;
+    }
+
+    // Parse simple cron format: "minute hour * * *"
+    const parts = schedule.split(/\s+/);
+    if (parts.length === 5) {
+      return this.matchCron(parts, now);
     }
 
     return false;
