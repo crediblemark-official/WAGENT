@@ -115,16 +115,20 @@ if ! command -v node &>/dev/null; then
   fi
   ok "Node.js installed successfully"
 fi
-# Install bun jika belum ada (dipakai untuk install deps, lebih cepat & kompatibel)
-if ! command -v bun &>/dev/null; then
+# Install bun jika belum ada / corrupt (dipakai untuk install deps, lebih cepat & kompatibel)
+if ! bun --version >/dev/null 2>&1; then
   info "Installing bun (package manager)..."
-  if curl -fsSL https://bun.sh/install | bash > /dev/null 2>&1; then
+  # Remove any partially/corrupt install first
+  rm -rf "$HOME/.bun"
+  if curl -fsSL https://bun.sh/install | bash > /dev/null 2>&1 && bun --version >/dev/null 2>&1; then
     export PATH="$HOME/.bun/bin:$PATH"
     ok "Bun $(bun --version) installed"
   else
     fail "Bun installation failed. Install manually: https://bun.sh"
     exit 1
   fi
+else
+  ok "Bun $(bun --version) already present"
 fi
 ok "Node $(node --version)"
 ok "Bun $(bun --version)"
@@ -159,18 +163,24 @@ if [ -d "$INSTALL_DIR" ]; then
     echo -e "  ${G}Already up-to-date!${N} (v$LOCAL_VERSION)"
     hr
     echo ""
-    echo -e "  ${W}Start:${N}   wagent start"
-    echo -e "  ${W}Update:${N}  wagent update"
-    echo -e "  ${W}Help:${N}    wagent --help"
+    # Even if up-to-date, ensure the CLI binary exists (a previous run may
+    # have aborted before Step 5). Continue to dependency install + CLI setup
+    # only if the `wagent` command is not on PATH.
+    if command -v wagent >/dev/null 2>&1; then
+      echo -e "  ${W}Start:${N}   wagent start"
+      echo -e "  ${W}Update:${N}  wagent update"
+      echo -e "  ${W}Help:${N}    wagent --help"
+      echo ""
+      exit 0
+    fi
+    info "wagent binary missing — completing setup (deps + CLI)..."
+  else
     echo ""
-    exit 0
+    echo -e "  ${Y}↑ New version available! (v$LOCAL_VERSION → v$REMOTE_VERSION) Updating...${N}"
+    echo ""
+    bash "$INSTALL_DIR/update.sh"
+    # Continue below to re-run deps install + CLI setup regardless
   fi
-
-  echo ""
-  echo -e "  ${Y}↑ New version available! (v$LOCAL_VERSION → v$REMOTE_VERSION) Updating...${N}"
-  echo ""
-  bash "$INSTALL_DIR/update.sh"
-  exit 0
 fi
 
 if git clone --depth 1 "$REPO" "$INSTALL_DIR" >/dev/null 2>&1; then
