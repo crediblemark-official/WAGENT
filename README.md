@@ -117,14 +117,6 @@ bun run build
 ./bin/wagent init              # Setup wizard interaktif
 ```
 
-Atau buat `.env`:
-
-```env
-AI_PROVIDER=gemini
-GEMINI_API_KEY=your_api_key_here
-AGENT_SYSTEM_PROMPT="Kamu adalah asisten bisnis yang membantu."
-```
-
 ### Start
 
 **Mode Interaktif (Terminal)**
