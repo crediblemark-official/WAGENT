@@ -102,7 +102,8 @@ export class PromptGenerator {
     lines.push('');
 
     // Speaking Style
-    lines.push('speaking-style[6]:');
+    const speakingStyleCount = 6 + (answers.greeting ? 1 : 0);
+    lines.push(`speaking-style[${speakingStyleCount}]:`);
     lines.push(`  - Gunakan bahasa ${answers.language} yang alami`);
     if (answers.greeting) {
       lines.push(`  - Sapaan khusus: "${answers.greeting}"`);
@@ -115,7 +116,8 @@ export class PromptGenerator {
     lines.push('');
 
     // Rules
-    lines.push('rules[6]:');
+    const rulesCount = 2 + (answers.forbiddenActions.length > 0 ? answers.forbiddenActions.length : 2) + (answers.escalationTriggers.length > 0 ? 1 : 0) + 1;
+    lines.push(`rules[${rulesCount}]:`);
     lines.push('  - Jangan sebut diri sendiri AI kecuali ditanya');
     lines.push('  - Jika tidak tahu jawabannya akui dengan jujur');
     if (answers.forbiddenActions.length > 0) {

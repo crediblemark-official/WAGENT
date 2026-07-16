@@ -16,19 +16,20 @@ export class PromptLoader {
   private promptsDir: string;
 
   private constructor() {
-    // Find prompts directory - prefer root prompts/ (has all TOON files)
-    // Saat global install, core bisa nested di dalam @wagent/wagent/node_modules/@wagent/core/dist/agent/
-    const possiblePaths = [
+    const dirs = this.getPossibleDirs();
+    this.promptsDir = dirs.find(p => existsSync(p)) || join(process.cwd(), 'prompts');
+  }
+
+  private getPossibleDirs(): string[] {
+    return [
+      join(process.cwd(), 'prompts'),
       join(__dirname, '../../../../prompts'),          // dev: packages/core/src/agent -> root/prompts
       join(__dirname, '../../../prompts'),             // dev: packages/core/src -> root/prompts
       join(__dirname, '../../prompts'),                // dev: packages/core -> root/prompts (alt)
       join(__dirname, '../../../../../prompts'),       // npm global: @wagent/core/dist/agent -> @wagent/wagent/prompts
       join(__dirname, '../../../../../../prompts'),    // npm global nested: node_modules/@wagent/wagent/node_modules/@wagent/core/dist/agent
-      join(process.cwd(), 'prompts'),                  // cwd fallback
       join(__dirname, '../prompts'),                   // packages/core/prompts (legacy)
     ];
-    
-    this.promptsDir = possiblePaths.find(p => existsSync(p)) || possiblePaths[0];
   }
 
   static getInstance(): PromptLoader {
@@ -54,18 +55,34 @@ export class PromptLoader {
       return this.cache.get(filename);
     }
 
-    const filePath = join(this.promptsDir, filename);
+    let foundPath: string | null = null;
+    const possibleDirs = this.getPossibleDirs();
     
-    if (!existsSync(filePath)) {
-      getLogger().warn(`Prompt file not found: ${filePath}`);
+    // 1. Cek di promptsDir utama terlebih dahulu (bisa di-override saat testing)
+    const primaryPath = join(this.promptsDir, filename);
+    if (existsSync(primaryPath)) {
+      foundPath = primaryPath;
+    } else {
+      // 2. Fallback ke direktori yang mungkin lainnya
+      for (const dir of possibleDirs) {
+        const path = join(dir, filename);
+        if (existsSync(path)) {
+          foundPath = path;
+          break;
+        }
+      }
+    }
+
+    if (!foundPath) {
+      getLogger().warn(`Prompt file not found: ${filename} (searched in ${primaryPath} and fallbacks: ${possibleDirs.join(', ')})`);
       return null;
     }
 
     try {
-      const content = readFileSync(filePath, 'utf-8').trim();
+      const content = readFileSync(foundPath, 'utf-8').trim();
       const parsed = decode(content);
       this.cache.set(filename, parsed);
-      getLogger().debug(`Loaded prompt file: ${filePath}`);
+      getLogger().debug(`Loaded prompt file: ${foundPath}`);
       return parsed;
     } catch (error) {
       getLogger().error(`Failed to parse ${filename}: ${error}`);
