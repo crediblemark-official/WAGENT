@@ -14,7 +14,7 @@ export function ContactsPage({ ws }: { ws: ReturnType<typeof useWebSocket> }) {
   const [selected, setSelected] = useState<Contact | null>(null);
 
   useEffect(() => {
-    ws.request('get:contacts').then((data) => {
+    ws.request('get:contacts', undefined, 'contact:list').then((data) => {
       if (data?.contacts) setContacts(data.contacts);
     });
 

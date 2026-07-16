@@ -27,11 +27,11 @@ export function ChatPage({ ws, selectedChatId, onSelectChat }: Props) {
 
   // Load chats & human-active set
   useEffect(() => {
-    ws.request('get:chats').then((data) => {
+    ws.request('get:chats', undefined, 'chat:list').then((data) => {
       if (data?.chats) setChats(data.chats);
     });
 
-    ws.request('get:human-active').then((data) => {
+    ws.request('get:human-active', undefined, 'human:active:list').then((data) => {
       if (data?.chatIds) setHumanActiveChats(new Set(data.chatIds));
     });
 
@@ -66,7 +66,7 @@ export function ChatPage({ ws, selectedChatId, onSelectChat }: Props) {
   // Load messages when a chat is selected
   useEffect(() => {
     if (selectedChatId) {
-      ws.request('get:messages', { chatId: selectedChatId }).then((data) => {
+      ws.request('get:messages', { chatId: selectedChatId }, 'messages').then((data) => {
         if (data?.messages) setMessages(data.messages);
       });
     }

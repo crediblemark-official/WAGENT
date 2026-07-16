@@ -75,13 +75,14 @@ export function useWebSocket() {
     };
   }, []);
 
-  const request = useCallback((type: string, data?: object) => {
+  const request = useCallback((type: string, data?: object, responseType?: string) => {
     return new Promise<any>((resolve) => {
+      const expectedType = responseType || type;
       const handler = (response: any) => {
         cleanup();
         resolve(response);
       };
-      const cleanup = on(type, handler);
+      const cleanup = on(expectedType, handler);
       send({ type, ...data });
       // Timeout after 10s
       setTimeout(() => {

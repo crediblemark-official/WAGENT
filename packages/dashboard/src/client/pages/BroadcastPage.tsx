@@ -13,7 +13,7 @@ export function BroadcastPage({ ws }: { ws: ReturnType<typeof useWebSocket> }) {
   const [showForm, setShowForm] = useState(false);
 
   useEffect(() => {
-    ws.request('get:broadcasts').then((data) => {
+    ws.request('get:broadcasts', undefined, 'broadcasts').then((data) => {
       if (data?.broadcasts) setBroadcasts(data.broadcasts);
     });
 

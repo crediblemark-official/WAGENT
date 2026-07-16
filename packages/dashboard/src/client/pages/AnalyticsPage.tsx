@@ -12,7 +12,7 @@ export function AnalyticsPage({ ws }: { ws: ReturnType<typeof useWebSocket> }) {
   const [days, setDays] = useState(7);
 
   useEffect(() => {
-    ws.request('get:stats', { days }).then((data) => {
+    ws.request('get:stats', { days }, 'stats:update').then((data) => {
       if (data?.stats) setStats(data.stats);
     });
 
