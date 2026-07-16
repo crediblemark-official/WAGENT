@@ -1,6 +1,6 @@
 {
   "name": "@wagent/cli",
-  "version": "0.2.35",
+  "version": "0.2.36",
   "description": "WAGENT CLI - Command-line interface",
   "type": "module",
   "main": "./dist/bootstrap.js",
@@ -18,12 +18,13 @@
   },
   "dependencies": {
     "@wagent/core": "latest",
-    "@wagent/whatsapp": "latest",
-    "@wagent/tui": "latest",
     "@wagent/dashboard": "latest",
+    "@wagent/tui": "latest",
+    "@wagent/whatsapp": "latest",
     "commander": "^13.1.0",
     "picocolors": "^1.1.1",
-    "pino": "^9.6.0"
+    "pino": "^9.6.0",
+    "qrcode-terminal": "^0.12.0"
   },
   "devDependencies": {
     "typescript": "^5.7.0",
