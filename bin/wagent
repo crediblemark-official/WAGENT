@@ -16,8 +16,8 @@ if ! command -v node &>/dev/null; then
   fi
 fi
 
-if [ -f "$PROJECT_DIR/node_modules/@crediblemark/cli/dist/bootstrap.js" ]; then
-  exec node "$PROJECT_DIR/node_modules/@crediblemark/cli/dist/bootstrap.js" "$@"
+if [ -f "$PROJECT_DIR/node_modules/@wagent/cli/dist/bootstrap.js" ]; then
+  exec node "$PROJECT_DIR/node_modules/@wagent/cli/dist/bootstrap.js" "$@"
 else
   exec node "$PROJECT_DIR/packages/cli/dist/bootstrap.js" "$@"
 fi

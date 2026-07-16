@@ -370,8 +370,24 @@ export async function setupWizard(): Promise<void> {
     try {
       const { resolve, dirname } = await import('path');
       const { fileURLToPath } = await import('url');
+      const { existsSync } = await import('fs');
+      const { createRequire } = await import('module');
+
       const cliDistDir = dirname(fileURLToPath(import.meta.url));
-      const startPath = resolve(cliDistDir, '../../cli/dist/index.js');
+      
+      // Prioritaskan mencari di folder packages/cli/dist/bootstrap.js (struktur monorepo / global package files)
+      let startPath = resolve(cliDistDir, '../../../packages/cli/dist/bootstrap.js');
+      
+      if (!existsSync(startPath)) {
+        try {
+          const require = createRequire(import.meta.url);
+          startPath = require.resolve('@wagent/cli');
+        } catch {
+          // Fallback ke path relatif jika tidak ditemukan di node_modules
+          startPath = resolve(cliDistDir, '../../cli/dist/bootstrap.js');
+        }
+      }
+
       const { spawn } = await import('child_process');
       const child = spawn('node', [startPath, 'start'], {
         stdio: 'inherit',
