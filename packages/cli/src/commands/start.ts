@@ -1,7 +1,5 @@
 import { createServer } from 'net';
 import color from 'picocolors';
-// @ts-ignore
-import qrcode from 'qrcode-terminal';
 import {
   loadConfig,
   ensureDirectories,
@@ -193,7 +191,6 @@ export async function startCommand(options: { port?: string; dashboard?: boolean
     console.log(`  ${color.dim('Stop')}        ${color.yellow('Ctrl+C')}`);
     console.log('');
 
-    // Listener untuk QR Code
     let lastQrTime = 0;
     bus.on('qr:received', (e: any) => {
       const now = Date.now();
@@ -201,14 +198,16 @@ export async function startCommand(options: { port?: string; dashboard?: boolean
       if (now - lastQrTime > 15000) {
         lastQrTime = now;
         qrWasShown = true;
-        
+
         if (dashboard) {
           const displayHost = config.dashboardHost === '0.0.0.0' ? 'localhost' : config.dashboardHost;
           console.log('');
           console.log(color.cyan(`  📱 Sesi WhatsApp memerlukan pemindaian. Scan QR Code di bawah atau buka Web Dashboard.`));
           console.log(color.cyan(`     Dashboard: http://${displayHost}:${config.dashboardPort}`));
           console.log('');
-          qrcode.generate(e.qr, { small: true });
+          import('qrcode-terminal').then((qrTerm) => {
+            qrTerm.default.generate(e.qr, { small: true });
+          }).catch(() => {});
           console.log('');
         }
       }
