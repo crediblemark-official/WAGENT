@@ -139,14 +139,21 @@ Scan QR code WhatsApp. Selesai!
 
 WAGENT dilengkapi dengan manajer layanan systemd internal yang memudahkan Anda mendeploy asisten AI ini sebagai daemon latar belakang di server produksi Linux Anda.
 
-### 1. Menjalankan Layanan
-Untuk menginstal dan menjalankan WAGENT di latar belakang:
+### 1. Inisialisasi Konfigurasi (Wajib)
+Sebelum menjalankan layanan di latar belakang, Anda wajib melakukan inisialisasi konfigurasi terlebih dahulu untuk membuat berkas setelan:
+```bash
+wagent init
+```
+*Ikuti langkah-langkah di layar hingga selesai.*
+
+### 2. Menjalankan Layanan
+Untuk menginstal dan menjalankan WAGENT di latar belakang (daemon):
 ```bash
 wagent service start
 ```
 *Perintah ini secara otomatis mendeteksi path, menginstal file unit `wagent.service` ke folder systemd user (`~/.config/systemd/user/wagent.service`), me-load daemon, dan menyalakan asisten AI Anda.*
 
-### 2. Memantau Status & Log
+### 3. Memantau Status & Log
 Memeriksa status unit layanan:
 ```bash
 wagent service status
@@ -157,7 +164,7 @@ Membaca log aktivitas asisten AI secara real-time:
 wagent service logs
 ```
 
-### 3. Menghentikan & Memulai Ulang
+### 4. Menghentikan & Memulai Ulang
 Untuk menghentikan layanan:
 ```bash
 wagent service stop
@@ -168,7 +175,7 @@ Untuk memuat ulang konfigurasi/memulai ulang layanan:
 wagent service restart
 ```
 
-### 4. Autostart Saat Booting (Optional)
+### 5. Autostart Saat Booting (Optional)
 Mengaktifkan layanan agar otomatis menyala saat server Linux dinyalakan:
 ```bash
 wagent service enable
