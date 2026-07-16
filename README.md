@@ -281,6 +281,16 @@ WAGENT mendukung MCP untuk konek ke sistem eksternal:
 ./bin/wagent status                # Cek status
 ./bin/wagent config                # Lihat config
 
+# Service (Systemd Background Daemon)
+./bin/wagent service status        # Cek status service background
+./bin/wagent service start         # Menjalankan service background
+./bin/wagent service stop          # Menghentikan service background
+./bin/wagent service restart       # Restart service background
+./bin/wagent service logs          # Menampilkan logs service background
+./bin/wagent service enable        # Aktifkan service otomatis saat boot
+./bin/wagent service disable       # Nonaktifkan service otomatis saat boot
+./bin/wagent service install       # Menginstal unit file service
+
 # Knowledge Base
 ./bin/wagent kb list               # List KB
 ./bin/wagent kb upload <file>      # Upload file
