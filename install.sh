@@ -39,7 +39,16 @@ if [ -d "/data/data/com.termux" ] || grep -qi "termux" <<< "$(uname -a 2>/dev/nu
   info "Termux detected — preparing package repository..."
   if command -v pkg &>/dev/null; then
     pkg install -y ca-certificates >/dev/null 2>&1 || true
-    pkg update >/dev/null 2>&1 || true
+    # Default Termux mirror (termux.net) sometimes fails TLS verification on
+    # certain networks. If `pkg update` cannot reach it, fall back to the
+    # grimler mirror over plain HTTP so installs can proceed.
+    if ! pkg update >/dev/null 2>&1; then
+      info "termux.net unreachable — switching to grimler mirror (HTTP)..."
+      if [ -f "$PREFIX/etc/apt/sources.list" ]; then
+        sed -i 's@^deb https://termux\.net@deb http://termux.grimler.se@g' "$PREFIX/etc/apt/sources.list"
+      fi
+      pkg update >/dev/null 2>&1 || true
+    fi
     ok "Termux repository prepared (ca-certificates + pkg update)"
     # Build tools as a fallback path (if the user ever uses Node + better-sqlite3)
     pkg install -y build-essential python nodejs >/dev/null 2>&1 || true
