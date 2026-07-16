@@ -271,6 +271,11 @@ export class BaileysAdapter implements WhatsAppAdapter {
         const key = msg.key;
         if (!key || !key.remoteJid) continue;
 
+        // Skip status updates and newsletter channels
+        if (key.remoteJid === 'status@broadcast' || key.remoteJid.endsWith('@newsletter') || key.remoteJid.endsWith('@broadcast')) {
+          continue;
+        }
+
         // Cache raw message untuk keperluan retry dekripsi
         if (key.id && msg.message) {
           this.cacheMessage(key.id, msg.message);
