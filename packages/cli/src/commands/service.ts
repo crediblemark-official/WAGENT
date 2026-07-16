@@ -127,12 +127,7 @@ export function serviceStatus(): void {
   console.log(r.output);
 }
 
-export function serviceStart(): void {
-  if (!hasSystemd()) { printNoSystemd(); return; }
-  
-  // Cek apakah service file sudah terpasang, jika belum pasang otomatis
-  const home = homedir();
-  const serviceFile = join(home, '.config', 'systemd', 'user', `${SERVICE_NAME}.service`);
+function ensureServiceUpdated(serviceFile: string): void {
   if (!existsSync(serviceFile)) {
     console.log(color.cyan(`  🔍 Unit file wagent.service belum terpasang. Menginstal otomatis...`));
     const installed = serviceInstall();
@@ -140,7 +135,23 @@ export function serviceStart(): void {
       console.error(color.red(`  ✗ Tidak dapat melanjutkan karena instalasi service gagal.`));
       process.exit(1);
     }
+  } else {
+    try {
+      const content = readFileSync(serviceFile, 'utf-8');
+      if (content.includes('Restart=on-failure')) {
+        console.log(color.cyan(`  ⚙ Memperbarui unit file wagent.service ke format terbaru (Restart=always)...`));
+        serviceInstall();
+      }
+    } catch {}
   }
+}
+
+export function serviceStart(): void {
+  if (!hasSystemd()) { printNoSystemd(); return; }
+  
+  const home = homedir();
+  const serviceFile = join(home, '.config', 'systemd', 'user', `${SERVICE_NAME}.service`);
+  ensureServiceUpdated(serviceFile);
 
   const r = ctl('start', SERVICE_NAME);
   if (r.ok) {
@@ -172,17 +183,9 @@ export function serviceStop(): void {
 export function serviceRestart(): void {
   if (!hasSystemd()) { printNoSystemd(); return; }
 
-  // Cek apakah service file sudah terpasang, jika belum pasang otomatis
   const home = homedir();
   const serviceFile = join(home, '.config', 'systemd', 'user', `${SERVICE_NAME}.service`);
-  if (!existsSync(serviceFile)) {
-    console.log(color.cyan(`  🔍 Unit file wagent.service belum terpasang. Menginstal otomatis...`));
-    const installed = serviceInstall();
-    if (!installed) {
-      console.error(color.red(`  ✗ Tidak dapat melanjutkan karena instalasi service gagal.`));
-      process.exit(1);
-    }
-  }
+  ensureServiceUpdated(serviceFile);
 
   const r = ctl('restart', SERVICE_NAME);
   if (r.ok) {
@@ -208,17 +211,9 @@ export function serviceLogs(): void {
 export function serviceEnable(): void {
   if (!hasSystemd()) { printNoSystemd(); return; }
 
-  // Cek apakah service file sudah terpasang, jika belum pasang otomatis
   const home = homedir();
   const serviceFile = join(home, '.config', 'systemd', 'user', `${SERVICE_NAME}.service`);
-  if (!existsSync(serviceFile)) {
-    console.log(color.cyan(`  🔍 Unit file wagent.service belum terpasang. Menginstal otomatis...`));
-    const installed = serviceInstall();
-    if (!installed) {
-      console.error(color.red(`  ✗ Gagal memasang unit file.`));
-      return;
-    }
-  }
+  ensureServiceUpdated(serviceFile);
 
   const r = ctl('enable', SERVICE_NAME);
   if (r.ok) {
