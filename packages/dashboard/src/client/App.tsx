@@ -160,6 +160,17 @@ export function App() {
           ))}
         </nav>
 
+        <div style={{
+          padding: '10px 16px',
+          fontSize: 10,
+          color: 'var(--text-muted)',
+          borderTop: '1px solid var(--border-color)',
+          textAlign: 'center',
+          boxSizing: 'border-box',
+        }}>
+          by <a href="https://crediblemark.com" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--text-active)', textDecoration: 'none', fontWeight: 600 }}>Rasyiqi - crediblemark.com</a>
+        </div>
+
         <div style={styles.statusBar}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: statusColor }} />
