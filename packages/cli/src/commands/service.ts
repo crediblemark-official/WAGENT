@@ -100,6 +100,7 @@ export function serviceInstall(): boolean {
     'Environment=HOME=%h',
     'Environment=NVM_DIR=%h/.nvm',
     'Environment=PATH=%h/.local/bin:%h/.bun/bin:/usr/local/bin:/usr/bin:/bin',
+    'Environment=WAGENT_SERVICE=1',
     '',
     '[Install]',
     'WantedBy=default.target',
@@ -138,7 +139,7 @@ function ensureServiceUpdated(serviceFile: string): void {
   } else {
     try {
       const content = readFileSync(serviceFile, 'utf-8');
-      if (content.includes('Restart=on-failure')) {
+      if (content.includes('Restart=on-failure') || !content.includes('WAGENT_SERVICE=1')) {
         console.log(color.cyan(`  ⚙ Memperbarui unit file wagent.service ke format terbaru (Restart=always)...`));
         serviceInstall();
       }

@@ -228,7 +228,8 @@ export async function startCommand(options: { port?: string; dashboard?: boolean
         console.log(color.green('  ✓ WhatsApp terhubung!'));
 
         // Jika QR sempat muncul (artinya sesi fresh pairing/scan), otomatis hand-off ke background service
-        if (qrWasShown) {
+        // HANYA jika program tidak sedang berjalan di bawah background service itu sendiri
+        if (qrWasShown && !process.env.WAGENT_SERVICE) {
           console.log(color.cyan('  ⚙ Mengalihkan jalannya program ke background service...'));
           setImmediate(async () => {
             if (shuttingDown) return;
