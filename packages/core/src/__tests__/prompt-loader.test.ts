@@ -1,11 +1,89 @@
 import { describe, it, expect } from 'vitest';
 import { PromptLoader } from '../agent/prompt-loader.js';
 
+import { writeFileSync, mkdirSync, rmSync, existsSync, readdirSync, copyFileSync } from 'fs';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 describe('PromptLoader', () => {
   let loader: PromptLoader;
+  const TMP_DIR = join(__dirname, 'tmp-prompts-test');
+  let originalPromptsDir: string;
+
+  beforeAll(() => {
+    loader = PromptLoader.getInstance();
+    originalPromptsDir = loader.getPromptsDir();
+
+    if (!existsSync(TMP_DIR)) {
+      mkdirSync(TMP_DIR, { recursive: true });
+    }
+
+    if (existsSync(originalPromptsDir)) {
+      const files = readdirSync(originalPromptsDir);
+      for (const file of files) {
+        if (file.endsWith('.toon')) {
+          copyFileSync(join(originalPromptsDir, file), join(TMP_DIR, file));
+        }
+      }
+    }
+
+    writeFileSync(join(TMP_DIR, 'personality.toon'), `
+tones:
+  casual:
+    description: santai
+    instruction: santai
+  formal:
+    description: formal
+    instruction: formal
+  professional:
+    description: profesional
+    instruction: profesional
+  friendly:
+    description: ramah
+    instruction: ramah
+  mixed:
+    description: mixed
+    instruction: Sesuaikan
+emoji:
+  rare: rare
+  moderate: moderate
+  frequent: frequent
+context:
+  urgent: URGEN
+  business: business
+  default: default
+    `, 'utf-8');
+
+    writeFileSync(join(TMP_DIR, 'skills.toon'), `
+shipping:
+  prompt: ongkos kirim
+payment:
+  prompt: pembayaran
+weather:
+  prompt: cuaca
+pos-connector:
+  prompt: POS
+    `, 'utf-8');
+
+    writeFileSync(join(TMP_DIR, 'messages.toon'), `
+welcome: Halo!
+rate_limit: tunggu
+offline: operasional
+error_technical: kendala teknis
+    `, 'utf-8');
+  });
+
+  afterAll(() => {
+    rmSync(TMP_DIR, { recursive: true, force: true });
+  });
 
   beforeEach(() => {
     loader = PromptLoader.getInstance();
+    loader['promptsDir'] = TMP_DIR;
+    loader.clearCache();
   });
 
   describe('singleton', () => {

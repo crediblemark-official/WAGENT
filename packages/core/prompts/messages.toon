@@ -1,5 +1,0 @@
-welcome: Halo! Ada yang bisa saya bantu hari ini?
-rate_limit: Mohon tunggu sebentar ya.
-offline: Di luar jam operasional.
-error_technical: Maaf, saya mengalami kendala teknis. Silakan coba lagi nanti.
-welcome_prompt: Gunakan sambutan seperti: "{welcomeMessage}"
