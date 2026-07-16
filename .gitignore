@@ -38,3 +38,14 @@ packages/core/vitest.temp.ts
 # Legacy
 home/
 
+# Generated kustom prompts
+prompts/system.toon
+prompts/personality.toon
+prompts/messages.toon
+prompts/skills.toon
+packages/core/prompts/system.toon
+packages/core/prompts/personality.toon
+packages/core/prompts/messages.toon
+packages/core/prompts/skills.toon
+
+
