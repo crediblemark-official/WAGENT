@@ -6,7 +6,8 @@
  */
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
-import { join } from 'path';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import { getLogger } from '../utils/logger.js';
 import { WAgentConfig } from '../types.js';
 import { promptLoader } from './prompt-loader.js';
@@ -17,28 +18,28 @@ interface SetupAnswers {
   businessType: string;
   businessDescription: string;
   targetCustomer: string;
-  
+
   // Personality
   tone: 'casual' | 'formal' | 'professional' | 'friendly';
   emojiUsage: 'rare' | 'moderate' | 'frequent';
   language: string;
   greeting?: string;
-  
+
   // Common Questions
   frequentQuestions: string[];
   orderProcess: string;
   paymentMethods: string;
   shippingTime: string;
   returnPolicy: string;
-  
+
   // Rules
   forbiddenActions: string[];
   escalationTriggers: string[];
   workingHours: string;
-  
+
   // Features
   features: string[];
-  
+
   // Messages
   welcomeMessage?: string;
   errorMessage?: string;
@@ -326,8 +327,35 @@ export class PromptGenerator {
     }
   }
 
+  private getTemplatesDir(): string {
+    const currentDir = dirname(fileURLToPath(import.meta.url));
+    const paths = [
+      join(currentDir, '../../prompts'),
+      join(currentDir, '../prompts'),
+    ];
+    const resolved = paths.find(p => existsSync(p));
+    return resolved || paths[0];
+  }
+
+  private loadTemplate(filename: string): string {
+    try {
+      const templatesDir = this.getTemplatesDir();
+      const path = join(templatesDir, filename);
+      if (existsSync(path)) {
+        return readFileSync(path, 'utf-8');
+      }
+    } catch (e) {
+      // ignore
+    }
+    return '';
+  }
+
   private buildAIPrompt(answers: SetupAnswers): string {
-    return `Buatkan 4 file prompt untuk AI customer service WhatsApp.
+    const systemGenInstructions = this.loadTemplate('system.toon');
+    const personalityGenInstructions = this.loadTemplate('personality.toon');
+    const messagesGenInstructions = this.loadTemplate('messages.toon');
+
+    return `Buatkan 4 file prompt untuk AI customer service WhatsApp berdasarkan data owner berikut:
 
 Bisnis: ${answers.businessName}
 Jenis: ${answers.businessType}
@@ -355,10 +383,20 @@ Jam operasional: ${answers.workingHours}
 
 Fitur: ${answers.features.join(', ')}
 
-Buatkan file dalam format TOON:
-1. system.toon - Persona AI
-2. personality.toon - Gaya bicara
-3. messages.toon - Pesan default
-4. skills.toon - Skill yang aktif`;
+Panduan struktur dan format berkas kustom yang harus dihasilkan:
+
+1. system.toon (Persona AI):
+${systemGenInstructions || 'Hasilkan berkas system.toon yang mendefinisikan persona AI.'}
+
+2. personality.toon (Gaya bicara):
+${personalityGenInstructions || 'Hasilkan berkas personality.toon yang mendefinisikan gaya bahasa kustom AI.'}
+
+3. messages.toon (Pesan default):
+${messagesGenInstructions || 'Hasilkan berkas messages.toon yang berisi pesan-pesan default untuk respon otomatis.'}
+
+4. skills.toon (Skill aktif):
+Hasilkan objek konfigurasi format TOON yang memuat skill/fitur aktif dari daftar di atas (misal: shipping, weather, payment, pos-connector).
+
+Balas HANYA dengan JSON yang berisi 4 key: "system", "personality", "messages", "skills". Setiap value adalah string TOON format. Tidak ada penjelasan, tidak ada markdown.`;
   }
 }

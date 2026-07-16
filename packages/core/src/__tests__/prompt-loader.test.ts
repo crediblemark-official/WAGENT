@@ -15,7 +15,13 @@ describe('PromptLoader', () => {
 
   beforeAll(() => {
     loader = PromptLoader.getInstance();
-    originalPromptsDir = loader.getPromptsDir();
+    const searchPaths = [
+      join(process.cwd(), 'packages/core/prompts'),
+      join(process.cwd(), 'prompts'),
+      join(__dirname, '../../prompts'),
+      join(__dirname, '../../../prompts'),
+    ];
+    originalPromptsDir = searchPaths.find(p => existsSync(join(p, 'summarizer.toon'))) || loader.getPromptsDir();
 
     if (!existsSync(TMP_DIR)) {
       mkdirSync(TMP_DIR, { recursive: true });

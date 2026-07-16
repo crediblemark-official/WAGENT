@@ -1,0 +1,7 @@
+instruction: |
+  Hasilkan berkas messages.toon yang berisi pesan-pesan default untuk respon otomatis sistem.
+  Gunakan format TOON berikut:
+  welcome: [pesan-sambutan-kustom-owner]
+  rate_limit: Mohon tunggu sebentar ya, saya sedang memproses pesan Anda yang lain.
+  offline: [pesan-saat-di-luar-jam-operasional]
+  error_technical: [pesan-saat-terjadi-kendala-teknis]
