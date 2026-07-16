@@ -190,12 +190,20 @@ export function SettingsPage() {
         throw new Error('Server mengembalikan respon error');
       }
 
+      const resData = await response.json();
       setSaved(true);
-      setRestarting(true);
-      setTimeout(() => {
-        setSaved(false);
-        setRestarting(false);
-      }, 5000);
+      if (resData.restarted) {
+        setRestarting(true);
+        setTimeout(() => {
+          setSaved(false);
+          setRestarting(false);
+        }, 5000);
+      } else {
+        alert('✓ Setelan disimpan! Silakan jalankan ulang WAGENT di terminal untuk menerapkan perubahan.');
+        setTimeout(() => {
+          setSaved(false);
+        }, 3000);
+      }
     } catch (err: any) {
       setError(err.message || 'Gagal menyimpan konfigurasi');
     }

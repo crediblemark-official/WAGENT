@@ -671,14 +671,19 @@ export class DashboardServer implements DashboardAdapter {
           promptLoader.clearCache();
         }
 
-        res.json({ success: true });
+        const runningAsService = !!process.env.INVOCATION_ID;
+        res.json({ success: true, restarted: runningAsService });
 
-        // Memicu auto-restart proses setelah 1.5 detik agar respon terkirim ke klien lebih dahulu
-        this.logger.info('Scheduling auto-restart in 1.5s to apply new settings...');
-        setTimeout(() => {
-          this.logger.info('Exiting process to let systemd restart the service...');
-          process.exit(0);
-        }, 1500);
+        if (runningAsService) {
+          // Memicu auto-restart proses setelah 1.5 detik agar respon terkirim ke klien lebih dahulu
+          this.logger.info('Scheduling auto-restart in 1.5s to apply new settings...');
+          setTimeout(() => {
+            this.logger.info('Exiting process to let systemd restart the service...');
+            process.exit(0);
+          }, 1500);
+        } else {
+          this.logger.info('Running in foreground (no systemd service). Skip auto-exit.');
+        }
       } catch (err: any) {
         this.logger.error({ error: err.message }, 'Failed to save settings');
         res.status(500).json({ error: err.message });

@@ -116,12 +116,16 @@ export function NumbersPage({ ws }: { ws: ReturnType<typeof useWebSocket> }) {
 
       if (!response.ok) throw new Error('Gagal menyimpan setelan Telegram');
 
-      setTgSaved(true);
-      setTimeout(() => setTgSaved(false), 3000);
-      
       const data = await response.json();
       if (data.config) {
         setRawConfig(data.config);
+      }
+
+      setTgSaved(true);
+      setTimeout(() => setTgSaved(false), 3000);
+
+      if (!data.restarted) {
+        alert('✓ Setelan disimpan! Silakan jalankan ulang WAGENT di terminal untuk menerapkan perubahan.');
       }
     } catch (err: any) {
       alert(err.message || 'Gagal menyimpan setelan Telegram');
