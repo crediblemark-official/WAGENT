@@ -71,6 +71,15 @@ install_pkg() {
   local apt_pkg=$2
   info "Installing $pkg..."
   if [ "$IS_TERMUX" = "1" ]; then
+    if pkg install -y "$pkg" >/dev/null 2>&1; then
+      return 0
+    fi
+    # termux.net can fail TLS on some networks — retry via grimler (HTTP).
+    info "$pkg install failed on termux.net — switching to grimler mirror..."
+    if [ -f "$PREFIX/etc/apt/sources.list" ]; then
+      sed -i 's@^deb https://termux\.net@deb http://termux.grimler.se@g' "$PREFIX/etc/apt/sources.list"
+    fi
+    pkg update >/dev/null 2>&1 || true
     pkg install -y "$pkg" >/dev/null 2>&1
   elif command -v apt-get &>/dev/null; then
     sudo apt-get update -qq && sudo apt-get install -y "$apt_pkg" >/dev/null 2>&1
@@ -84,6 +93,9 @@ install_pkg() {
     fail "No supported package manager found. Please install $pkg manually."
     exit 1
   fi
+  # Always return 0 so `set -e` does not abort before the caller can
+  # verify whether the binary is now present (e.g. `command -v git`).
+  return 0
 }
 
 if ! command -v git &>/dev/null; then
