@@ -206,8 +206,15 @@ export async function startCommand(options: { port?: string; dashboard?: boolean
           console.log(color.cyan(`     Dashboard: http://${displayHost}:${config.dashboardPort}`));
           console.log('');
           import('qrcode-terminal').then((qrTerm) => {
-            qrTerm.default.generate(e.qr, { small: true });
-          }).catch(() => {});
+            const term = (qrTerm as any).generate ? qrTerm : (qrTerm as any).default;
+            if (term && typeof term.generate === 'function') {
+              term.generate(e.qr, { small: true });
+            } else {
+              console.log('  [Error: qrcode-terminal generate function not found]');
+            }
+          }).catch((err) => {
+            console.log('  [Error loading qrcode-terminal:', err.message, ']');
+          });
           console.log('');
         }
       }
