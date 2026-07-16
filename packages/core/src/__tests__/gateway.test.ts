@@ -627,22 +627,23 @@ describe('Gateway', () => {
       vi.mocked(existsSync).mockReturnValue(true);
     });
 
-    it('self-chat message is escalation target (no Telegram forwarding)', async () => {
+    it('self-chat message is processed as owner AI chat (no Telegram forwarding)', async () => {
       mockSendMessage.mockResolvedValue({ id: 's1', content: '', timestamp: Date.now(), fromMe: true, to: 'user@whatsapp' });
 
       await eventHandler({ type: 'message:received', message: selfChatMsg('/status') });
 
-      // Self-chat is the escalation target; no reply sent (just acknowledged)
-      expect(mockSendMessage).not.toHaveBeenCalled();
+      // Self-chat with prompts configured is now a personal AI chat — the
+      // owner's message is answered by the AI (no Telegram forwarding).
+      expect(mockSendMessage).toHaveBeenCalled();
     });
 
-    it('non-command self-chat message is escalation target', async () => {
+    it('non-command self-chat message is processed as owner AI chat', async () => {
       mockSendMessage.mockResolvedValue({ id: 'nc1', content: '', timestamp: Date.now(), fromMe: true, to: 'user@whatsapp' });
 
       await eventHandler({ type: 'message:received', message: selfChatMsg('Hello from owner') });
 
-      // Self-chat is the escalation target; no reply sent
-      expect(mockSendMessage).not.toHaveBeenCalled();
+      // Self-chat with prompts configured is answered by the AI.
+      expect(mockSendMessage).toHaveBeenCalled();
     });
   });
 

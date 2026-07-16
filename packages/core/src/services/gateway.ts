@@ -497,17 +497,35 @@ export class Gateway {
       return;
     }
 
-    // Prompts already configured → self-chat is escalation target.
-    // Acknowledge receipt; owner can reply here to take over a conversation.
-    this.logger.info({ text }, 'Self-chat received (escalation target)');
+    // Prompts already configured → self-chat acts as a personal AI chat
+    // for the owner (in addition to being the escalation target). Process it
+    // directly through the AI without the "human-like" typing/read delays so
+    // the owner gets a snappy reply on their own number.
+    this.logger.info({ text }, 'Self-chat received — processing as owner AI chat');
+    const ownerJid = this.whatsapp.userJid;
+    if (!ownerJid) return;
+    try {
+      const result = await this.agent.processMessage(text, ownerJid, 'Owner');
+      const response = result?.response;
+      if (response) {
+        const sent = await this.whatsapp.sendMessage(ownerJid, response);
+        this.db.saveMessage(sent, ownerJid);
+        this.db.incrementMessageCount('outgoing');
+      }
+    } catch (err: any) {
+      this.logger.error({ error: err.message }, 'Self-chat AI processing failed');
+      try {
+        await this.whatsapp.sendMessage(ownerJid, '❌ Terjadi kesalahan saat memproses pesan.');
+      } catch { /* ignore */ }
+    }
   }
 
-  private async handleIncomingMessage(msg: Message): Promise<void> {
+  private async handleIncomingMessage(msg: Message, skipSelfChatGuard = false): Promise<void> {
     this.logger.info({ from: msg.from, content: msg.content }, 'Incoming message');
 
     // ── Self-Chat Control (WA Self-Chat) ────────────────────────
-    // Messages sent to own number are treated as control commands
-    if (msg.fromMe && this.isSelfChat(msg)) {
+    // Messages sent to own number are treated as control commands / AI chat.
+    if (!skipSelfChatGuard && msg.fromMe && this.isSelfChat(msg)) {
       await this.handleSelfChatCommand(msg);
       return;
     }
