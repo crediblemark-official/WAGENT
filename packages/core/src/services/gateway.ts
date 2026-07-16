@@ -281,7 +281,30 @@ export class Gateway {
 
       await this.handleIncomingMessage(event.message);
     } else if (event.type === 'connection:update') {
+      const prevStatus = this._status;
       this._status = event.status;
+      if (event.status === 'connected' && prevStatus !== 'connected') {
+        setImmediate(async () => {
+          try {
+            const userJid = this.whatsapp.userJid;
+            if (userJid) {
+              const history = this.db.getConversationHistory(userJid);
+              if (history.length === 0) {
+                const intro = [
+                  `👋 *Halo Owner! Saya Asisten AI Anda.*`,
+                  ``,
+                  `Saya baru saja terhubung dan siap membantu. Anda bisa mengobrol langsung dengan saya di sini (self-chat) untuk memberikan instruksi, bertanya, atau menguji respons saya secara real-time.`,
+                  ``,
+                  `💡 *Tips:* Kirim \`/help\` untuk melihat perintah kontrol yang tersedia.`,
+                ].join('\n');
+                await this.whatsapp.sendMessage(userJid, intro);
+              }
+            }
+          } catch (err: any) {
+            this.logger.warn({ error: err.message }, 'Failed to send self-chat intro');
+          }
+        });
+      }
     }
   }
 
@@ -401,12 +424,31 @@ export class Gateway {
    */
   private async handleSelfChatCommand(msg: Message): Promise<void> {
     const text = msg.content.trim();
-    this.logger.info({ text }, 'Self-chat command received');
+    this.logger.info({ text }, 'Self-chat message received');
     const sc = promptLoader.getSelfChatConfig();
 
-    // Only handle commands starting with /
+    // If not a command starting with /, process with AI Agent
     if (!text.startsWith('/')) {
-      await this.whatsapp.sendMessage(msg.from, sc.help_hint);
+      const composing = () => this.whatsapp.sendPresenceUpdate?.('composing', msg.from)?.catch(() => {});
+      await composing();
+      const typingInterval = setInterval(composing, 8_000);
+      try {
+        const contactName = 'Owner';
+        const result = await this.agent.processMessage(
+          `[SELF-CHAT CONVERSATION WITH OWNER]
+Pesan dari owner: "${text}"`, 
+          msg.from, 
+          contactName
+        );
+        clearInterval(typingInterval);
+        this.whatsapp.sendPresenceUpdate?.('paused', msg.from)?.catch(() => {});
+        await this.whatsapp.sendMessage(msg.from, result.response);
+      } catch (err: any) {
+        clearInterval(typingInterval);
+        this.whatsapp.sendPresenceUpdate?.('paused', msg.from)?.catch(() => {});
+        this.logger.error({ error: err.message }, 'Self-chat AI processing error');
+        await this.whatsapp.sendMessage(msg.from, `❌ Error: ${err.message}`);
+      }
       return;
     }
 
