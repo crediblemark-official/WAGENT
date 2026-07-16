@@ -127,11 +127,57 @@ AGENT_SYSTEM_PROMPT="Kamu adalah asisten bisnis yang membantu."
 
 ### Start
 
+**Mode Interaktif (Terminal)**
 ```bash
 ./bin/wagent start
 ```
-
 Scan QR code WhatsApp. Selesai!
+
+---
+
+## ⚙️ Production / Deployment (systemd)
+
+WAGENT dilengkapi dengan manajer layanan systemd internal yang memudahkan Anda mendeploy asisten AI ini sebagai daemon latar belakang di server produksi Linux Anda.
+
+### 1. Menjalankan Layanan
+Untuk menginstal dan menjalankan WAGENT di latar belakang:
+```bash
+wagent service start
+```
+*Perintah ini secara otomatis mendeteksi path, menginstal file unit `wagent.service` ke folder systemd user (`~/.config/systemd/user/wagent.service`), me-load daemon, dan menyalakan asisten AI Anda.*
+
+### 2. Memantau Status & Log
+Memeriksa status unit layanan:
+```bash
+wagent service status
+```
+
+Membaca log aktivitas asisten AI secara real-time:
+```bash
+wagent service logs
+```
+
+### 3. Menghentikan & Memulai Ulang
+Untuk menghentikan layanan:
+```bash
+wagent service stop
+```
+
+Untuk memuat ulang konfigurasi/memulai ulang layanan:
+```bash
+wagent service restart
+```
+
+### 4. Autostart Saat Booting (Optional)
+Mengaktifkan layanan agar otomatis menyala saat server Linux dinyalakan:
+```bash
+wagent service enable
+```
+
+Menonaktifkan autostart:
+```bash
+wagent service disable
+```
 
 ---
 
@@ -280,16 +326,6 @@ WAGENT mendukung MCP untuk konek ke sistem eksternal:
 ./bin/wagent start                 # Start agent
 ./bin/wagent status                # Cek status
 ./bin/wagent config                # Lihat config
-
-# Service (Systemd Background Daemon)
-./bin/wagent service status        # Cek status service background
-./bin/wagent service start         # Menjalankan service background
-./bin/wagent service stop          # Menghentikan service background
-./bin/wagent service restart       # Restart service background
-./bin/wagent service logs          # Menampilkan logs service background
-./bin/wagent service enable        # Aktifkan service otomatis saat boot
-./bin/wagent service disable       # Nonaktifkan service otomatis saat boot
-./bin/wagent service install       # Menginstal unit file service
 
 # Knowledge Base
 ./bin/wagent kb list               # List KB
