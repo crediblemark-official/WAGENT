@@ -51,11 +51,19 @@ fi
 # ── Step 1: Check prerequisites ─────────────────────────────
 step "①" "Checking prerequisites..."
 
+# On Termux there is no sudo and the package manager is `pkg`.
+IS_TERMUX=0
+if [ -d "/data/data/com.termux" ] || grep -qi "termux" <<< "$(uname -a 2>/dev/null)"; then
+  IS_TERMUX=1
+fi
+
 install_pkg() {
   local pkg=$1
   local apt_pkg=$2
   info "Installing $pkg..."
-  if command -v apt-get &>/dev/null; then
+  if [ "$IS_TERMUX" = "1" ]; then
+    pkg install -y "$pkg" >/dev/null 2>&1
+  elif command -v apt-get &>/dev/null; then
     sudo apt-get update -qq && sudo apt-get install -y "$apt_pkg" >/dev/null 2>&1
   elif command -v dnf &>/dev/null; then
     sudo dnf install -y "$pkg" >/dev/null 2>&1
@@ -186,10 +194,33 @@ chmod +x "$WAGENT_BIN"
 ok "CLI installed at $WAGENT_BIN"
 
 # ── PATH check ─────────────────────────────────────────────────
+# Ensure ~/.bashrc exists and wires up Bun + the WAGENT bin dir, then
+# apply it to the current session so `wagent` works immediately.
+if [ ! -f "$HOME/.bashrc" ]; then
+  touch "$HOME/.bashrc"
+fi
+
+SHELL_RC="$HOME/.bashrc"
+if [ -f "$HOME/.zshrc" ] && [ -n "${ZSH_VERSION:-}" ]; then
+  SHELL_RC="$HOME/.zshrc"
+fi
+
+if ! grep -q 'BUN_INSTALL' "$SHELL_RC" 2>/dev/null; then
+  {
+    echo ''
+    echo 'export BUN_INSTALL="$HOME/.bun"'
+    echo 'export PATH="$BUN_INSTALL/bin:$HOME/.local/bin:$PATH"'
+  } >> "$SHELL_RC"
+fi
+
+# Apply to current session
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$BIN_DIR:$PATH"
+
 if ! echo "$PATH" | grep -q "$BIN_DIR"; then
   echo ""
   echo -e "  ${Y}⚠  $BIN_DIR is not in your PATH.${N}"
-  echo -e "  ${D}Add this to your ~/.bashrc or ~/.zshrc:${N}"
+  echo -e "  ${D}Add this to your shell rc:${N}"
   echo ""
   echo -e "  ${W}export PATH=\"\$HOME/.local/bin:\$PATH\"${N}"
   echo ""
