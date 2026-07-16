@@ -9,7 +9,6 @@
   },
   "files": [
     "packages/*/dist/**",
-    "prompts/**",
     "schemas/**",
     "bin/wagent",
     "bin/wagent.service",

@@ -16,7 +16,7 @@
     "prompts"
   ],
   "scripts": {
-    "build": "mkdir -p prompts && cp -r ../../prompts/* ./prompts/ && tsc",
+    "build": "tsc",
     "dev": "tsc --watch"
   },
   "dependencies": {
