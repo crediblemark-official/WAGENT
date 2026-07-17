@@ -85,17 +85,51 @@ ok "Bun $(bun --version)"
 ok "Git $(git --version | awk '{print $3}')"
 echo ""
 
-# ── Step 2: Clone or Update ────────────────────────────────────
+# ── Step 2: Detect existing installation ─────────────────────────
 step "②" "Preparing WAGENT..."
+
+# Validate existing installation — remove if ANY check fails
 if [ -d "$INSTALL_DIR" ]; then
-  # If directory exists but is not a valid git repo, remove and start fresh
+  NEEDS_FRESH_INSTALL=false
+
+  # Check 1: must be a git repo
   if [ ! -d "$INSTALL_DIR/.git" ]; then
-    info "Directory exists but is not a valid install. Removing..."
+    info "Corrupted install (no .git). Reinstalling..."
+    NEEDS_FRESH_INSTALL=true
+  fi
+
+  # Check 2: must have package.json
+  if [ "$NEEDS_FRESH_INSTALL" = false ] && [ ! -f "$INSTALL_DIR/package.json" ]; then
+    info "Corrupted install (no package.json). Reinstalling..."
+    NEEDS_FRESH_INSTALL=true
+  fi
+
+  # Check 3: git operations must work
+  if [ "$NEEDS_FRESH_INSTALL" = false ]; then
+    cd "$INSTALL_DIR"
+    git fetch origin main --quiet 2>/dev/null || true
+    LOCAL_COMMIT="$(git rev-parse HEAD 2>/dev/null || echo '')"
+    REMOTE_COMMIT="$(git rev-parse origin/main 2>/dev/null || echo '')"
+    if [ -z "$LOCAL_COMMIT" ] || [ -z "$REMOTE_COMMIT" ]; then
+      info "Corrupted install (git broken). Reinstalling..."
+      NEEDS_FRESH_INSTALL=true
+    fi
+  fi
+
+  # Check 4: build output must exist
+  if [ "$NEEDS_FRESH_INSTALL" = false ] && [ ! -f "$INSTALL_DIR/packages/cli/dist/index.js" ]; then
+    info "Build output missing. Rebuilding..."
+    NEEDS_FRESH_INSTALL=true
+  fi
+
+  # If any check failed, remove and start fresh
+  if [ "$NEEDS_FRESH_INSTALL" = true ]; then
     rm -rf "$INSTALL_DIR"
   else
+    # Installation is valid — check for updates
     ok "Already installed at $INSTALL_DIR"
 
-    # Always ensure CLI wrapper exists (even if already up-to-date)
+    # Ensure CLI wrapper exists with absolute node path
     NODE_BIN="$(which node)"
     mkdir -p "$BIN_DIR"
     cat > "$WAGENT_BIN" << WAGENT_EOF
@@ -106,42 +140,30 @@ WAGENT_EOF
     chmod +x "$WAGENT_BIN"
 
     LOCAL_VERSION="$(cat "$INSTALL_DIR/package.json" 2>/dev/null | grep '"version"' | head -1 | sed 's/.*"version": *"\([^"]*\)".*/\1/' || echo 'unknown')"
+    REMOTE_VERSION="$(git show origin/main:package.json 2>/dev/null | grep '"version"' | head -1 | sed 's/.*"version": *"\([^"]*\)".*/\1/' || echo "$LOCAL_VERSION")"
 
-    cd "$INSTALL_DIR"
-    git fetch origin main --quiet 2>/dev/null || true
-
-    LOCAL_COMMIT="$(git rev-parse HEAD 2>/dev/null || echo '')"
-    REMOTE_COMMIT="$(git rev-parse origin/main 2>/dev/null || echo '')"
-
-    if [ -z "$LOCAL_COMMIT" ] || [ -z "$REMOTE_COMMIT" ]; then
-      fail "Cannot check remote version. Removing and reinstalling..."
-      rm -rf "$INSTALL_DIR"
-    else
-      # Baca versi dari remote package.json
-      REMOTE_VERSION="$(git show origin/main:package.json 2>/dev/null | grep '"version"' | head -1 | sed 's/.*"version": *"\([^"]*\)".*/\1/' || echo "$LOCAL_VERSION")"
-
-      if [ "$LOCAL_COMMIT" = "$REMOTE_COMMIT" ]; then
-        echo ""
-        hr
-        echo -e "  ${G}Already up-to-date!${N} (v$LOCAL_VERSION)"
-        hr
-        echo ""
-        echo -e "  ${W}Start:${N}   wagent start"
-        echo -e "  ${W}Update:${N}  wagent update"
-        echo -e "  ${W}Help:${N}    wagent --help"
-        echo ""
-        exit 0
-      fi
-
+    if [ "$LOCAL_COMMIT" = "$REMOTE_COMMIT" ]; then
       echo ""
-      echo -e "  ${Y}↑ New version available! (v$LOCAL_VERSION → v$REMOTE_VERSION) Updating...${N}"
+      hr
+      echo -e "  ${G}Already up-to-date!${N} (v$LOCAL_VERSION)"
+      hr
       echo ""
-      bash "$INSTALL_DIR/update.sh"
+      echo -e "  ${W}Start:${N}   wagent start"
+      echo -e "  ${W}Update:${N}  wagent update"
+      echo -e "  ${W}Help:${N}    wagent --help"
+      echo ""
       exit 0
     fi
+
+    echo ""
+    echo -e "  ${Y}↑ New version available! (v$LOCAL_VERSION → v$REMOTE_VERSION) Updating...${N}"
+    echo ""
+    bash "$INSTALL_DIR/update.sh"
+    exit 0
   fi
 fi
 
+# ── Fresh install: clone ────────────────────────────────────────
 if git clone --depth 1 "$REPO" "$INSTALL_DIR" >/dev/null 2>&1; then
   ok "Repository cloned"
 else
