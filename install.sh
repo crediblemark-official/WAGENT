@@ -5,7 +5,6 @@ REPO="https://github.com/crediblemark-official/WAGENT.git"
 INSTALL_DIR="$HOME/.wagent"
 BIN_DIR="$HOME/.local/bin"
 WAGENT_BIN="$BIN_DIR/wagent"
-USE_BUN=1  # Set to 0 if bun is unavailable (fallback to npm/node)
 
 # ── Colors ──────────────────────────────────────────────────────
 R='\033[1;31m'   # Red bold
@@ -32,57 +31,14 @@ echo -e "  ${C}║${N}  ${D}WhatsApp AI Agent · Self-Hosted${N}     ${C}║${N}
 echo -e "  ${C}╚═══════════════════════════════════════╝${N}"
 echo ""
 
-# ── Termux / Android preparation (run BEFORE any pkg install) ──
-# On a fresh Termux the package repo is HTTPS and often fails with
-# "certificate verify failed" until ca-certificates is present and the
-# index is refreshed. Do this first so subsequent installs succeed.
-if [ -d "/data/data/com.termux" ] || grep -qi "termux" <<< "$(uname -a 2>/dev/null)"; then
-  info "Termux detected — preparing package repository..."
-  if command -v pkg &>/dev/null; then
-    pkg install -y ca-certificates >/dev/null 2>&1 || true
-    # Default Termux mirror (termux.net) sometimes fails TLS verification on
-    # certain networks. If `pkg update` cannot reach it, fall back to the
-    # grimler mirror over plain HTTP so installs can proceed.
-    if ! pkg update >/dev/null 2>&1; then
-      info "termux.net unreachable — switching to grimler mirror (HTTP)..."
-      if [ -f "$PREFIX/etc/apt/sources.list" ]; then
-        sed -i 's@^deb https://termux\.net@deb http://termux.grimler.se@g' "$PREFIX/etc/apt/sources.list"
-      fi
-      pkg update >/dev/null 2>&1 || true
-    fi
-    ok "Termux repository prepared (ca-certificates + pkg update)"
-    # Build tools as a fallback path (if the user ever uses Node + better-sqlite3)
-    pkg install -y build-essential python nodejs >/dev/null 2>&1 || true
-    ok "Termux build tools ready (build-essential, python, nodejs)"
-  fi
-  info "Tip: WAGENT uses Bun on Termux (bun:sqlite — no native compile needed)."
-fi
-
 # ── Step 1: Check prerequisites ─────────────────────────────
 step "①" "Checking prerequisites..."
-
-# On Termux there is no sudo and the package manager is `pkg`.
-IS_TERMUX=0
-if [ -d "/data/data/com.termux" ] || grep -qi "termux" <<< "$(uname -a 2>/dev/null)"; then
-  IS_TERMUX=1
-fi
 
 install_pkg() {
   local pkg=$1
   local apt_pkg=$2
   info "Installing $pkg..."
-  if [ "$IS_TERMUX" = "1" ]; then
-    if pkg install -y "$pkg" >/dev/null 2>&1; then
-      return 0
-    fi
-    # termux.net can fail TLS on some networks — retry via grimler (HTTP).
-    info "$pkg install failed on termux.net — switching to grimler mirror..."
-    if [ -f "$PREFIX/etc/apt/sources.list" ]; then
-      sed -i 's@^deb https://termux\.net@deb http://termux.grimler.se@g' "$PREFIX/etc/apt/sources.list"
-    fi
-    pkg update >/dev/null 2>&1 || true
-    pkg install -y "$pkg" >/dev/null 2>&1
-  elif command -v apt-get &>/dev/null; then
+  if command -v apt-get &>/dev/null; then
     sudo apt-get update -qq && sudo apt-get install -y "$apt_pkg" >/dev/null 2>&1
   elif command -v dnf &>/dev/null; then
     sudo dnf install -y "$pkg" >/dev/null 2>&1
@@ -94,9 +50,6 @@ install_pkg() {
     fail "No supported package manager found. Please install $pkg manually."
     exit 1
   fi
-  # Always return 0 so `set -e` does not abort before the caller can
-  # verify whether the binary is now present (e.g. `command -v git`).
-  return 0
 }
 
 if ! command -v git &>/dev/null; then
@@ -116,32 +69,21 @@ if ! command -v node &>/dev/null; then
   fi
   ok "Node.js installed successfully"
 fi
-# Install bun jika belum ada / corrupt (dipakai untuk install deps, lebih cepat & kompatibel)
-if ! bun --version >/dev/null 2>&1; then
+# Install bun jika belum ada (dipakai untuk install deps, lebih cepat & kompatibel)
+if ! command -v bun &>/dev/null; then
   info "Installing bun (package manager)..."
-  # Remove any partially/corrupt install first
-  rm -rf "$HOME/.bun"
-  if curl -fsSL https://bun.sh/install | bash > /dev/null 2>&1 && bun --version >/dev/null 2>&1; then
+  if curl -fsSL https://bun.sh/install | bash > /dev/null 2>&1; then
     export PATH="$HOME/.bun/bin:$PATH"
     ok "Bun $(bun --version) installed"
-  elif [ "$IS_TERMUX" = "1" ]; then
-    # bun binary may be incompatible with this Termux/Android environment;
-    # fall back to npm + Node.js (sqlite.ts has better-sqlite3 / node:sqlite
-    # fallbacks that do not need bun).
-    USE_BUN=0
-    ok "Bun unavailable on this Termux — using npm + Node.js instead"
   else
     fail "Bun installation failed. Install manually: https://bun.sh"
     exit 1
   fi
-else
-  ok "Bun $(bun --version) already present"
 fi
 ok "Node $(node --version)"
-[ "$USE_BUN" = "1" ] && ok "Bun $(bun --version)"
+ok "Bun $(bun --version)"
 ok "Git $(git --version | awk '{print $3}')"
 echo ""
-
 
 # ── Step 2: Clone or Update ────────────────────────────────────
 step "②" "Preparing WAGENT..."
@@ -170,26 +112,18 @@ if [ -d "$INSTALL_DIR" ]; then
     echo -e "  ${G}Already up-to-date!${N} (v$LOCAL_VERSION)"
     hr
     echo ""
-    # Even if up-to-date, ensure the CLI binary exists (a previous run may
-    # have aborted before Step 5). Continue to dependency install + CLI setup
-    # only if the `wagent` command is not on PATH.
-    if command -v wagent >/dev/null 2>&1; then
-      echo -e "  ${W}Start:${N}   wagent start"
-      echo -e "  ${W}Update:${N}  wagent update"
-      echo -e "  ${W}Help:${N}    wagent --help"
-      echo ""
-      exit 0
-    fi
-    info "wagent binary missing — completing setup (deps + CLI)..."
-  else
+    echo -e "  ${W}Start:${N}   wagent start"
+    echo -e "  ${W}Update:${N}  wagent update"
+    echo -e "  ${W}Help:${N}    wagent --help"
     echo ""
-    echo -e "  ${Y}↑ New version available! (v$LOCAL_VERSION → v$REMOTE_VERSION) Updating...${N}"
-    echo ""
-    bash "$INSTALL_DIR/update.sh"
-    # update.sh handles deps install, build, and CLI binary setup.
-    # Exit here — do NOT fall through to the clone step below.
     exit 0
   fi
+
+  echo ""
+  echo -e "  ${Y}↑ New version available! (v$LOCAL_VERSION → v$REMOTE_VERSION) Updating...${N}"
+  echo ""
+  bash "$INSTALL_DIR/update.sh"
+  exit 0
 fi
 
 if git clone --depth 1 "$REPO" "$INSTALL_DIR" >/dev/null 2>&1; then
@@ -203,63 +137,22 @@ echo ""
 # ── Step 3: Install Dependencies ───────────────────────────────
 step "③" "Installing dependencies..."
 cd "$INSTALL_DIR"
-if [ "$USE_BUN" = "1" ]; then
-  export PATH="$HOME/.bun/bin:$PATH"
-  if bun install --frozen-lockfile > /dev/null 2>&1; then
-    ok "Dependencies installed (bun)"
-  else
-    fail "bun install failed"
-    exit 1
-  fi
+export PATH="$HOME/.bun/bin:$PATH"
+if bun install --frozen-lockfile > /dev/null 2>&1; then
+  ok "Dependencies installed"
 else
-  # npm ci is fastest; fall back to npm install (without --ignore-scripts
-  # so native modules like better-sqlite3 can compile). If that also fails,
-  # retry with --ignore-scripts as a last resort (node:sqlite fallback).
-  if npm ci --no-audit --no-fund > /dev/null 2>&1; then
-    ok "Dependencies installed (npm ci)"
-  elif npm install --no-audit --no-fund > /dev/null 2>&1; then
-    ok "Dependencies installed (npm)"
-  elif npm install --ignore-scripts --no-audit --no-fund > /dev/null 2>&1; then
-    ok "Dependencies installed (npm, scripts skipped — using node:sqlite fallback)"
-  else
-    fail "npm install failed. Try: cd ~/.wagent && npm install 2>&1"
-    exit 1
-  fi
+  fail "bun install failed"
+  exit 1
 fi
 echo ""
 
 # ── Step 4: Build ──────────────────────────────────────────
 step "④" "Building packages..."
-if [ "$USE_BUN" = "1" ]; then
-  if FRESH_INSTALL=1 bun run build > /dev/null 2>&1; then
-    ok "Build complete (bun)"
-  else
-    fail "Build failed"
-    exit 1
-  fi
+if FRESH_INSTALL=1 bun run build > /dev/null 2>&1; then
+  ok "Build complete"
 else
-  # npm mode: run tsc / vite directly per package
-  cd "$INSTALL_DIR"
-  BUILD_OK=1
-  for pkg in core cli whatsapp tui; do
-    if ! (cd "packages/$pkg" && npx tsc > /dev/null 2>&1); then
-      fail "Build failed in packages/$pkg"
-      BUILD_OK=0
-      break
-    fi
-  done
-  if [ "$BUILD_OK" = "1" ]; then
-    # Dashboard: vite build + tsc
-    if ! (cd packages/dashboard && npx vite build > /dev/null 2>&1 && npx tsc > /dev/null 2>&1); then
-      fail "Build failed in packages/dashboard"
-      BUILD_OK=0
-    fi
-  fi
-  if [ "$BUILD_OK" = "1" ]; then
-    ok "Build complete (npm)"
-  else
-    exit 1
-  fi
+  fail "Build failed"
+  exit 1
 fi
 echo ""
 
@@ -275,42 +168,10 @@ chmod +x "$WAGENT_BIN"
 ok "CLI installed at $WAGENT_BIN"
 
 # ── PATH check ─────────────────────────────────────────────────
-# Ensure ~/.bashrc exists and wires up the WAGENT bin dir (+ Bun if
-# available), then apply it to the current session so `wagent` works
-# immediately.
-if [ ! -f "$HOME/.bashrc" ]; then
-  touch "$HOME/.bashrc"
-fi
-
-SHELL_RC="$HOME/.bashrc"
-if [ -f "$HOME/.zshrc" ] && [ -n "${ZSH_VERSION:-}" ]; then
-  SHELL_RC="$HOME/.zshrc"
-fi
-
-if [ "$USE_BUN" = "1" ]; then
-  if ! grep -q 'BUN_INSTALL' "$SHELL_RC" 2>/dev/null; then
-    {
-      echo ''
-      echo 'export BUN_INSTALL="$HOME/.bun"'
-      echo 'export PATH="$BUN_INSTALL/bin:$HOME/.local/bin:$PATH"'
-    } >> "$SHELL_RC"
-  fi
-  export BUN_INSTALL="$HOME/.bun"
-  export PATH="$BUN_INSTALL/bin:$BIN_DIR:$PATH"
-else
-  if ! grep -q '\.local/bin' "$SHELL_RC" 2>/dev/null; then
-    {
-      echo ''
-      echo 'export PATH="$HOME/.local/bin:$PATH"'
-    } >> "$SHELL_RC"
-  fi
-  export PATH="$BIN_DIR:$PATH"
-fi
-
 if ! echo "$PATH" | grep -q "$BIN_DIR"; then
   echo ""
   echo -e "  ${Y}⚠  $BIN_DIR is not in your PATH.${N}"
-  echo -e "  ${D}Add this to your shell rc:${N}"
+  echo -e "  ${D}Add this to your ~/.bashrc or ~/.zshrc:${N}"
   echo ""
   echo -e "  ${W}export PATH=\"\$HOME/.local/bin:\$PATH\"${N}"
   echo ""
