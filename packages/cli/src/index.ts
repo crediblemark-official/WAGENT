@@ -349,26 +349,45 @@ program
         process.exit(1);
       }
     } else {
-      // npm global install — use npm to uninstall
-      console.log(color.cyan('📦 Uninstalling via npm...'));
+      // npm global install — uninstall via npm + clean up all WAGENT artifacts
+      console.log(color.cyan('📦 Uninstalling WAGENT...'));
       try {
         execSync('npm uninstall -g @wagent/wagent', { stdio: 'inherit' });
-        console.log(color.green('✅ WAGENT uninstalled.'));
+        console.log(color.green('✓ npm package removed'));
       } catch {
         console.error(color.red('❌ npm uninstall failed. Try: npm uninstall -g @wagent/wagent'));
         process.exit(1);
       }
-      // Also clean up ~/.local/bin/wagent if it exists
-      const { existsSync: existsSync2 } = await import('fs');
-      const binPath = join(homedir(), '.local', 'bin', 'wagent');
-      if (existsSync2(binPath)) {
-        try {
-          const { unlinkSync } = await import('fs');
-          unlinkSync(binPath);
-          console.log(color.dim(`  Removed ${binPath}`));
-        } catch { /* ignore */ }
-      }
     }
+
+    // Clean up all WAGENT artifacts (works for both install methods)
+    const { unlinkSync, rmSync, existsSync: existsSync2 } = await import('fs');
+
+    // 1. Remove ~/.local/bin/wagent (CLI shim)
+    const binPath = join(homedir(), '.local', 'bin', 'wagent');
+    if (existsSync2(binPath)) {
+      try { unlinkSync(binPath); console.log(color.dim(`  ✓ Removed ${binPath}`)); } catch {}
+    }
+
+    // 2. Remove ~/.wagent (install dir + data)
+    if (existsSync2(installDir)) {
+      try { rmSync(installDir, { recursive: true, force: true }); console.log(color.dim(`  ✓ Removed ${installDir}`)); } catch {}
+    }
+
+    // 3. Remove systemd service
+    const serviceFile = join(homedir(), '.config', 'systemd', 'user', 'wagent.service');
+    if (existsSync2(serviceFile)) {
+      try {
+        execSync('systemctl --user stop wagent 2>/dev/null || true', { stdio: 'ignore' });
+        execSync('systemctl --user disable wagent 2>/dev/null || true', { stdio: 'ignore' });
+        unlinkSync(serviceFile);
+        execSync('systemctl --user daemon-reload 2>/dev/null || true', { stdio: 'ignore' });
+        console.log(color.dim(`  ✓ Removed systemd service`));
+      } catch {}
+    }
+
+    console.log(color.green('\n✅ WAGENT uninstalled.'));
+    console.log(color.dim('  You may also remove ~/.wagent manually if it still exists.'));
   });
 
 // ── Systemd Service (service) ─────────────────────────────────────
