@@ -12,7 +12,8 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "seeds"
   ],
   "scripts": {
     "build": "bun run build:client && bun run build:server",

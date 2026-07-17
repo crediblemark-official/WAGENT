@@ -984,73 +984,17 @@ export class DashboardServer implements DashboardAdapter {
     } catch { /* dir doesn't exist yet, ok */ }
 
     try {
-      const seeds = [
-        {
-          name: 'produk-contoh.md',
-          content: `# Produk Contoh
-
-## Deskripsi
-Produk ini adalah contoh file knowledge base yang bisa dihapus atau diedit melalui dashboard.
-
-## Fitur
-- Mudah digunakan
-- Terintegrasi dengan AI
-- Mendukung multiple bahasa
-
-## Harga
-- Basic: Gratis
-- Pro: Rp 99.000/bulan
-- Enterprise: Hubungi sales
-`,
-        },
-        {
-          name: 'faq-pengiriman.md',
-          content: `# FAQ Pengiriman
-
-## Berapa lama pengiriman?
-Pengiriman standar 2-3 hari kerja. Express 1 hari kerja.
-
-## Apakah bisa international?
-Ya, kami mendukung pengiriman ke 50+ negara.
-
-## Bagaimana cara tracking?
-Nomor tracking akan dikirim via WhatsApp setelah barang dikirim.
-
-## Berapa ongkos kirim?
-- Jabodetabek: Gratis (min. pembelian Rp 100.000)
-- Jawa: Rp 15.000
-- Luar Jawa: Rp 25.000
-- International: Mulai Rp 100.000
-`,
-        },
-        {
-          name: 'kebijakan-retur.md',
-          content: `# Kebijakan Retur
-
-## Syarat Retur
-1. Barang dalam kondisi belum dipakai
-2. Masih dalam masa 7 hari sejak penerimaan
-3. Label dan kemasan masih utuh
-
-## Proses Retur
-1. Hubungi customer service via WhatsApp
-2. Lampirkan foto barang dan bukti pembelian
-3. Tunggu konversi (1-2 hari kerja)
-4. Kirim barang ke alamat yang diberikan
-5. Refund diproses dalam 3-5 hari kerja
-
-## Yang Tidak Bisa Diretur
-- Barang yang sudah dipakai
-- Barang sale/clearance
-- Produk digital
-`,
-        },
-      ];
-
-      for (const seed of seeds) {
-        writeFileSync(join(knowledgeDir, seed.name), seed.content, 'utf-8');
+      const seedsDir = resolve(__dirname, '../seeds');
+      if (!existsSync(seedsDir)) {
+        this.logger.warn('Seeds directory not found at %s', seedsDir);
+        return;
       }
-      this.logger.info({ count: seeds.length, dir: knowledgeDir }, 'Seed knowledge files created');
+      const seedFiles = readdirSync(seedsDir).filter(f => f.endsWith('.md'));
+      for (const file of seedFiles) {
+        const content = readFileSync(join(seedsDir, file), 'utf-8');
+        writeFileSync(join(knowledgeDir, file), content, 'utf-8');
+      }
+      this.logger.info({ count: seedFiles.length, dir: knowledgeDir }, 'Seed knowledge files created');
     } catch (err: any) {
       this.logger.warn({ error: err.message }, 'Failed to seed knowledge files');
     }
@@ -1061,56 +1005,15 @@ Nomor tracking akan dikirim via WhatsApp setelah barang dikirim.
       const count = this.db.getKnowledgeCount();
       if (count > 0) return;
 
+      const seedsFile = resolve(__dirname, '../seeds/knowledge-base.json');
+      if (!existsSync(seedsFile)) {
+        this.logger.warn('Knowledge base seed file not found at %s', seedsFile);
+        return;
+      }
+      const entries = JSON.parse(readFileSync(seedsFile, 'utf-8'));
       const now = new Date();
-      const entries = [
-        {
-          id: 'seed-1',
-          category: 'produk',
-          question: 'Apa itu WAGENT?',
-          answer: 'WAGENT adalah platform AI agent WhatsApp open-source yang memungkinkan Anda membuat chatbot AI otomatis untuk bisnis Anda.',
-          keywords: ['wagent', 'ai', 'whatsapp', 'chatbot'],
-          tags: ['produk', 'deskripsi'],
-          priority: 3,
-          createdAt: now,
-          updatedAt: now,
-        },
-        {
-          id: 'seed-2',
-          category: 'FAQ',
-          question: 'Bagaimana cara memulai menggunakan WAGENT?',
-          answer: 'Install WAGENT via npm atau curl, jalankan "wagent setup" untuk konfigurasi awal, lalu "wagent start" untuk menjalankan server.',
-          keywords: ['install', 'setup', 'mulai', 'cara'],
-          tags: ['panduan', 'pemula'],
-          priority: 2,
-          createdAt: now,
-          updatedAt: now,
-        },
-        {
-          id: 'seed-3',
-          category: 'kebijakan',
-          question: 'Apakah data saya aman?',
-          answer: 'Ya, semua data disimpan lokal di server Anda sendiri. Tidak ada data yang dikirim ke server eksternal kecuali API AI yang Anda pilih.',
-          keywords: ['keamanan', 'data', 'privasi'],
-          tags: ['kebijakan', 'keamanan'],
-          priority: 2,
-          createdAt: now,
-          updatedAt: now,
-        },
-        {
-          id: 'seed-4',
-          category: 'harga',
-          question: 'Berapa biaya menggunakan WAGENT?',
-          answer: 'WAGENT gratis dan open-source. Yang perlu Anda bayar hanya API key AI (OpenAI, Anthropic, dll) sesuai penggunaan Anda.',
-          keywords: ['harga', 'biaya', 'gratis', 'bayar'],
-          tags: ['harga', 'billing'],
-          priority: 1,
-          createdAt: now,
-          updatedAt: now,
-        },
-      ];
-
       for (const entry of entries) {
-        this.db.createKnowledgeEntry(entry);
+        this.db.createKnowledgeEntry({ ...entry, createdAt: now, updatedAt: now });
       }
       this.logger.info({ count: entries.length }, 'Seed knowledge base entries created');
     } catch (err: any) {

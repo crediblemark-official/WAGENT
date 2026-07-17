@@ -1,0 +1,38 @@
+[
+  {
+    "id": "seed-1",
+    "category": "produk",
+    "question": "Apa itu WAGENT?",
+    "answer": "WAGENT adalah platform AI agent WhatsApp open-source yang memungkinkan Anda membuat chatbot AI otomatis untuk bisnis Anda.",
+    "keywords": ["wagent", "ai", "whatsapp", "chatbot"],
+    "tags": ["produk", "deskripsi"],
+    "priority": 3
+  },
+  {
+    "id": "seed-2",
+    "category": "FAQ",
+    "question": "Bagaimana cara memulai menggunakan WAGENT?",
+    "answer": "Install WAGENT via npm atau curl, jalankan \"wagent setup\" untuk konfigurasi awal, lalu \"wagent start\" untuk menjalankan server.",
+    "keywords": ["install", "setup", "mulai", "cara"],
+    "tags": ["panduan", "pemula"],
+    "priority": 2
+  },
+  {
+    "id": "seed-3",
+    "category": "kebijakan",
+    "question": "Apakah data saya aman?",
+    "answer": "Ya, semua data disimpan lokal di server Anda sendiri. Tidak ada data yang dikirim ke server eksternal kecuali API AI yang Anda pilih.",
+    "keywords": ["keamanan", "data", "privasi"],
+    "tags": ["kebijakan", "keamanan"],
+    "priority": 2
+  },
+  {
+    "id": "seed-4",
+    "category": "harga",
+    "question": "Berapa biaya menggunakan WAGENT?",
+    "answer": "WAGENT gratis dan open-source. Yang perlu Anda bayar hanya API key AI (OpenAI, Anthropic, dll) sesuai penggunaan Anda.",
+    "keywords": ["harga", "biaya", "gratis", "bayar"],
+    "tags": ["harga", "billing"],
+    "priority": 1
+  }
+]
