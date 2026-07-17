@@ -279,6 +279,13 @@ export class Gateway {
       const senderNumber = msg.from?.split('@')[0] || '';
       const ownerNumber = userJid?.split('@')[0] || '';
       const ownerLidNumber = userLid?.split('@')[0] || '';
+
+      // Auto-capture owner LID from ANY linked device message (before self-chat check)
+      if (msg.fromMe && msg.from?.includes('@lid') && !this._capturedOwnerLid) {
+        this._capturedOwnerLid = msg.from;
+        this.logger.info({ lid: msg.from }, 'Captured owner LID from linked device');
+      }
+
       // Also use captured LID from previous self-chat messages
       const capturedLidNumber = this._capturedOwnerLid?.split('@')[0] || '';
       const isSelfChatMsg = !!userJid && msg.fromMe && (
@@ -290,11 +297,6 @@ export class Gateway {
         // Compare phone number prefixes as final fallback
         (senderNumber.length > 5 && senderNumber === ownerNumber)
       );
-      // Auto-capture owner LID from linked device self-chat messages
-      if (msg.fromMe && msg.from?.includes('@lid') && !this._capturedOwnerLid) {
-        this._capturedOwnerLid = msg.from;
-        this.logger.info({ lid: msg.from }, 'Captured owner LID from linked device');
-      }
       if (msg.fromMe && msg.id && !isSelfChatMsg) {
         const exists = this.db.messageExists(msg.id);
         if (!exists) {
