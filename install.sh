@@ -90,6 +90,16 @@ step "②" "Preparing WAGENT..."
 if [ -d "$INSTALL_DIR" ]; then
   ok "Already installed at $INSTALL_DIR"
 
+  # Always ensure CLI wrapper exists (even if already up-to-date)
+  NODE_BIN="$(which node)"
+  mkdir -p "$BIN_DIR"
+  cat > "$WAGENT_BIN" << WAGENT_EOF
+#!/usr/bin/env bash
+set -euo pipefail
+exec "$NODE_BIN" "\$HOME/.wagent/packages/cli/dist/index.js" "\$@"
+WAGENT_EOF
+  chmod +x "$WAGENT_BIN"
+
   LOCAL_VERSION="$(cat "$INSTALL_DIR/package.json" 2>/dev/null | grep '"version"' | head -1 | sed 's/.*"version": *"\([^"]*\)".*/\1/' || echo 'unknown')"
 
   cd "$INSTALL_DIR"
