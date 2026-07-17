@@ -75,11 +75,12 @@ fi
 # ── Reinstall CLI binary ──────────────────────────────────────────────────────
 BIN_DIR="$HOME/.local/bin"
 WAGENT_BIN="$BIN_DIR/wagent"
+NODE_BIN="$(which node)"
 mkdir -p "$BIN_DIR"
-cat > "$WAGENT_BIN" << 'WAGENT_EOF'
+cat > "$WAGENT_BIN" << WAGENT_EOF
 #!/usr/bin/env bash
 set -euo pipefail
-exec node "$HOME/.wagent/packages/cli/dist/index.js" "$@"
+exec "$NODE_BIN" "\$HOME/.wagent/packages/cli/dist/index.js" "\$@"
 WAGENT_EOF
 chmod +x "$WAGENT_BIN"
 

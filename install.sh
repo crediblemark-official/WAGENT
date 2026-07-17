@@ -88,52 +88,58 @@ echo ""
 # ── Step 2: Clone or Update ────────────────────────────────────
 step "②" "Preparing WAGENT..."
 if [ -d "$INSTALL_DIR" ]; then
-  ok "Already installed at $INSTALL_DIR"
+  # If directory exists but is not a valid git repo, remove and start fresh
+  if [ ! -d "$INSTALL_DIR/.git" ]; then
+    info "Directory exists but is not a valid install. Removing..."
+    rm -rf "$INSTALL_DIR"
+  else
+    ok "Already installed at $INSTALL_DIR"
 
-  # Always ensure CLI wrapper exists (even if already up-to-date)
-  NODE_BIN="$(which node)"
-  mkdir -p "$BIN_DIR"
-  cat > "$WAGENT_BIN" << WAGENT_EOF
+    # Always ensure CLI wrapper exists (even if already up-to-date)
+    NODE_BIN="$(which node)"
+    mkdir -p "$BIN_DIR"
+    cat > "$WAGENT_BIN" << WAGENT_EOF
 #!/usr/bin/env bash
 set -euo pipefail
 exec "$NODE_BIN" "\$HOME/.wagent/packages/cli/dist/index.js" "\$@"
 WAGENT_EOF
-  chmod +x "$WAGENT_BIN"
+    chmod +x "$WAGENT_BIN"
 
-  LOCAL_VERSION="$(cat "$INSTALL_DIR/package.json" 2>/dev/null | grep '"version"' | head -1 | sed 's/.*"version": *"\([^"]*\)".*/\1/' || echo 'unknown')"
+    LOCAL_VERSION="$(cat "$INSTALL_DIR/package.json" 2>/dev/null | grep '"version"' | head -1 | sed 's/.*"version": *"\([^"]*\)".*/\1/' || echo 'unknown')"
 
-  cd "$INSTALL_DIR"
-  git fetch origin main --quiet 2>/dev/null || true
+    cd "$INSTALL_DIR"
+    git fetch origin main --quiet 2>/dev/null || true
 
-  LOCAL_COMMIT="$(git rev-parse HEAD 2>/dev/null || echo '')"
-  REMOTE_COMMIT="$(git rev-parse origin/main 2>/dev/null || echo '')"
+    LOCAL_COMMIT="$(git rev-parse HEAD 2>/dev/null || echo '')"
+    REMOTE_COMMIT="$(git rev-parse origin/main 2>/dev/null || echo '')"
 
-  if [ -z "$LOCAL_COMMIT" ] || [ -z "$REMOTE_COMMIT" ]; then
-    fail "Cannot check remote version. Run 'wagent update' manually."
-    exit 1
+    if [ -z "$LOCAL_COMMIT" ] || [ -z "$REMOTE_COMMIT" ]; then
+      fail "Cannot check remote version. Removing and reinstalling..."
+      rm -rf "$INSTALL_DIR"
+    else
+      # Baca versi dari remote package.json
+      REMOTE_VERSION="$(git show origin/main:package.json 2>/dev/null | grep '"version"' | head -1 | sed 's/.*"version": *"\([^"]*\)".*/\1/' || echo "$LOCAL_VERSION")"
+
+      if [ "$LOCAL_COMMIT" = "$REMOTE_COMMIT" ]; then
+        echo ""
+        hr
+        echo -e "  ${G}Already up-to-date!${N} (v$LOCAL_VERSION)"
+        hr
+        echo ""
+        echo -e "  ${W}Start:${N}   wagent start"
+        echo -e "  ${W}Update:${N}  wagent update"
+        echo -e "  ${W}Help:${N}    wagent --help"
+        echo ""
+        exit 0
+      fi
+
+      echo ""
+      echo -e "  ${Y}↑ New version available! (v$LOCAL_VERSION → v$REMOTE_VERSION) Updating...${N}"
+      echo ""
+      bash "$INSTALL_DIR/update.sh"
+      exit 0
+    fi
   fi
-
-  # Baca versi dari remote package.json
-  REMOTE_VERSION="$(git show origin/main:package.json 2>/dev/null | grep '"version"' | head -1 | sed 's/.*"version": *"\([^"]*\)".*/\1/' || echo "$LOCAL_VERSION")"
-
-  if [ "$LOCAL_COMMIT" = "$REMOTE_COMMIT" ]; then
-    echo ""
-    hr
-    echo -e "  ${G}Already up-to-date!${N} (v$LOCAL_VERSION)"
-    hr
-    echo ""
-    echo -e "  ${W}Start:${N}   wagent start"
-    echo -e "  ${W}Update:${N}  wagent update"
-    echo -e "  ${W}Help:${N}    wagent --help"
-    echo ""
-    exit 0
-  fi
-
-  echo ""
-  echo -e "  ${Y}↑ New version available! (v$LOCAL_VERSION → v$REMOTE_VERSION) Updating...${N}"
-  echo ""
-  bash "$INSTALL_DIR/update.sh"
-  exit 0
 fi
 
 if git clone --depth 1 "$REPO" "$INSTALL_DIR" >/dev/null 2>&1; then
