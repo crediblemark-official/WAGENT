@@ -48,28 +48,65 @@ if [ "${WAGENT_UPDATED:-}" != "1" ]; then
   exec bash "$0"
 fi
 
+# ── Detect package manager ──────────────────────────────────────
+USE_BUN=1
+export PATH="$HOME/.bun/bin:$PATH"
+if ! bun --version >/dev/null 2>&1; then
+  USE_BUN=0
+fi
+
 # ── Reinstall deps ───────────────────────────────────────────────────────────
 step "📦 Installing dependencies..."
-export PATH="$HOME/.bun/bin:$PATH"
-if bun install --frozen-lockfile > /dev/null 2>&1; then
-  ok "Dependencies ready"
-else
-  echo -e "  ${Y}⚠ Retrying without frozen lockfile...${N}"
-  if bun install > /dev/null 2>&1; then
-    ok "Dependencies ready"
+if [ "$USE_BUN" = "1" ]; then
+  if bun install --frozen-lockfile > /dev/null 2>&1; then
+    ok "Dependencies ready (bun)"
   else
-    echo -e "  ❌ bun install failed"
+    echo -e "  ${Y}⚠ Retrying without frozen lockfile...${N}"
+    if bun install > /dev/null 2>&1; then
+      ok "Dependencies ready (bun)"
+    else
+      echo -e "  ❌ bun install failed"
+      exit 1
+    fi
+  fi
+else
+  if npm ci > /dev/null 2>&1 || npm install --ignore-scripts > /dev/null 2>&1; then
+    ok "Dependencies ready (npm)"
+  else
+    echo -e "  ❌ npm install failed"
     exit 1
   fi
 fi
 
 # ── Rebuild ──────────────────────────────────────────────────────────────────
 step "🔨 Building packages..."
-if bun run build > /dev/null 2>&1; then
-  ok "Build complete"
+if [ "$USE_BUN" = "1" ]; then
+  if bun run build > /dev/null 2>&1; then
+    ok "Build complete (bun)"
+  else
+    echo -e "  ❌ Build failed"
+    exit 1
+  fi
 else
-  echo -e "  ❌ Build failed"
-  exit 1
+  BUILD_OK=1
+  for pkg in core cli whatsapp tui; do
+    if ! (cd "packages/$pkg" && npx tsc > /dev/null 2>&1); then
+      echo -e "  ❌ Build failed in packages/$pkg"
+      BUILD_OK=0
+      break
+    fi
+  done
+  if [ "$BUILD_OK" = "1" ]; then
+    if ! (cd packages/dashboard && npx vite build > /dev/null 2>&1 && npx tsc > /dev/null 2>&1); then
+      echo -e "  ❌ Build failed in packages/dashboard"
+      BUILD_OK=0
+    fi
+  fi
+  if [ "$BUILD_OK" = "1" ]; then
+    ok "Build complete (npm)"
+  else
+    exit 1
+  fi
 fi
 
 # ── Reinstall CLI binary ──────────────────────────────────────────────────────
