@@ -104,8 +104,24 @@ export class TelegramBot {
 
   private registerCommands(): void {
     this.addCommand({
+      name: 'setup',
+      aliases: ['configure', 'personality'],
+      description: 'Start personalized AI setup interview',
+      usage: '/setup',
+      handler: () => this.handleSetup(),
+    });
+
+    this.addCommand({
+      name: 'cancel',
+      aliases: [],
+      description: 'Cancel current setup interview',
+      usage: '/cancel',
+      handler: () => this.handleCancel(),
+    });
+
+    this.addCommand({
       name: 'status',
-      aliases: ['stats', 's'],
+      aliases: ['s'],
       description: 'Show agent status & connection info',
       usage: '/status',
       handler: () => this.handleStatus(),
@@ -113,7 +129,7 @@ export class TelegramBot {
 
     this.addCommand({
       name: 'pause',
-      aliases: ['stop'],
+      aliases: [],
       description: 'Pause auto-reply (AI will not respond to messages)',
       usage: '/pause',
       handler: () => this.handlePause(),
@@ -121,7 +137,7 @@ export class TelegramBot {
 
     this.addCommand({
       name: 'resume',
-      aliases: ['start'],
+      aliases: [],
       description: 'Resume auto-reply after pause',
       usage: '/resume',
       handler: () => this.handleResume(),
@@ -129,23 +145,23 @@ export class TelegramBot {
 
     this.addCommand({
       name: 'approve',
-      aliases: ['a', 'yes'],
+      aliases: ['a'],
       description: 'Approve a pending action by ID',
-      usage: '/approve <request_id> [note]',
+      usage: '/approve <id> [note]',
       handler: (args) => this.handleApprove(args),
     });
 
     this.addCommand({
       name: 'reject',
-      aliases: ['r', 'no', 'deny'],
+      aliases: ['r'],
       description: 'Reject a pending action by ID',
-      usage: '/reject <request_id> [reason]',
+      usage: '/reject <id> [reason]',
       handler: (args) => this.handleReject(args),
     });
 
     this.addCommand({
       name: 'pending',
-      aliases: ['queue', 'list'],
+      aliases: ['queue'],
       description: 'List all pending approval requests',
       usage: '/pending',
       handler: () => this.handlePending(),
@@ -168,8 +184,24 @@ export class TelegramBot {
     });
 
     this.addCommand({
+      name: 'contacts',
+      aliases: ['c'],
+      description: 'List managed WhatsApp contacts',
+      usage: '/contacts [limit]',
+      handler: (args) => this.handleContacts(args),
+    });
+
+    this.addCommand({
+      name: 'logs',
+      aliases: ['l'],
+      description: 'Show recent activity logs',
+      usage: '/logs [count]',
+      handler: (args) => this.handleLogs(args),
+    });
+
+    this.addCommand({
       name: 'summary',
-      aliases: ['daily', 'ringkasan'],
+      aliases: ['daily'],
       description: 'Show daily summary of chat activity',
       usage: '/summary [date]',
       handler: (args) => this.handleSummary(args),
@@ -177,31 +209,15 @@ export class TelegramBot {
 
     this.addCommand({
       name: 'add_contact',
-      aliases: ['add', 'ac'],
+      aliases: ['ac'],
       description: 'Add or update a contact profile with name and relationship',
       usage: '/add_contact <name> <relationship>',
       handler: (args) => this.handleAddContact(args),
     });
 
     this.addCommand({
-      name: 'setup',
-      aliases: ['configure', 'config', 'personality'],
-      description: 'Start personalized AI setup interview',
-      usage: '/setup',
-      handler: () => this.handleSetup(),
-    });
-
-    this.addCommand({
-      name: 'cancel',
-      aliases: ['stop'],
-      description: 'Cancel current setup interview',
-      usage: '/cancel',
-      handler: () => this.handleCancel(),
-    });
-
-    this.addCommand({
       name: 'help',
-      aliases: ['h', '?', 'commands'],
+      aliases: ['h', '?'],
       description: 'Show available commands',
       usage: '/help [command]',
       handler: (args) => this.handleHelp(args),
@@ -635,26 +651,29 @@ export class TelegramBot {
 
     // General help
     const lines: string[] = [
-      `<b>🤖 ${tg.help_header}</b>`,
+      '<b>🤖 WAGENT Commands</b>',
       '',
-      `<b>Setup:</b>`,
+      '<b>Setup:</b>',
       '  <code>/setup</code> — Start AI personalization interview',
       '  <code>/cancel</code> — Cancel setup interview',
       '',
-      `<b>${tg.help_status}</b>`,
+      '<b>Control:</b>',
       '  <code>/status</code> — Show agent status',
       '  <code>/pause</code> — Pause auto-reply',
       '  <code>/resume</code> — Resume auto-reply',
       '',
-      `<b>${tg.help_approval}</b>`,
+      '<b>Approval:</b>',
       '  <code>/pending</code> — List pending approvals',
       '  <code>/approve &lt;id&gt;</code> — Approve action',
       '  <code>/reject &lt;id&gt;</code> — Reject action',
       '',
-      `<b>Data:</b>`,
+      '<b>Data:</b>',
       '  <code>/contacts</code> — List contacts',
+      '  <code>/add_contact &lt;name&gt; &lt;rel&gt;</code> — Add contact',
       '  <code>/logs</code> — Recent activity',
-      '  <code>/summary</code> — Daily summary ringkasan',
+      '  <code>/summary</code> — Daily summary',
+      '',
+      '<b>Info:</b>',
       '  <code>/help [cmd]</code> — Show this help',
     ];
 
