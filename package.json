@@ -30,11 +30,11 @@
     "packages/*"
   ],
   "dependencies": {
-    "@wagent/core": "latest",
-    "@wagent/cli": "latest",
-    "@wagent/whatsapp": "latest",
-    "@wagent/tui": "latest",
-    "@wagent/dashboard": "latest"
+    "@wagent/core": "workspace:*",
+    "@wagent/cli": "workspace:*",
+    "@wagent/whatsapp": "workspace:*",
+    "@wagent/tui": "workspace:*",
+    "@wagent/dashboard": "workspace:*"
   },
   "keywords": [
     "whatsapp",

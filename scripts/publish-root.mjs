@@ -17,6 +17,17 @@ const stripped = { ...pkg };
 delete stripped.workspaces;
 delete stripped.devDependencies;
 
+// Replace workspace:* references with the actual version so npm consumers
+// get the correct published versions of sibling packages.
+const version = pkg.version || '0.0.0';
+if (stripped.dependencies) {
+  for (const [dep, range] of Object.entries(stripped.dependencies)) {
+    if (range === 'workspace:*' || range.startsWith('workspace:')) {
+      stripped.dependencies[dep] = version;
+    }
+  }
+}
+
 // Tulis versi stripped
 writeFileSync(bakPath, original);
 writeFileSync(pkgPath, JSON.stringify(stripped, null, 2) + '\n');

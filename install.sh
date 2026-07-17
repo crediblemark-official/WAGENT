@@ -5,6 +5,7 @@ REPO="https://github.com/crediblemark-official/WAGENT.git"
 INSTALL_DIR="$HOME/.wagent"
 BIN_DIR="$HOME/.local/bin"
 WAGENT_BIN="$BIN_DIR/wagent"
+USE_BUN=1  # Set to 0 if bun is unavailable (fallback to npm/node)
 
 # ── Colors ──────────────────────────────────────────────────────
 R='\033[1;31m'   # Red bold
@@ -123,6 +124,12 @@ if ! bun --version >/dev/null 2>&1; then
   if curl -fsSL https://bun.sh/install | bash > /dev/null 2>&1 && bun --version >/dev/null 2>&1; then
     export PATH="$HOME/.bun/bin:$PATH"
     ok "Bun $(bun --version) installed"
+  elif [ "$IS_TERMUX" = "1" ]; then
+    # bun binary may be incompatible with this Termux/Android environment;
+    # fall back to npm + Node.js (sqlite.ts has better-sqlite3 / node:sqlite
+    # fallbacks that do not need bun).
+    USE_BUN=0
+    ok "Bun unavailable on this Termux — using npm + Node.js instead"
   else
     fail "Bun installation failed. Install manually: https://bun.sh"
     exit 1
@@ -131,7 +138,7 @@ else
   ok "Bun $(bun --version) already present"
 fi
 ok "Node $(node --version)"
-ok "Bun $(bun --version)"
+[ "$USE_BUN" = "1" ] && ok "Bun $(bun --version)"
 ok "Git $(git --version | awk '{print $3}')"
 echo ""
 
@@ -194,22 +201,56 @@ echo ""
 # ── Step 3: Install Dependencies ───────────────────────────────
 step "③" "Installing dependencies..."
 cd "$INSTALL_DIR"
-export PATH="$HOME/.bun/bin:$PATH"
-if bun install --frozen-lockfile > /dev/null 2>&1; then
-  ok "Dependencies installed"
+if [ "$USE_BUN" = "1" ]; then
+  export PATH="$HOME/.bun/bin:$PATH"
+  if bun install --frozen-lockfile > /dev/null 2>&1; then
+    ok "Dependencies installed (bun)"
+  else
+    fail "bun install failed"
+    exit 1
+  fi
 else
-  fail "bun install failed"
-  exit 1
+  if npm ci > /dev/null 2>&1 || npm install --ignore-scripts > /dev/null 2>&1; then
+    ok "Dependencies installed (npm)"
+  else
+    fail "npm install failed"
+    exit 1
+  fi
 fi
 echo ""
 
 # ── Step 4: Build ──────────────────────────────────────────
 step "④" "Building packages..."
-if FRESH_INSTALL=1 bun run build > /dev/null 2>&1; then
-  ok "Build complete"
+if [ "$USE_BUN" = "1" ]; then
+  if FRESH_INSTALL=1 bun run build > /dev/null 2>&1; then
+    ok "Build complete (bun)"
+  else
+    fail "Build failed"
+    exit 1
+  fi
 else
-  fail "Build failed"
-  exit 1
+  # npm mode: run tsc / vite directly per package
+  cd "$INSTALL_DIR"
+  BUILD_OK=1
+  for pkg in core cli whatsapp tui; do
+    if ! (cd "packages/$pkg" && npx tsc > /dev/null 2>&1); then
+      fail "Build failed in packages/$pkg"
+      BUILD_OK=0
+      break
+    fi
+  done
+  if [ "$BUILD_OK" = "1" ]; then
+    # Dashboard: vite build + tsc
+    if ! (cd packages/dashboard && npx vite build > /dev/null 2>&1 && npx tsc > /dev/null 2>&1); then
+      fail "Build failed in packages/dashboard"
+      BUILD_OK=0
+    fi
+  fi
+  if [ "$BUILD_OK" = "1" ]; then
+    ok "Build complete (npm)"
+  else
+    exit 1
+  fi
 fi
 echo ""
 
@@ -225,8 +266,9 @@ chmod +x "$WAGENT_BIN"
 ok "CLI installed at $WAGENT_BIN"
 
 # ── PATH check ─────────────────────────────────────────────────
-# Ensure ~/.bashrc exists and wires up Bun + the WAGENT bin dir, then
-# apply it to the current session so `wagent` works immediately.
+# Ensure ~/.bashrc exists and wires up the WAGENT bin dir (+ Bun if
+# available), then apply it to the current session so `wagent` works
+# immediately.
 if [ ! -f "$HOME/.bashrc" ]; then
   touch "$HOME/.bashrc"
 fi
@@ -236,17 +278,25 @@ if [ -f "$HOME/.zshrc" ] && [ -n "${ZSH_VERSION:-}" ]; then
   SHELL_RC="$HOME/.zshrc"
 fi
 
-if ! grep -q 'BUN_INSTALL' "$SHELL_RC" 2>/dev/null; then
-  {
-    echo ''
-    echo 'export BUN_INSTALL="$HOME/.bun"'
-    echo 'export PATH="$BUN_INSTALL/bin:$HOME/.local/bin:$PATH"'
-  } >> "$SHELL_RC"
+if [ "$USE_BUN" = "1" ]; then
+  if ! grep -q 'BUN_INSTALL' "$SHELL_RC" 2>/dev/null; then
+    {
+      echo ''
+      echo 'export BUN_INSTALL="$HOME/.bun"'
+      echo 'export PATH="$BUN_INSTALL/bin:$HOME/.local/bin:$PATH"'
+    } >> "$SHELL_RC"
+  fi
+  export BUN_INSTALL="$HOME/.bun"
+  export PATH="$BUN_INSTALL/bin:$BIN_DIR:$PATH"
+else
+  if ! grep -q '\.local/bin' "$SHELL_RC" 2>/dev/null; then
+    {
+      echo ''
+      echo 'export PATH="$HOME/.local/bin:$PATH"'
+    } >> "$SHELL_RC"
+  fi
+  export PATH="$BIN_DIR:$PATH"
 fi
-
-# Apply to current session
-export BUN_INSTALL="$HOME/.bun"
-export PATH="$BUN_INSTALL/bin:$BIN_DIR:$PATH"
 
 if ! echo "$PATH" | grep -q "$BIN_DIR"; then
   echo ""
