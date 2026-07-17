@@ -438,7 +438,7 @@ export class Gateway {
    * Cleans up stale entries automatically.
    */
   private isHumanActive(jid: string): boolean {
-    const cooldownMs = (this.config.humanTakeoverCooldownMinutes || 30) * 60 * 1000;
+    const cooldownMs = (this.config.humanTakeoverCooldownMinutes || 10) * 60 * 1000;
     const lastHumanReply = this.humanActiveMap.get(jid);
     if (!lastHumanReply) return false;
 
