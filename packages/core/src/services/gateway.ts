@@ -276,8 +276,12 @@ export class Gateway {
       // Also compare the phone number prefix as a fallback when LID is unavailable.
       const senderNumber = msg.from?.split('@')[0] || '';
       const ownerNumber = userJid?.split('@')[0] || '';
+      const ownerLidNumber = userLid?.split('@')[0] || '';
       const isSelfChatMsg = !!userJid && msg.fromMe && (
         msg.from === userJid || (!!userLid && msg.from === userLid) ||
+        // Compare LID numbers (e.g. "101215367114756" from "101215367114756@lid")
+        (senderNumber.length > 5 && senderNumber === ownerLidNumber) ||
+        // Compare phone number prefixes as final fallback
         (senderNumber.length > 5 && senderNumber === ownerNumber)
       );
       if (msg.fromMe && msg.id && !isSelfChatMsg) {
@@ -482,8 +486,10 @@ export class Gateway {
     if (!userJid) return false;
     const senderNumber = msg.from?.split('@')[0] || '';
     const ownerNumber = userJid.split('@')[0] || '';
+    const ownerLidNumber = userLid?.split('@')[0] || '';
     return !!msg.fromMe && (
       msg.from === userJid || (!!userLid && msg.from === userLid) ||
+      (senderNumber.length > 5 && senderNumber === ownerLidNumber) ||
       (senderNumber.length > 5 && senderNumber === ownerNumber)
     );
   }
