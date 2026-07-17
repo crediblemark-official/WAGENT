@@ -297,7 +297,7 @@ export class Gateway {
       // Human takeover from WhatsApp Web uses phone JID (xxx@s.whatsapp.net).
       // So if fromMe=true AND msg.from ends with @lid, it's always self-chat.
       const isLidFormat = msg.from?.endsWith('@lid') && senderNumber.length > 5;
-      const isSelfChatMsg = !!userJid && msg.fromMe && (
+      const isSelfChatMsg = msg.fromMe && (!!userJid || !!userLid) && (
         // DIRECT: linked device self-chat always uses @lid format
         isLidFormat ||
         msg.from === userJid ||
