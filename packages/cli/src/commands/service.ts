@@ -91,15 +91,14 @@ export function serviceInstall(): boolean {
     '',
     '[Service]',
     'Type=simple',
-    `WorkingDirectory=${process.cwd()}`,
+    `WorkingDirectory=${home}`,
     `ExecStart=${wagentBin} start`,
     'Restart=always',
     'RestartSec=10',
     'StandardOutput=journal',
     'StandardError=journal',
-    'Environment=HOME=%h',
-    'Environment=NVM_DIR=%h/.nvm',
-    'Environment=PATH=%h/.local/bin:%h/.bun/bin:/usr/local/bin:/usr/bin:/bin',
+    `Environment=HOME=${home}`,
+    `Environment=PATH=${dirname(wagentBin)}:${home}/.local/bin:${home}/.bun/bin:/usr/local/bin:/usr/bin:/bin`,
     'Environment=WAGENT_SERVICE=1',
     '',
     '[Install]',
@@ -139,6 +138,16 @@ function ensureServiceUpdated(serviceFile: string): void {
   } else {
     try {
       const content = readFileSync(serviceFile, 'utf-8');
+
+      // Check if ExecStart binary still exists
+      const execMatch = content.match(/ExecStart=(\S+)/);
+      const execBin = execMatch?.[1]?.replace(/\s+start$/, '');
+      if (execBin && !existsSync(execBin)) {
+        console.log(color.cyan(`  ⚙ ExecStart binary not found (${execBin}) — regenerating service file...`));
+        serviceInstall();
+        return;
+      }
+
       if (
         content.includes('Restart=on-failure') ||
         !content.includes('WAGENT_SERVICE=1') ||
