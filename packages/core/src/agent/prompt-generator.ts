@@ -116,10 +116,11 @@ export class PromptGenerator {
     lines.push('');
 
     // Rules
-    const rulesCount = 2 + (answers.forbiddenActions.length > 0 ? answers.forbiddenActions.length : 2) + (answers.escalationTriggers.length > 0 ? 1 : 0) + 1;
+    const rulesCount = 3 + (answers.forbiddenActions.length > 0 ? answers.forbiddenActions.length : 2) + (answers.escalationTriggers.length > 0 ? 1 : 0) + 1;
     lines.push(`rules[${rulesCount}]:`);
     lines.push('  - Jangan sebut diri sendiri AI kecuali ditanya');
     lines.push('  - Jika tidak tahu jawabannya akui dengan jujur');
+    lines.push('  - Jika tidak paham konteks atau maksud customer, TANYA KLASIFIKASI dulu sebelum eskalasi');
     if (answers.forbiddenActions.length > 0) {
       for (const action of answers.forbiddenActions) {
         lines.push(`  - Jangan ${action.toLowerCase()}`);

@@ -839,13 +839,20 @@ ${this.config.welcomeMessage ? `Gunakan sambutan seperti: "${this.config.welcome
           
           // 2. AI gives generic/unhelpful response (welcome, apology, etc.)
           // These don't address the customer's actual question
+          // BUT exclude clarification questions (those are GOOD responses)
+          const clarificationPatterns = [
+            'bisa tolong', 'maksudnya', 'bisa jelaskan', 'lebih spesifik',
+            'mohon klarifikasi', 'bisa diperjelas', 'tentang apa',
+          ];
+          const isAskingClarification = clarificationPatterns.some(p => lowerResp.includes(p));
+          
           const genericPatterns = [
             'selamat datang', 'halo! selamat datang', 'senang sekali bisa terhubung',
             'ada yang bisa saya bantu hari ini', 'jangan ragu untuk bertanya',
             'mohon maaf sekali', 'atas keterlambatannya', 'menunggu itu tidak nyaman',
             'terima kasih atas kesabarannya', 'ada kendala tertentu',
           ];
-          const isGeneric = genericPatterns.some(p => lowerResp.includes(p)) && response.length < 200;
+          const isGeneric = !isAskingClarification && genericPatterns.some(p => lowerResp.includes(p)) && response.length < 200;
           
           if (isUnable || isGeneric) {
             const reason = isUnable ? 'ai_empty_response' : 'ai_explicit_escalation';
