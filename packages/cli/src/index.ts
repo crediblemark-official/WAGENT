@@ -312,14 +312,23 @@ program
     const installDir = join(homedir(), '.wagent');
     const updateScript = join(installDir, 'update.sh');
 
-    if (!existsSync(updateScript)) {
-      console.error(color.red(`❌ Script update tidak ditemukan: ${updateScript}`));
-      process.exit(1);
-    }
-    try {
-      execSync(`bash "${updateScript}"`, { stdio: 'inherit' });
-    } catch {
-      process.exit(1);
+    if (existsSync(updateScript)) {
+      // curl install — run update.sh from ~/.wagent
+      try {
+        execSync(`bash "${updateScript}"`, { stdio: 'inherit' });
+      } catch {
+        process.exit(1);
+      }
+    } else {
+      // npm global install — use npm to update
+      console.log(color.cyan('📦 Updating via npm...'));
+      try {
+        execSync('npm update -g @wagent/wagent', { stdio: 'inherit' });
+        console.log(color.green('✅ Updated to latest version!'));
+      } catch {
+        console.error(color.red('❌ npm update failed. Try: npm install -g @wagent/wagent@latest'));
+        process.exit(1);
+      }
     }
   });
 
@@ -332,14 +341,33 @@ program
     const installDir = join(homedir(), '.wagent');
     const uninstallScript = join(installDir, 'uninstall.sh');
 
-    if (!existsSync(uninstallScript)) {
-      console.error(color.red(`❌ Script uninstall tidak ditemukan: ${uninstallScript}`));
-      process.exit(1);
-    }
-    try {
-      execSync(`bash "${uninstallScript}"`, { stdio: 'inherit' });
-    } catch {
-      process.exit(1);
+    if (existsSync(uninstallScript)) {
+      // curl install — run uninstall.sh from ~/.wagent
+      try {
+        execSync(`bash "${uninstallScript}"`, { stdio: 'inherit' });
+      } catch {
+        process.exit(1);
+      }
+    } else {
+      // npm global install — use npm to uninstall
+      console.log(color.cyan('📦 Uninstalling via npm...'));
+      try {
+        execSync('npm uninstall -g @wagent/wagent', { stdio: 'inherit' });
+        console.log(color.green('✅ WAGENT uninstalled.'));
+      } catch {
+        console.error(color.red('❌ npm uninstall failed. Try: npm uninstall -g @wagent/wagent'));
+        process.exit(1);
+      }
+      // Also clean up ~/.local/bin/wagent if it exists
+      const { existsSync: existsSync2 } = await import('fs');
+      const binPath = join(homedir(), '.local', 'bin', 'wagent');
+      if (existsSync2(binPath)) {
+        try {
+          const { unlinkSync } = await import('fs');
+          unlinkSync(binPath);
+          console.log(color.dim(`  Removed ${binPath}`));
+        } catch { /* ignore */ }
+      }
     }
   });
 
