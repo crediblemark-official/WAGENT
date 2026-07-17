@@ -246,6 +246,8 @@ export class Gateway {
 
   /** Deduplication guard: contactId → timestamp to prevent double-escalation within 60s */
   private recentEscalations = new Map<string, number>();
+  /** Auto-captured owner LID from linked device self-chat messages */
+  private _capturedOwnerLid: string = '';
 
   /** Check if we recently escalated for this contact (within 60 seconds) */
   private canEscalate(contactId: string): boolean {
@@ -277,13 +279,22 @@ export class Gateway {
       const senderNumber = msg.from?.split('@')[0] || '';
       const ownerNumber = userJid?.split('@')[0] || '';
       const ownerLidNumber = userLid?.split('@')[0] || '';
+      // Also use captured LID from previous self-chat messages
+      const capturedLidNumber = this._capturedOwnerLid?.split('@')[0] || '';
       const isSelfChatMsg = !!userJid && msg.fromMe && (
         msg.from === userJid || (!!userLid && msg.from === userLid) ||
         // Compare LID numbers (e.g. "101215367114756" from "101215367114756@lid")
         (senderNumber.length > 5 && senderNumber === ownerLidNumber) ||
+        // Compare captured LID
+        (senderNumber.length > 5 && senderNumber === capturedLidNumber) ||
         // Compare phone number prefixes as final fallback
         (senderNumber.length > 5 && senderNumber === ownerNumber)
       );
+      // Auto-capture owner LID from linked device self-chat messages
+      if (msg.fromMe && msg.from?.includes('@lid') && !this._capturedOwnerLid) {
+        this._capturedOwnerLid = msg.from;
+        this.logger.info({ lid: msg.from }, 'Captured owner LID from linked device');
+      }
       if (msg.fromMe && msg.id && !isSelfChatMsg) {
         const exists = this.db.messageExists(msg.id);
         if (!exists) {
@@ -487,9 +498,11 @@ export class Gateway {
     const senderNumber = msg.from?.split('@')[0] || '';
     const ownerNumber = userJid.split('@')[0] || '';
     const ownerLidNumber = userLid?.split('@')[0] || '';
+    const capturedLidNumber = this._capturedOwnerLid?.split('@')[0] || '';
     return !!msg.fromMe && (
       msg.from === userJid || (!!userLid && msg.from === userLid) ||
       (senderNumber.length > 5 && senderNumber === ownerLidNumber) ||
+      (senderNumber.length > 5 && senderNumber === capturedLidNumber) ||
       (senderNumber.length > 5 && senderNumber === ownerNumber)
     );
   }
