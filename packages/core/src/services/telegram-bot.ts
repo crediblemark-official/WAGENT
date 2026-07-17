@@ -3,6 +3,7 @@ import { getLogger } from '../utils/logger.js';
 import { WAgentConfig } from '../types.js';
 import { ApprovalQueue } from './approval-queue.js';
 import { promptLoader } from '../agent/prompt-loader.js';
+import { PromptGenerator } from '../agent/prompt-generator.js';
 import type { Agent } from '../agent/agent.js';
 import type { Database } from '../storage/index.js';
 
@@ -65,6 +66,11 @@ export class TelegramBot {
   private commands: Map<string, CommandDef> = new Map();
   private gateway: TelegramGatewayAdapter;
   private db: Database;
+  private config: WAgentConfig;
+
+  // ── Setup Interview State ────────────────────────────────────
+  private setupMode = false;
+  private setupHistory: Array<{ role: 'user' | 'assistant'; content: string }> = [];
 
   // ── Constructor ───────────────────────────────────────────────
 
@@ -76,6 +82,7 @@ export class TelegramBot {
     this.logger = getLogger().child({ module: 'telegram-bot' });
     this.gateway = gateway;
     this.db = db;
+    this.config = config;
 
     this.enabled = !!(config.telegramBotToken && config.telegramChatId);
     this.botToken = config.telegramBotToken || '';
@@ -174,6 +181,22 @@ export class TelegramBot {
       description: 'Add or update a contact profile with name and relationship',
       usage: '/add_contact <name> <relationship>',
       handler: (args) => this.handleAddContact(args),
+    });
+
+    this.addCommand({
+      name: 'setup',
+      aliases: ['configure', 'config', 'personality'],
+      description: 'Start personalized AI setup interview',
+      usage: '/setup',
+      handler: () => this.handleSetup(),
+    });
+
+    this.addCommand({
+      name: 'cancel',
+      aliases: ['stop'],
+      description: 'Cancel current setup interview',
+      usage: '/cancel',
+      handler: () => this.handleCancel(),
     });
 
     this.addCommand({
@@ -287,7 +310,14 @@ export class TelegramBot {
 
     // Parse command
     const { command, args } = this.parseCommand(msg.text);
-    if (!command) return; // Not a command
+
+    // ── Setup Mode: route non-command messages to interview ──
+    if (this.setupMode && !command) {
+      await this.handleSetupMessage(msg.text);
+      return;
+    }
+
+    if (!command) return; // Not a command and not in setup mode
 
     this.logger.info({ command, args }, 'Telegram command received');
 
@@ -607,6 +637,10 @@ export class TelegramBot {
     const lines: string[] = [
       `<b>🤖 ${tg.help_header}</b>`,
       '',
+      `<b>Setup:</b>`,
+      '  <code>/setup</code> — Start AI personalization interview',
+      '  <code>/cancel</code> — Cancel setup interview',
+      '',
       `<b>${tg.help_status}</b>`,
       '  <code>/status</code> — Show agent status',
       '  <code>/pause</code> — Pause auto-reply',
@@ -669,6 +703,157 @@ export class TelegramBot {
     } catch (err: any) {
       this.logger.error({ error: err.message }, 'Failed to add contact');
       return `❌ Failed to add contact: ${this.escapeHtml(err.message)}`;
+    }
+  }
+
+  // ── Setup Interview ──────────────────────────────────────────
+
+  private async handleSetup(): Promise<string> {
+    this.setupMode = true;
+    this.setupHistory = [];
+
+    const welcome = [
+      '🔧 <b>Personalisasi AI Setup</b>',
+      '',
+      'Saya akan memandu Anda melalui konfigurasi AI agent.',
+      'Jawab pertanyaan satu per satu secara natural.',
+      '',
+      'Ketik <code>/cancel</code> untuk membatalkan kapan saja.',
+      '',
+      '<b>Pertanyaan 1:</b> Apakah Anda ingin menggunakan AI sebagai:',
+      '1. Bisnis / Customer Service (CS)',
+      '2. Asisten Pribadi (Personal Assistant)',
+      '3. Campuran (Hybrid)',
+    ].join('\n');
+
+    return welcome;
+  }
+
+  private async handleCancel(): Promise<string> {
+    if (!this.setupMode) return '⚠️ Tidak ada setup yang sedang berjalan.';
+    this.setupMode = false;
+    this.setupHistory = [];
+    return '✅ Setup dibatalkan.';
+  }
+
+  private async handleSetupMessage(text: string): Promise<void> {
+    const userText = text.trim();
+    this.setupHistory.push({ role: 'user', content: userText });
+
+    try {
+      const agent = this.gateway.getAgent();
+      const provider = agent.getProvider();
+
+      const setupInterviewConfig = promptLoader.load('setup-interview.toon');
+      const systemPrompt = setupInterviewConfig?.prompt || `Kamu adalah Setup Assistant AI untuk WAGENT.
+Tugasmu adalah memandu Owner melalui chat untuk mengonfigurasi AI WhatsApp Agent mereka.
+
+Lakukan interview satu per satu secara interaktif dan santai. Jangan tanyakan banyak hal sekaligus.
+Tanyakan hal-hal berikut secara berurutan:
+1. Kebutuhan utama (Bisnis / Asisten Pribadi / Campuran).
+2. Jika Bisnis: Nama bisnis, jenis usaha, deskripsi singkat, dan target customer.
+   Jika Personal: Nama asisten AI yang diinginkan, dan konteks bantuan harian.
+3. Gaya bicara yang diinginkan (Santai, Formal, Profesional, atau Ramah) dan apakah boleh menggunakan emoji.
+4. Jam operasional (jika ada).
+5. Aturan penting (apa saja yang boleh dan TIDAK boleh dilakukan AI).
+
+Begitu semua informasi penting terkumpul:
+1. Buatlah rangkuman ringkas tentang racikan tersebut kepada Owner.
+2. Panggil tool 'save_prompt_setup' dengan argumen data JSON yang lengkap untuk menulis konfigurasi tersebut ke sistem.
+3. Beritahu Owner bahwa bot akan di-restart otomatis untuk menerapkan konfigurasi tersebut.
+
+Penting: Jawab dengan bahasa Indonesia yang ramah, sopan, dan to-the-point. Tanyakan HANYA satu pertanyaan/topik dalam satu respons.`;
+
+      const messages = [
+        { role: 'system' as const, content: systemPrompt },
+        ...this.setupHistory.map(h => ({
+          role: h.role as 'user' | 'assistant',
+          content: h.content,
+        })),
+      ];
+
+      const tools = [{
+        name: 'save_prompt_setup',
+        description: 'Simpan konfigurasi hasil interview setup ke file prompt kustom dan restart bot.',
+        parameters: {
+          type: 'object' as const,
+          properties: {
+            useCase: { type: 'string', enum: ['business', 'personal', 'hybrid'] },
+            businessName: { type: 'string' },
+            businessType: { type: 'string' },
+            businessDescription: { type: 'string' },
+            targetCustomer: { type: 'string' },
+            personalName: { type: 'string' },
+            personalContext: { type: 'string' },
+            tone: { type: 'string', enum: ['casual', 'formal', 'professional', 'friendly'] },
+            emojiUsage: { type: 'string', enum: ['rare', 'moderate', 'frequent'] },
+            language: { type: 'string' },
+            greeting: { type: 'string' },
+            workingHours: { type: 'string' },
+            forbiddenActions: { type: 'array', items: { type: 'string' } },
+            escalationTriggers: { type: 'array', items: { type: 'string' } },
+            features: { type: 'array', items: { type: 'string' } }
+          },
+          required: ['useCase', 'tone', 'emojiUsage']
+        }
+      }];
+
+      const response = await provider.chat(messages, tools);
+
+      if (response.toolCalls && response.toolCalls.length > 0) {
+        for (const toolCall of response.toolCalls) {
+          if (toolCall.function.name === 'save_prompt_setup') {
+            const args = JSON.parse(toolCall.function.arguments || '{}');
+            const useCase = args.useCase || 'personal';
+            const answers = {
+              businessName: args.businessName || args.personalName || 'My WAGENT',
+              businessType: args.businessType || (useCase === 'personal' ? 'personal-assistant' : 'general'),
+              businessDescription: args.businessDescription || args.personalContext || 'Asisten pribadi cerdas',
+              targetCustomer: args.targetCustomer || 'Owner',
+              tone: (args.tone || 'casual') as 'casual' | 'formal' | 'professional' | 'friendly',
+              emojiUsage: (args.emojiUsage || 'moderate') as 'rare' | 'moderate' | 'frequent',
+              language: args.language || 'id',
+              greeting: args.greeting || 'Halo!',
+              frequentQuestions: args.frequentQuestions || [],
+              orderProcess: args.orderProcess || '',
+              paymentMethods: args.paymentMethods || '',
+              shippingTime: args.shippingTime || '',
+              returnPolicy: args.returnPolicy || '',
+              forbiddenActions: args.forbiddenActions || [],
+              escalationTriggers: args.escalationTriggers || [],
+              workingHours: args.workingHours || '24 jam',
+              features: args.features || ['web_search', 'reminder'],
+              welcomeMessage: args.welcomeMessage || args.greeting || 'Halo! Ada yang bisa saya bantu?',
+              errorMessage: args.errorMessage || 'Maaf, saya mengalami kendala teknis.',
+              offlineMessage: args.offlineMessage || 'Di luar jam operasional.',
+            };
+
+            const generator = new PromptGenerator(this.config);
+            await generator.generateWithAI(answers);
+
+            this.setupMode = false;
+            this.setupHistory = [];
+
+            await this.sendMessage(
+              '✅ <b>Konfigurasi Berhasil Disimpan!</b>\n\n' +
+              'Berkas kustom Anda telah ditulis ke direktori <code>prompts/</code>.\n' +
+              'Bot akan me-restart secara otomatis dalam 2 detik.'
+            );
+
+            setTimeout(() => process.exit(0), 2000);
+            return;
+          }
+        }
+      }
+
+      // Regular text response
+      const assistantText = response.content || 'Maaf, saya tidak mengerti. Bisa diulang?';
+      this.setupHistory.push({ role: 'assistant', content: assistantText });
+      await this.sendMessage(assistantText);
+
+    } catch (err: any) {
+      this.logger.error({ error: err.message }, 'Setup interview failed');
+      await this.sendMessage(`❌ Error: ${this.escapeHtml(err.message)}`);
     }
   }
 
