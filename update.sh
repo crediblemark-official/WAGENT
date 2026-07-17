@@ -129,6 +129,19 @@ if [ -f ".env.backup" ]; then
   mv .env.backup .env
 fi
 
+# ── Ensure ~/.local/bin is in PATH ────────────────────────────
+SHELL_RC="$HOME/.bashrc"
+if [ -f "$HOME/.zshrc" ] && [ -n "${ZSH_VERSION:-}" ]; then
+  SHELL_RC="$HOME/.zshrc"
+fi
+if ! grep -q '\.local/bin' "$SHELL_RC" 2>/dev/null; then
+  {
+    echo ''
+    echo 'export PATH="$HOME/.local/bin:$PATH"'
+  } >> "$SHELL_RC"
+fi
+export PATH="$HOME/.local/bin:$PATH"
+
 echo ""
 echo -e "  ${G}✅ WAGENT updated to latest version!${N}"
 echo ""
