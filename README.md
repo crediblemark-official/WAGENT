@@ -6,6 +6,8 @@
 [![Bun](https://img.shields.io/badge/Bun-%3E%3D1.0-f5e0ac)](https://bun.sh)
 [![TypeScript](https://img.shields.io/badge/%3C%2F%3E-TypeScript-5.9-007ACC)](https://www.typescriptlang.org/)
 
+[🇩🇮 Bahasa Indonesia](README.md) | [🇺🇸 English](README_EN.md)
+
 ---
 
 ## 🎯 Apa itu WAGENT?
