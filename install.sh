@@ -210,10 +210,17 @@ if [ "$USE_BUN" = "1" ]; then
     exit 1
   fi
 else
-  if npm ci > /dev/null 2>&1 || npm install --ignore-scripts > /dev/null 2>&1; then
+  # npm ci is fastest; fall back to npm install (without --ignore-scripts
+  # so native modules like better-sqlite3 can compile). If that also fails,
+  # retry with --ignore-scripts as a last resort (node:sqlite fallback).
+  if npm ci --no-audit --no-fund > /dev/null 2>&1; then
+    ok "Dependencies installed (npm ci)"
+  elif npm install --no-audit --no-fund > /dev/null 2>&1; then
     ok "Dependencies installed (npm)"
+  elif npm install --ignore-scripts --no-audit --no-fund > /dev/null 2>&1; then
+    ok "Dependencies installed (npm, scripts skipped — using node:sqlite fallback)"
   else
-    fail "npm install failed"
+    fail "npm install failed. Try: cd ~/.wagent && npm install 2>&1"
     exit 1
   fi
 fi

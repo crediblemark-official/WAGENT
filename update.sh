@@ -70,10 +70,14 @@ if [ "$USE_BUN" = "1" ]; then
     fi
   fi
 else
-  if npm ci > /dev/null 2>&1 || npm install --ignore-scripts > /dev/null 2>&1; then
+  if npm ci --no-audit --no-fund > /dev/null 2>&1; then
+    ok "Dependencies ready (npm ci)"
+  elif npm install --no-audit --no-fund > /dev/null 2>&1; then
     ok "Dependencies ready (npm)"
+  elif npm install --ignore-scripts --no-audit --no-fund > /dev/null 2>&1; then
+    ok "Dependencies ready (npm, scripts skipped — using node:sqlite fallback)"
   else
-    echo -e "  ❌ npm install failed"
+    echo -e "  ❌ npm install failed. Try: cd ~/.wagent && npm install 2>&1"
     exit 1
   fi
 fi
