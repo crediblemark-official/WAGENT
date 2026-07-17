@@ -186,7 +186,9 @@ if [ -d "$INSTALL_DIR" ]; then
     echo -e "  ${Y}↑ New version available! (v$LOCAL_VERSION → v$REMOTE_VERSION) Updating...${N}"
     echo ""
     bash "$INSTALL_DIR/update.sh"
-    # Continue below to re-run deps install + CLI setup regardless
+    # update.sh handles deps install, build, and CLI binary setup.
+    # Exit here — do NOT fall through to the clone step below.
+    exit 0
   fi
 fi
 
