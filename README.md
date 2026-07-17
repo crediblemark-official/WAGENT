@@ -49,6 +49,11 @@ WAGENT adalah **platform WhatsApp AI Agent** yang bisa dipakai siapa saja — pe
   Tampilan pemantauan pesan masuk real-time, di mana CS manusia dapat melakukan intervensi obrolan.
   
   ![Web Dashboard Chat Interface](assets/dashboard-chat.png)
+
+  ### 6. Telegram Escalation (Notifikasi Bantuan Manusia)
+  Notifikasi real-time yang dikirimkan ke Telegram saat AI tidak bisa menjawab pertanyaan pelanggan, agar agen manusia dapat mengambil alih percakapan.
+  
+  ![Telegram Escalation](assets/escalation.png)
 </details>
 
 ---
