@@ -73,6 +73,15 @@ WAGENT adalah **platform WhatsApp AI Agent** yang bisa dipakai siapa saja — pe
 | ⏰ **Scheduled Messages** | Kirim pesan terjadwal (daily/weekly/monthly) |
 | 🐌 **Natural Behavior** | Typing delay, read receipts — seperti manusia |
 
+### Human-like Behavior
+| Fitur | Deskripsi |
+|-------|-----------|
+| ✍️ **Multi-Burst Typing** | AI mengetik dalam beberapa burst dengan jeda random — tidak terukur, seperti manusia nyata |
+| 👀 **Reading Simulation** | Delay sebelum AI mulai memproses, seolah membaca pesan |
+| 🔄 **Auto Handback** | Human ketik `ai` / `bot` di chat customer → AI langsung resume |
+| ⏱️ **Smart Cooldown** | AI resume otomatis 10 menit setelah human terakhir reply (timer reset tiap reply) |
+| 📢 **Group Chat Filter** | Bot hanya respon saat di-@mention, bukan saat @all |
+
 ### Business
 | Fitur | Deskripsi |
 |-------|-----------|
@@ -89,6 +98,7 @@ WAGENT adalah **platform WhatsApp AI Agent** yang bisa dipakai siapa saja — pe
 | 🧩 **Skill System** | Plugin JavaScript untuk extensibilitas |
 | 🌐 **Web Scraper** | Cari info dari internet |
 | 📱 **Dashboard** | Web UI untuk monitoring & management |
+| 🤖 **Telegram /setup** | Personalisasi AI via Telegram — interaktif seperti interview |
 
 ---
 
@@ -403,7 +413,7 @@ npx vitest run --coverage
 | **Branches** | **~78%** 🟢 |
 | **Functions** | **~86%** 🟢 |
 | **Statements** | **~86%** 🟢 |
-| **Tests** | **1445+** ✅ |
+| **Tests** | **1437** ✅ |
 
 ---
 
