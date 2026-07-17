@@ -608,93 +608,7 @@ describe('Gateway', () => {
     });
   });
 
-  // ── Self-Chat Commands ───────────────────────────────────────
-
-  describe('self-chat commands', () => {
-    function selfChatMsg(content: string): Message {
-      return makeMessage({
-        from: 'user@whatsapp',
-        to: 'user@whatsapp',
-        content,
-        fromMe: true,
-        id: undefined as any,
-        // No id: bypasses human takeover detection in handleWhatsAppEvent
-        // so the message reaches handleIncomingMessage → handleSelfChatCommand
-      });
-    }
-
-    beforeEach(() => {
-      vi.mocked(existsSync).mockReturnValue(true);
-    });
-
-    it('self-chat message is processed as owner AI chat (no Telegram forwarding)', async () => {
-      mockSendMessage.mockResolvedValue({ id: 's1', content: '', timestamp: Date.now(), fromMe: true, to: 'user@whatsapp' });
-
-      await eventHandler({ type: 'message:received', message: selfChatMsg('/status') });
-
-      // Self-chat with prompts configured is now a personal AI chat — the
-      // owner's message is answered by the AI (no Telegram forwarding).
-      expect(mockSendMessage).toHaveBeenCalled();
-    });
-
-    it('non-command self-chat message is processed as owner AI chat', async () => {
-      mockSendMessage.mockResolvedValue({ id: 'nc1', content: '', timestamp: Date.now(), fromMe: true, to: 'user@whatsapp' });
-
-      await eventHandler({ type: 'message:received', message: selfChatMsg('Hello from owner') });
-
-      // Self-chat with prompts configured is answered by the AI.
-      expect(mockSendMessage).toHaveBeenCalled();
-    });
-  });
-
-  // ── Delegation to self-chat ────────────────────────────────────
-
-  describe('delegation to self-chat', () => {
-    it('audio message escalates to owner self-chat (own WA number)', async () => {
-      mockProcessMessage.mockResolvedValue({ response: 'AI response', pendingMessages: [] });
-      mockSendMessage.mockResolvedValue({ id: 'd1', content: '', timestamp: Date.now(), fromMe: true, to: 'user@whatsapp' });
-      vi.clearAllMocks();
-      mockProcessMessage.mockResolvedValue({ response: 'AI response', pendingMessages: [] });
-
-      const msg = makeMessage({
-        from: 'cust@s.whatsapp.net',
-        type: 'audio',
-        content: '🎤 [Pesan Suara]',
-        metadata: { rawMessage: { message: { audioMessage: { ptt: true } } } },
-      });
-      const p = eventHandler({ type: 'message:received', message: msg });
-      await flushWithTimers();
-      await p;
-
-      // Should notify owner's own WA number (self-chat) with escalation info
-      expect(mockSendMessage).toHaveBeenCalledWith(
-        'user@whatsapp',
-        expect.stringContaining('Eskalasi')
-      );
-    });
-
-    it('video message escalates to owner self-chat', async () => {
-      mockProcessMessage.mockResolvedValue({ response: 'AI response', pendingMessages: [] });
-      mockSendMessage.mockResolvedValue({ id: 'd2', content: '', timestamp: Date.now(), fromMe: true, to: 'user@whatsapp' });
-      vi.clearAllMocks();
-      mockProcessMessage.mockResolvedValue({ response: 'AI response', pendingMessages: [] });
-
-      const msg = makeMessage({
-        from: 'cust@s.whatsapp.net',
-        type: 'video',
-        content: '[Video]',
-        metadata: { rawMessage: { message: { videoMessage: {} } } },
-      });
-      const p = eventHandler({ type: 'message:received', message: msg });
-      await flushWithTimers();
-      await p;
-
-      expect(mockSendMessage).toHaveBeenCalledWith(
-        'user@whatsapp',
-        expect.stringContaining('Eskalasi')
-      );
-    });
-  });
+  // ── Human Takeover ────────────────────────────────────────────
 
   // ── Human Takeover ───────────────────────────────────────────
 
@@ -811,7 +725,7 @@ describe('Gateway', () => {
   // ── Message Handling ─────────────────────────────────────────
 
   describe('message handling', () => {
-    it('fromMe messages that are not self-chat are skipped', async () => {
+    it('fromMe messages are skipped (human takeover)', async () => {
       const msg = makeMessage({
         from: 'user@whatsapp',
         to: 'customer@s.whatsapp.net',

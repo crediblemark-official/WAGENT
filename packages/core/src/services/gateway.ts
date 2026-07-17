@@ -246,8 +246,6 @@ export class Gateway {
 
   /** Deduplication guard: contactId → timestamp to prevent double-escalation within 60s */
   private recentEscalations = new Map<string, number>();
-  /** Auto-captured owner LID from linked device self-chat messages */
-  private _capturedOwnerLid: string = '';
 
   /** Check if we recently escalated for this contact (within 60 seconds) */
   private canEscalate(contactId: string): boolean {
@@ -268,48 +266,7 @@ export class Gateway {
       // by our bot code (not in DB), a human replied from WhatsApp Web.
       // Mark this conversation as "human active" and save the
       // human's reply to DB so history is complete across restarts.
-      // Skip self-chat messages (owner sending to own number)
-      const userJid = this.whatsapp.userJid;
-      const userLid = this.whatsapp.userLid;
-      // A self-chat message is one the owner sends to their own number:
-      // fromMe === true and the sender (remoteJid) equals the owner's JID or LID.
-      // WhatsApp linked devices use LID format (xxx@lid) instead of the regular
-      // phone-number JID (xxx@s.whatsapp.net), so we check both.
-      // Also compare the phone number prefix as a fallback when LID is unavailable.
-      const senderNumber = msg.from?.split('@')[0] || '';
-      const ownerNumber = userJid?.split('@')[0] || '';
-      const ownerLidNumber = userLid?.split('@')[0] || '';
-
-      // Auto-capture owner LID from ANY linked device fromMe message (BEFORE comparisons)
-      if (msg.fromMe && msg.from?.includes('@lid') && !this._capturedOwnerLid) {
-        this._capturedOwnerLid = msg.from;
-        this.logger.info({ lid: msg.from }, 'Captured owner LID from linked device');
-      }
-
-      // Compute capturedLidNumber AFTER capture so it's available on the same message
-      const capturedLidNumber = this._capturedOwnerLid?.split('@')[0] || '';
-
-      // Check if message is from owner to themselves (self-chat)
-      // A self-chat message has fromMe=true AND remoteJid matches owner identity.
-      // For linked devices, remoteJid is in LID format (xxx@lid) instead of phone JID.
-      //
-      // Key insight: @lid format ONLY appears in linked device self-chat.
-      // Human takeover from WhatsApp Web uses phone JID (xxx@s.whatsapp.net).
-      // So if fromMe=true AND msg.from ends with @lid, it's always self-chat.
-      const isLidFormat = msg.from?.endsWith('@lid') && senderNumber.length > 5;
-      const isSelfChatMsg = msg.fromMe && (!!userJid || !!userLid) && (
-        // DIRECT: linked device self-chat always uses @lid format
-        isLidFormat ||
-        msg.from === userJid ||
-        (!!userLid && msg.from === userLid) ||
-        // Compare LID numbers (e.g. "101215367114756" from "101215367114756@lid")
-        (senderNumber.length > 5 && senderNumber === ownerLidNumber) ||
-        // Compare captured LID (auto-captured from previous or current message)
-        (senderNumber.length > 5 && senderNumber === capturedLidNumber) ||
-        // Compare phone number prefixes as final fallback
-        (senderNumber.length > 5 && senderNumber === ownerNumber)
-      );
-      if (msg.fromMe && msg.id && !isSelfChatMsg) {
+      if (msg.fromMe && msg.id) {
         const exists = this.db.messageExists(msg.id);
         if (!exists) {
           this.logger.info({ from: msg.from }, 'Human reply detected — AI will pause for this conversation');
@@ -394,7 +351,7 @@ export class Gateway {
               }
             }
           } catch (err: any) {
-            this.logger.warn({ error: err.message }, 'Failed to send self-chat intro');
+            this.logger.warn({ error: err.message }, 'Failed to send setup welcome');
           }
         });
       }
@@ -505,103 +462,7 @@ export class Gateway {
   /**
    * Detect self-chat: message sent to own WhatsApp number
    */
-  private isSelfChat(msg: Message): boolean {
-    const userJid = this.whatsapp.userJid;
-    const userLid = this.whatsapp.userLid;
-    if (!userJid) return false;
-    const senderNumber = msg.from?.split('@')[0] || '';
-    const ownerNumber = userJid.split('@')[0] || '';
-    const ownerLidNumber = userLid?.split('@')[0] || '';
-    const capturedLidNumber = this._capturedOwnerLid?.split('@')[0] || '';
-    return !!msg.fromMe && (
-      msg.from === userJid || (!!userLid && msg.from === userLid) ||
-      (senderNumber.length > 5 && senderNumber === ownerLidNumber) ||
-      (senderNumber.length > 5 && senderNumber === capturedLidNumber) ||
-      (senderNumber.length > 5 && senderNumber === ownerNumber)
-    );
-  }
-
-  /**
-   * Handle self-chat:
-   * - If prompts not configured yet: run personalization setup interview
-   * - If configured: self-chat is the escalation target (owner receives
-   *   notifications on their own WA number). Owner can reply here to take
-   *   over a conversation. No Telegram forwarding (Telegram is for control only).
-   */
-  private async handleSelfChatCommand(msg: Message): Promise<void> {
-    const text = msg.content.trim();
-    this.logger.info({ text }, 'Self-chat message from owner');
-
-    // If system prompts not configured yet, run setup interview for personalization
-    if (!this.hasCustomPrompts()) {
-      if (text.startsWith('/')) {
-        // Allow /skip to use default prompts
-        if (text === '/skip' || text === '/skipsetup') {
-          try {
-            const generator = new PromptGenerator(this.config);
-            const defaultAnswers = {
-              businessName: 'My WAGENT',
-              businessType: 'general-assistant',
-              businessDescription: 'Asisten AI pintar serbaguna',
-              targetCustomer: 'Owner',
-              tone: 'casual' as const,
-              emojiUsage: 'moderate' as const,
-              language: 'id',
-              frequentQuestions: [],
-              orderProcess: '',
-              paymentMethods: '',
-              shippingTime: '',
-              returnPolicy: '',
-              forbiddenActions: [],
-              escalationTriggers: [],
-              workingHours: '24 jam',
-              features: ['web_search', 'reminder'],
-            };
-            await generator.generateAll(defaultAnswers);
-            await this.whatsapp.sendMessage(msg.from, `👋 *Setup dilewati!*\n\nBerkas prompt default telah ditulis ke folder \`prompts/\`.\nBot akan me-restart secara otomatis dalam 2 detik.`);
-            setTimeout(() => process.exit(0), 2000);
-          } catch (err: any) {
-            await this.whatsapp.sendMessage(msg.from, `❌ Error skipping setup: ${err.message}`);
-          }
-          return;
-        }
-      }
-      // Non-command or unknown command → run setup interview
-      await this.handleSetupInterviewMessage(msg);
-      return;
-    }
-
-    // Prompts already configured → self-chat acts as a personal AI chat
-    // for the owner (in addition to being the escalation target). Process it
-    // directly through the AI without the "human-like" typing/read delays so
-    // the owner gets a snappy reply on their own number.
-    this.logger.info({ text }, 'Self-chat received — processing as owner AI chat');
-    const ownerJid = this.whatsapp.userJid;
-    if (!ownerJid) return;
-    try {
-      const result = await this.agent.processMessage(text, ownerJid, 'Owner');
-      const response = result?.response;
-      if (response) {
-        const sent = await this.whatsapp.sendMessage(ownerJid, response);
-        this.db.saveMessage(sent, ownerJid);
-        this.db.incrementMessageCount('outgoing');
-      }
-    } catch (err: any) {
-      this.logger.error({ error: err.message }, 'Self-chat AI processing failed');
-      try {
-        await this.whatsapp.sendMessage(ownerJid, '❌ Terjadi kesalahan saat memproses pesan.');
-      } catch { /* ignore */ }
-    }
-  }
-
-  private async handleIncomingMessage(msg: Message, skipSelfChatGuard = false): Promise<void> {
-    // ── Self-Chat Control (WA Self-Chat) ────────────────────────
-    // Messages sent to own number are treated as control commands / AI chat.
-    if (!skipSelfChatGuard && msg.fromMe && this.isSelfChat(msg)) {
-      await this.handleSelfChatCommand(msg);
-      return;
-    }
-
+  private async handleIncomingMessage(msg: Message): Promise<void> {
     if (msg.fromMe) return;
 
     // ── Group Chat Filter (before logging to reduce noise) ──────
