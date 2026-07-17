@@ -184,22 +184,6 @@ export class TelegramBot {
     });
 
     this.addCommand({
-      name: 'contacts',
-      aliases: ['c'],
-      description: 'List managed WhatsApp contacts',
-      usage: '/contacts [limit]',
-      handler: (args) => this.handleContacts(args),
-    });
-
-    this.addCommand({
-      name: 'logs',
-      aliases: ['l'],
-      description: 'Show recent activity logs',
-      usage: '/logs [count]',
-      handler: (args) => this.handleLogs(args),
-    });
-
-    this.addCommand({
       name: 'summary',
       aliases: ['daily'],
       description: 'Show daily summary of chat activity',
@@ -238,9 +222,47 @@ export class TelegramBot {
     this.stopped = false;
     this.logger.info('Telegram Bot polling started (interval: %dms)', this.pollIntervalMs);
 
+    // Register command list for Telegram's / menu
+    this.registerBotCommands().catch(err => {
+      this.logger.warn({ error: err.message }, 'Failed to register Telegram bot commands');
+    });
+
     // Gunakan sequential polling — schedule berikutnya setelah poll selesai
     // Ini memastikan hanya 1 request getUpdates aktif sekaligus
     this.scheduleNextPoll();
+  }
+
+  /**
+   * Register bot commands with Telegram API so they appear in the / menu.
+   */
+  private async registerBotCommands(): Promise<void> {
+    const commands = [
+      { command: 'setup', description: 'Start AI personalization interview' },
+      { command: 'cancel', description: 'Cancel setup interview' },
+      { command: 'status', description: 'Show agent status' },
+      { command: 'pause', description: 'Pause auto-reply' },
+      { command: 'resume', description: 'Resume auto-reply' },
+      { command: 'pending', description: 'List pending approvals' },
+      { command: 'approve', description: 'Approve action by ID' },
+      { command: 'reject', description: 'Reject action by ID' },
+      { command: 'contacts', description: 'List contacts' },
+      { command: 'add_contact', description: 'Add contact (name relationship)' },
+      { command: 'logs', description: 'Recent activity logs' },
+      { command: 'summary', description: 'Daily summary' },
+      { command: 'help', description: 'Show available commands' },
+    ];
+
+    const resp = await fetch(`https://api.telegram.org/bot${this.botToken}/setMyCommands`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ commands }),
+    });
+
+    if (!resp.ok) {
+      const body = await resp.text();
+      throw new Error(`setMyCommands failed: ${resp.status} ${body}`);
+    }
+    this.logger.info('Telegram bot commands registered (%d commands)', commands.length);
   }
 
   /**

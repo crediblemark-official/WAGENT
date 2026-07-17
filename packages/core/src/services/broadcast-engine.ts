@@ -4,6 +4,7 @@ import { WhatsAppAdapter } from './gateway.js';
 import { EventBus } from '../utils/event-bus.js';
 import { getLogger } from '../utils/logger.js';
 import { BroadcastMessage } from '../types.js';
+import { stripMarkdown } from './whatsapp-utils.js';
 
 export interface BroadcastOptions {
   /** Delay between messages in ms (default: 2000) */
@@ -190,7 +191,7 @@ export class BroadcastEngine {
           .replace(/\{\{name\}\}/gi, contact.name)
           .replace(/\{\{contact\}\}/gi, contact.name);
 
-        await this.whatsapp.sendMessage(contact.id, personalized);
+        await this.whatsapp.sendMessage(contact.id, stripMarkdown(personalized));
 
         sent++;
         job.sentCount = sent;

@@ -4,6 +4,7 @@ import { WhatsAppAdapter } from './gateway.js';
 import { EventBus } from '../utils/event-bus.js';
 import { ScheduledMessage, ScheduleRepeat, ConnectionStatus } from '../types.js';
 import { getLogger } from '../utils/logger.js';
+import { stripMarkdown } from './whatsapp-utils.js';
 
 export class Scheduler {
   private timer: ReturnType<typeof setInterval> | null = null;
@@ -68,8 +69,8 @@ export class Scheduler {
     this.db.updateScheduledMessage(msg.id, { status: 'active' });
 
     try {
-      // Send the message via WhatsApp
-      const sentMessage = await this.whatsapp.sendMessage(msg.contactId, msg.content);
+      // Send the message via WhatsApp (strip markdown for clean output)
+      const sentMessage = await this.whatsapp.sendMessage(msg.contactId, stripMarkdown(msg.content));
 
       // Calculate next run for recurring messages
       const nextRunAt = this.calculateNextRun(msg);

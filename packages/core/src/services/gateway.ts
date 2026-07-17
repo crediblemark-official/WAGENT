@@ -25,6 +25,7 @@ import { promptLoader } from '../agent/prompt-loader.js';
 import { ToolSandbox } from '../tools/tool-sandbox.js';
 import { TelegramBot, TelegramGatewayAdapter } from './telegram-bot.js';
 import { PromptGenerator } from '../agent/prompt-generator.js';
+import { stripMarkdown } from './whatsapp-utils.js';
 
 
 
@@ -328,17 +329,6 @@ export class Gateway {
       if (msg.fromMe && msg.id) {
         const exists = this.db.messageExists(msg.id);
         if (!exists) {
-          // ── Handback Detection ──────────────────────────────
-          // If human sends a trigger word in the chat,
-          // hand control back to AI for this conversation.
-          const content = (msg.content || '').trim().toLowerCase();
-          if (['ai', 'bot', 'mulai ai', 'ai mulai'].includes(content)) {
-            this.humanActiveMap.delete(msg.from);
-            this.eventBus.emit({ type: 'human:inactive', chatId: msg.from });
-            this.logger.info({ from: msg.from }, 'Human handed back to AI — auto-reply resumed');
-            return;
-          }
-
           this.logger.info({ from: msg.from }, 'Human reply detected — AI will pause for this conversation');
           this.humanActiveMap.set(msg.from, Date.now());
           this.eventBus.emit({ type: 'human:active', chatId: msg.from });
@@ -747,7 +737,7 @@ ${this.config.welcomeMessage ? `Gunakan sambutan seperti: "${this.config.welcome
           if (pm.type === 'image' && pm.imageUrl) {
             await this.whatsapp.sendMessage(pm.to, pm.imageUrl);
           } else {
-            await this.whatsapp.sendMessage(pm.to, pm.content);
+            await this.whatsapp.sendMessage(pm.to, stripMarkdown(pm.content));
           }
           this.db.incrementMessageCount('outgoing');
         } catch (err: any) {
@@ -756,10 +746,13 @@ ${this.config.welcomeMessage ? `Gunakan sambutan seperti: "${this.config.welcome
       }
 
       if (response) {
-        // 7. Human-like multi-burst typing simulation (type, pause, type longer, pause, random)
-        await simulateHumanTyping(this.whatsapp, jid, response, this.logger);
+        // Strip markdown for WhatsApp (###, -, >, etc. don't render)
+        const cleanResponse = stripMarkdown(response);
 
-        const sentMsg = await this.whatsapp.sendMessage(msg.from, response);
+        // 7. Human-like multi-burst typing simulation (type, pause, type longer, pause, random)
+        await simulateHumanTyping(this.whatsapp, jid, cleanResponse, this.logger);
+
+        const sentMsg = await this.whatsapp.sendMessage(msg.from, cleanResponse);
         this.db.saveMessage(sentMsg, chatId);
         this.db.incrementMessageCount('outgoing');
         this.db.saveChat({
