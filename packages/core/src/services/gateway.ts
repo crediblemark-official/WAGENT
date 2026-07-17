@@ -531,8 +531,6 @@ export class Gateway {
   }
 
   private async handleIncomingMessage(msg: Message, skipSelfChatGuard = false): Promise<void> {
-    this.logger.info({ from: msg.from, content: msg.content }, 'Incoming message');
-
     // ── Self-Chat Control (WA Self-Chat) ────────────────────────
     // Messages sent to own number are treated as control commands / AI chat.
     if (!skipSelfChatGuard && msg.fromMe && this.isSelfChat(msg)) {
@@ -541,6 +539,21 @@ export class Gateway {
     }
 
     if (msg.fromMe) return;
+
+    // ── Group Chat Filter (before logging to reduce noise) ──────
+    const isGroup = msg.from.includes('@g.us');
+    if (isGroup) {
+      if (!this.config.groupChatEnabled) {
+        this.logger.debug({ from: msg.from }, 'Skipping group message (group chat disabled)');
+        return;
+      }
+      if (this.config.groupChatReplyIfMentioned && !this.isMentionedInGroup(msg)) {
+        this.logger.debug({ from: msg.from }, 'Skipping group message (not @mentioned)');
+        return;
+      }
+    }
+
+    this.logger.info({ from: msg.from, content: msg.content }, 'Incoming message');
 
     // ── Pause Check ──────────────────────────────────────────
     if (this._paused) {
@@ -554,19 +567,6 @@ export class Gateway {
       this.logger.info({ from: msg.from }, 'Human is active — skipping AI response');
       // Still save the message so the human can see it
       return;
-    }
-
-    // ── Group Chat Filter ──────────────────────────────────────
-    const isGroup = msg.from.includes('@g.us');
-    if (isGroup) {
-      if (!this.config.groupChatEnabled) {
-        this.logger.debug({ from: msg.from }, 'Skipping group message (group chat disabled)');
-        return;
-      }
-      if (this.config.groupChatReplyIfMentioned && !this.isMentionedInGroup(msg)) {
-        this.logger.debug({ from: msg.from }, 'Skipping group message (not @mentioned)');
-        return;
-      }
     }
 
     // ── Rate Limit Check ───────────────────────────────────────
