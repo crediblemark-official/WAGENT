@@ -826,20 +826,39 @@ ${this.config.welcomeMessage ? `Gunakan sambutan seperti: "${this.config.welcome
         this.eventBus.emit({ type: 'message:sent', message: sentMsg });
 
         // ── Check if AI response indicates inability to answer ──
-        // If the AI says it doesn't know / can't answer, escalate
-        if (response.length > 0 && response.length < 100 && this.canEscalate(msg.from)) {
+        // If the AI says it doesn't know / can't answer, or gives generic
+        // unhelpful response, escalate to owner
+        if (response.length > 0 && this.canEscalate(msg.from)) {
           const lowerResp = response.toLowerCase();
+          
+          // 1. AI explicitly says it can't answer
           const unableKeywords = ['tidak tahu', 'tidak bisa jawab', 'tidak punya informasi', 'belum punya data',
             'tidak memiliki informasi', 'tidak dapat menjawab', 'di luar pengetahuan',
             'tidak tersedia', 'belum ada informasi'];
-          if (unableKeywords.some(k => lowerResp.includes(k))) {
-            this.logger.info({ from: msg.from }, 'AI unable to answer — escalating to self-chat');
+          const isUnable = unableKeywords.some(k => lowerResp.includes(k));
+          
+          // 2. AI gives generic/unhelpful response (welcome, apology, etc.)
+          // These don't address the customer's actual question
+          const genericPatterns = [
+            'selamat datang', 'halo! selamat datang', 'senang sekali bisa terhubung',
+            'ada yang bisa saya bantu hari ini', 'jangan ragu untuk bertanya',
+            'mohon maaf sekali', 'atas keterlambatannya', 'menunggu itu tidak nyaman',
+            'terima kasih atas kesabarannya', 'ada kendala tertentu',
+          ];
+          const isGeneric = genericPatterns.some(p => lowerResp.includes(p)) && response.length < 200;
+          
+          if (isUnable || isGeneric) {
+            const reason = isUnable ? 'ai_empty_response' : 'ai_explicit_escalation';
+            const detail = isUnable 
+              ? `AI unable: "${response.substring(0, 200)}"`
+              : `AI generic response: "${response.substring(0, 200)}"`;
+            this.logger.info({ from: msg.from, reason }, 'AI response not helpful — escalating to self-chat');
             this.escalation.escalate({
               contactId: msg.from,
               contactName: contact.name,
               customerMessage: messageContent,
-              reason: 'ai_empty_response',
-              details: `AI response: "${response.substring(0, 200)}"`,
+              reason,
+              details: detail,
             }).catch(err => {
               this.logger.warn({ error: err.message, from: msg.from }, 'Failed to escalate to self-chat');
             });
