@@ -107,9 +107,9 @@ if [ -d "$INSTALL_DIR" ]; then
   # Check 3: git operations must work
   if [ "$NEEDS_FRESH_INSTALL" = false ]; then
     cd "$INSTALL_DIR"
-    git fetch origin main --quiet 2>/dev/null || true
     LOCAL_COMMIT="$(git rev-parse HEAD 2>/dev/null || echo '')"
-    REMOTE_COMMIT="$(git rev-parse origin/main 2>/dev/null || echo '')"
+    # Use git ls-remote to get remote commit (works with shallow clones)
+    REMOTE_COMMIT="$(git ls-remote https://github.com/crediblemark-official/WAGENT.git refs/heads/main 2>/dev/null | awk '{print $1}' || echo '')"
     if [ -z "$LOCAL_COMMIT" ] || [ -z "$REMOTE_COMMIT" ]; then
       info "Corrupted install (git broken). Reinstalling..."
       NEEDS_FRESH_INSTALL=true
@@ -140,7 +140,7 @@ WAGENT_EOF
     chmod +x "$WAGENT_BIN"
 
     LOCAL_VERSION="$(cat "$INSTALL_DIR/package.json" 2>/dev/null | grep '"version"' | head -1 | sed 's/.*"version": *"\([^"]*\)".*/\1/' || echo 'unknown')"
-    REMOTE_VERSION="$(git show origin/main:package.json 2>/dev/null | grep '"version"' | head -1 | sed 's/.*"version": *"\([^"]*\)".*/\1/' || echo "$LOCAL_VERSION")"
+    REMOTE_VERSION="$(curl -fsSL "https://raw.githubusercontent.com/crediblemark-official/WAGENT/main/package.json" 2>/dev/null | grep '"version"' | head -1 | sed 's/.*"version": *"\([^"]*\)".*/\1/' || echo "$LOCAL_VERSION")"
 
     if [ "$LOCAL_COMMIT" = "$REMOTE_COMMIT" ]; then
       echo ""

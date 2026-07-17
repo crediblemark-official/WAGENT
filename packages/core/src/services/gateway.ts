@@ -280,19 +280,31 @@ export class Gateway {
       const ownerNumber = userJid?.split('@')[0] || '';
       const ownerLidNumber = userLid?.split('@')[0] || '';
 
-      // Auto-capture owner LID from ANY linked device message (before self-chat check)
+      // Auto-capture owner LID from ANY linked device fromMe message (BEFORE comparisons)
       if (msg.fromMe && msg.from?.includes('@lid') && !this._capturedOwnerLid) {
         this._capturedOwnerLid = msg.from;
         this.logger.info({ lid: msg.from }, 'Captured owner LID from linked device');
       }
 
-      // Also use captured LID from previous self-chat messages
+      // Compute capturedLidNumber AFTER capture so it's available on the same message
       const capturedLidNumber = this._capturedOwnerLid?.split('@')[0] || '';
+
+      // Check if message is from owner to themselves (self-chat)
+      // A self-chat message has fromMe=true AND remoteJid matches owner identity.
+      // For linked devices, remoteJid is in LID format (xxx@lid) instead of phone JID.
+      //
+      // Key insight: @lid format ONLY appears in linked device self-chat.
+      // Human takeover from WhatsApp Web uses phone JID (xxx@s.whatsapp.net).
+      // So if fromMe=true AND msg.from ends with @lid, it's always self-chat.
+      const isLidFormat = msg.from?.endsWith('@lid') && senderNumber.length > 5;
       const isSelfChatMsg = !!userJid && msg.fromMe && (
-        msg.from === userJid || (!!userLid && msg.from === userLid) ||
+        // DIRECT: linked device self-chat always uses @lid format
+        isLidFormat ||
+        msg.from === userJid ||
+        (!!userLid && msg.from === userLid) ||
         // Compare LID numbers (e.g. "101215367114756" from "101215367114756@lid")
         (senderNumber.length > 5 && senderNumber === ownerLidNumber) ||
-        // Compare captured LID
+        // Compare captured LID (auto-captured from previous or current message)
         (senderNumber.length > 5 && senderNumber === capturedLidNumber) ||
         // Compare phone number prefixes as final fallback
         (senderNumber.length > 5 && senderNumber === ownerNumber)
