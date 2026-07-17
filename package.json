@@ -1,6 +1,6 @@
 {
   "name": "@wagent/wagent",
-  "version": "0.2.60",
+  "version": "0.2.61",
   "description": "WAGENT - WhatsApp AI Agent Platform",
   "type": "module",
   "main": "./bin/wagent",
