@@ -20,8 +20,12 @@ if [ -d "$INSTALL_DIR" ]; then
     exit 0
   fi
 else
-  echo "WAGENT not found at $INSTALL_DIR"
-  exit 1
+  echo "ℹ️  Install directory $INSTALL_DIR not found (may already be removed)"
+  read -p "   Continue cleanup (npm/bun/systemd)? (y/N): " confirm
+  if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+    echo "Cancelled."
+    exit 0
+  fi
 fi
 
 # ── Stop server jika sedang berjalan ───────────────────────────
@@ -57,6 +61,22 @@ fi
 if [ -f "$WAGENT_BIN" ] || [ -L "$WAGENT_BIN" ]; then
   rm -f "$WAGENT_BIN"
   echo "✓ Removed $WAGENT_BIN"
+fi
+
+# ── Uninstall from npm global ──────────────────────────────────
+if command -v npm &>/dev/null; then
+  npm ls -g @wagent/wagent &>/dev/null 2>&1 && {
+    echo "📦 Uninstalling from npm global..."
+    npm uninstall -g @wagent/wagent 2>/dev/null && echo "✓ Removed from npm" || echo "ℹ️  Not found in npm"
+  } || true
+fi
+
+# ── Uninstall from bun global ──────────────────────────────────
+if command -v bun &>/dev/null; then
+  bun pm ls -g 2>/dev/null | grep -q "@wagent/wagent" && {
+    echo "📦 Uninstalling from bun global..."
+    bun remove -g @wagent/wagent 2>/dev/null && echo "✓ Removed from bun" || echo "ℹ️  Not found in bun"
+  } || true
 fi
 
 # ── Remove install directory ───────────────────────────────────

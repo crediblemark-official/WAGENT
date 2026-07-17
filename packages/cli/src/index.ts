@@ -349,18 +349,26 @@ program
         process.exit(1);
       }
     } else {
-      // npm global install — uninstall via npm + clean up all WAGENT artifacts
       console.log(color.cyan('📦 Uninstalling WAGENT...'));
+
+      // Try npm global uninstall
       try {
+        execSync('npm ls -g @wagent/wagent', { stdio: 'ignore' });
         execSync('npm uninstall -g @wagent/wagent', { stdio: 'inherit' });
-        console.log(color.green('✓ npm package removed'));
-      } catch {
-        console.error(color.red('❌ npm uninstall failed. Try: npm uninstall -g @wagent/wagent'));
-        process.exit(1);
-      }
+        console.log(color.green('✓ Removed from npm'));
+      } catch { /* not installed via npm */ }
+
+      // Try bun global uninstall
+      try {
+        const bunCheck = execSync('bun pm ls -g', { encoding: 'utf-8', stdio: 'pipe' });
+        if (bunCheck.includes('@wagent/wagent')) {
+          execSync('bun remove -g @wagent/wagent', { stdio: 'inherit' });
+          console.log(color.green('✓ Removed from bun'));
+        }
+      } catch { /* not installed via bun or bun not available */ }
     }
 
-    // Clean up all WAGENT artifacts (works for both install methods)
+    // Clean up all WAGENT artifacts
     const { unlinkSync, rmSync, existsSync: existsSync2 } = await import('fs');
 
     // 1. Remove ~/.local/bin/wagent (CLI shim)
@@ -386,8 +394,15 @@ program
       } catch {}
     }
 
+    // 4. Clean up legacy dirs
+    const legacyDirs = ['data', '.sessions', 'memory', 'knowledge'].map(d => join(homedir(), d));
+    for (const d of legacyDirs) {
+      if (existsSync2(d)) {
+        try { rmSync(d, { recursive: true, force: true }); console.log(color.dim(`  ✓ Removed ${d}`)); } catch {}
+      }
+    }
+
     console.log(color.green('\n✅ WAGENT uninstalled.'));
-    console.log(color.dim('  You may also remove ~/.wagent manually if it still exists.'));
   });
 
 // ── Systemd Service (service) ─────────────────────────────────────
