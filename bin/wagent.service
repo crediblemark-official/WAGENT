@@ -6,14 +6,14 @@ Wants=network-online.target
 [Service]
 Type=simple
 WorkingDirectory=%h
-ExecStart=/bin/bash %h/.wagent/bin/wagent start
+ExecStart=%h/.local/bin/wagent start
 Restart=always
 RestartSec=10
 StandardOutput=journal
 StandardError=journal
 Environment=HOME=%h
-Environment=NVM_DIR=%h/.nvm
-Environment=PATH=%h/.local/bin:%h/.bun/bin:/usr/local/bin:/usr/bin:/bin
+Environment=PATH=%h/.local/bin:%h/.bun/bin:%h/.nvm/versions/node/*/bin:/usr/local/bin:/usr/bin:/bin
+Environment=WAGENT_SERVICE=1
 
 [Install]
 WantedBy=default.target

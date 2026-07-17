@@ -27,10 +27,6 @@ interface WizardConfig {
     enabled: boolean;
     port: number;
   };
-  escalation: {
-    telegramBotToken: string;
-    telegramChatId: string;
-  };
 }
 
 // ── Main Wizard ─────────────────────────────────────────────────
@@ -64,10 +60,6 @@ export async function setupWizard(): Promise<void> {
     dashboard: {
       enabled: existingConfig?.dashboard?.enabled !== false,
       port: existingConfig?.dashboard?.port || 3030,
-    },
-    escalation: {
-      telegramBotToken: existingConfig?.escalation?.telegramBotToken || '',
-      telegramChatId: existingConfig?.escalation?.telegramChatId || '',
     },
   };
 
@@ -224,43 +216,7 @@ export async function setupWizard(): Promise<void> {
   if (isCancel(welcomeMessage)) process.exit(0);
   config.agent.welcomeMessage = welcomeMessage as string;
 
-  // ── Step 6: Telegram Escalation (Human Takeover) ────────────────
-  const hasTelegramConfig = !!(config.escalation.telegramBotToken && config.escalation.telegramChatId);
-  const enableEscalation = await confirm({
-    message: hasTelegramConfig
-      ? `Telegram ${color.green('✔')} sudah terkonfigurasi. Update konfigurasi eskalasi Telegram?`
-      : 'Aktifkan eskalasi ke Telegram untuk Human Takeover? (opsional)',
-    // Jika sudah ada, default skip (false) — user harus aktif pilih untuk update
-    initialValue: false,
-  }) as boolean;
-
-  if (enableEscalation) {
-    const botToken = await text({
-      message: 'Masukkan Telegram Bot Token (dari @BotFather):',
-      placeholder: '123456789:ABCdef...',
-      defaultValue: config.escalation.telegramBotToken,
-      validate: (v) => !v ? 'Bot Token tidak boleh kosong' : undefined,
-    });
-
-    if (isCancel(botToken)) process.exit(0);
-    const token = botToken as string;
-
-    // Auto-fetch Chat ID dari Telegram getUpdates
-    let chatId = config.escalation.telegramChatId;
-    chatId = await fetchTelegramChatId(token, chatId);
-
-    config.escalation = {
-      telegramBotToken: token,
-      telegramChatId: chatId,
-    };
-  } else if (!hasTelegramConfig) {
-    // Tidak dikonfigurasi dan tidak diaktifkan
-    config.escalation = { telegramBotToken: '', telegramChatId: '' };
-  }
-  // hasTelegramConfig && !enableEscalation → pertahankan config telegram yang ada
-
-
-  // ── Step 7: Dashboard ───────────────────────────────────────────
+  // ── Step 6: Dashboard ───────────────────────────────────────────
   const enableDashboard = await confirm({
     message: 'Aktifkan web dashboard?',
     initialValue: config.dashboard.enabled,
@@ -314,7 +270,6 @@ export async function setupWizard(): Promise<void> {
   const configHost = existingConfig?.dashboard?.host || '0.0.0.0';
   const displayHost = configHost === '0.0.0.0' ? 'localhost' : configHost;
   console.log(`  Dashboard  : ${config.dashboard.enabled ? color.green(`ON → http://${displayHost}:${config.dashboard.port}`) : color.red('OFF')}`);
-  console.log(`  Telegram   : ${config.escalation.telegramBotToken ? color.green('ON (Eskalasi Aktif)') : color.dim('OFF')}`);
   console.log('');
 
   // ── Start Gateway ──────────────────────────────────────────────
@@ -471,14 +426,6 @@ function generateJsonConfig(config: WizardConfig, providers: any): string {
   lines.push('  },');
   lines.push('');
 
-  // Escalation
-  lines.push('  // Eskalasi ke Telegram (Human Takeover) — kosongkan jika tidak dipakai');
-  lines.push('  "escalation": {');
-  lines.push(`    "telegramBotToken": "${config.escalation.telegramBotToken}",`);
-  lines.push(`    "telegramChatId": "${config.escalation.telegramChatId}"`);
-  lines.push('  },');
-  lines.push('');
-
   // Dashboard
   lines.push('  // Web Dashboard');
   lines.push('  "dashboard": {');
@@ -498,85 +445,4 @@ function escapeJson(str: string): string {
     .replace(/\n/g, '\\n')
     .replace(/\r/g, '\\r')
     .replace(/\t/g, '\\t');
-}
-
-// ── Telegram Chat ID Binding ────────────────────────────────────
-
-/**
- * Binding method: generate kode unik → user kirim ke bot → polling sampai ketemu.
- * Auto-capture chat ID dari pesan yang berisi kode verifikasi.
- * Fallback ke input manual jika user skip.
- */
-async function fetchTelegramChatId(token: string, defaultChatId: string): Promise<string> {
-  const POLL_URL = `https://api.telegram.org/bot${token}/getUpdates?limit=10&timeout=5`;
-
-  // Generate kode verifikasi 4 digit
-  const code = `WGNT-${Math.floor(1000 + Math.random() * 9000)}`;
-
-  console.log('');
-  console.log(color.bold('  🔗 Binding Telegram Chat'));
-  console.log(color.dim('  ' + '─'.repeat(36)));
-  console.log(`  Kirim kode ini ke bot Telegram kamu:`);
-  console.log('');
-  console.log(`      ${color.bgCyan(color.black(` ${code} `))}`);
-  console.log('');
-  console.log(color.dim('  (bisa di chat pribadi dengan bot, atau di grup yang sudah ada botnya)'));
-  console.log('');
-
-  const s = spinner();
-  s.start('Menunggu kode verifikasi... (60 detik)');
-
-  // Ambil offset awal untuk hanya scan pesan baru
-  let offset = 0;
-  try {
-    const init = await fetch(`https://api.telegram.org/bot${token}/getUpdates?limit=1&offset=-1`);
-    const initJson = await init.json() as any;
-    const updates = initJson.result || [];
-    if (updates.length > 0) {
-      offset = updates[updates.length - 1].update_id + 1;
-    }
-  } catch { /* abaikan */ }
-
-  const deadline = Date.now() + 60_000;
-  let foundChatId = '';
-
-  while (Date.now() < deadline) {
-    await new Promise(r => setTimeout(r, 2000));
-    try {
-      const res = await fetch(`${POLL_URL}&offset=${offset}`);
-      const json = await res.json() as any;
-      if (!json.ok) {
-        s.stop(color.red('Token tidak valid.'));
-        break;
-      }
-      for (const update of json.result || []) {
-        offset = update.update_id + 1;
-        const text: string = update.message?.text || update.channel_post?.text || '';
-        if (text.includes(code)) {
-          const chat = update.message?.chat || update.channel_post?.chat;
-          if (chat) {
-            foundChatId = String(chat.id);
-            const name = chat.title || chat.first_name || foundChatId;
-            s.stop(color.green(`✔ Chat ditemukan: ${name} (${foundChatId})`));
-            return foundChatId;
-          }
-        }
-      }
-    } catch { /* retry */ }
-  }
-
-  if (!foundChatId) {
-    s.stop(color.yellow('Waktu habis. Beralih ke input manual.'));
-  }
-
-  // Fallback: input manual
-  const manual = await text({
-    message: 'Masukkan Chat ID secara manual:',
-    placeholder: '-100123456789',
-    defaultValue: defaultChatId,
-    validate: (v) => !v ? 'Chat ID tidak boleh kosong' : undefined,
-  });
-
-  if (isCancel(manual)) process.exit(0);
-  return manual as string;
 }

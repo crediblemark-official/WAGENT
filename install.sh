@@ -159,13 +159,14 @@ echo ""
 # ── Step 5: Install CLI ────────────────────────────────────────
 step "⑤" "Installing CLI..."
 mkdir -p "$BIN_DIR"
-cat > "$WAGENT_BIN" << 'WAGENT_EOF'
+NODE_BIN="$(which node)"
+cat > "$WAGENT_BIN" << WAGENT_EOF
 #!/usr/bin/env bash
 set -euo pipefail
-exec node "$HOME/.wagent/packages/cli/dist/index.js" "$@"
+exec "$NODE_BIN" "\$HOME/.wagent/packages/cli/dist/index.js" "\$@"
 WAGENT_EOF
 chmod +x "$WAGENT_BIN"
-ok "CLI installed at $WAGENT_BIN"
+ok "CLI installed at $WAGENT_BIN (node: $NODE_BIN)"
 
 # ── PATH check ─────────────────────────────────────────────────
 if ! echo "$PATH" | grep -q "$BIN_DIR"; then
@@ -219,8 +220,8 @@ echo -e "  ${G}  ✓ WAGENT installed successfully!${N}"
 echo ""
 echo -e "  ${W}  Quick Start:${N}"
 echo ""
-echo -e "    ${C}1.${N}  ${W}wagent start${N}           ${D}→ scan QR code (first-time pairing)${N}"
-echo -e "    ${C}2.${N}  ${W}Ctrl+C${N}                 ${D}→ stop after connected${N}"
+echo -e "    ${C}1.${N}  ${W}wagent start${N}           ${D}→ start WhatsApp AI agent${N}"
+echo -e "    ${C}2.${N}  ${W}Ctrl+C${N}                 ${D}→ stop (if running in foreground)${N}"
 echo -e "    ${C}3.${N}  ${W}wagent service start${N}   ${D}→ run in background${N}"
 echo ""
 echo -e "  ${W}  Commands:${N}"

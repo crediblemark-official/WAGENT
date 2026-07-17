@@ -9,6 +9,7 @@ import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
 import { getLogger } from '../utils/logger.js';
+import { promptLoader } from '../agent/prompt-loader.js';
 
 function updateEnvFile(vars: Record<string, string>): void {
   const envPath = join(process.cwd(), '.env');
@@ -510,7 +511,7 @@ export function createBuiltInTools(config: WAgentConfig): ToolDefinition[] {
   // ── Escalation Tool ───────────────────────────────────────
   tools.push({
     name: 'escalate_to_human',
-    description: 'MINTA BANTUAN MANUSIA. Gunakan tool ini jika kamu tidak bisa menjawab pertanyaan customer, tidak yakin dengan jawaban, atau customer meminta bicara dengan manusia. Fungsi ini akan mengirim notifikasi ke tim CS via Telegram.',
+    description: 'MINTA BANTUAN MANUSIA. Gunakan tool ini jika kamu tidak bisa menjawab pertanyaan customer, tidak yakin dengan jawaban, atau customer meminta bicara dengan manusia. Fungsi ini akan mengirim notifikasi ke owner via self-chat WhatsApp.',
     parameters: {
       type: 'object',
       properties: {
@@ -523,10 +524,35 @@ export function createBuiltInTools(config: WAgentConfig): ToolDefinition[] {
       const reason = String(args.reason || 'Tidak dapat menjawab');
       const customerQuestion = String(args.customerQuestion || '');
 
-      const escalationService = new EscalationService(context.config);
+      // Use sendToSelfChat from context if available
+      if (context.sendToSelfChat) {
+        const esc = promptLoader.getEscalationConfig();
+        const message = [
+          `🚨 *${esc.title}*`,
+          '',
+          `*👤 Customer:* ${context.contactId}`,
+          `*⚠️ Alasan:* ${reason}`,
+          '',
+          `*💬 Pertanyaan:*`,
+          customerQuestion.substring(0, 500),
+          '',
+          `_⚠️ ${esc.action_instruction}_`,
+        ].join('\n');
+
+        const sent = await context.sendToSelfChat(message);
+        if (sent) {
+          return JSON.stringify({
+            escalated: true,
+            message: 'Pertanyaan ini sudah diteruskan ke owner via self-chat WhatsApp. Tim kami akan segera membantu. Mohon tunggu ya! 🙏',
+          });
+        }
+      }
+
+      // Fallback: try EscalationService with sendToSelfChat
+      const escalationService = new EscalationService(context.config, context.sendToSelfChat || (async () => false));
       const sent = await escalationService.escalateSimple(
         context.contactId,
-        context.contactId, // contactName from context
+        context.contactId,
         customerQuestion,
         reason
       );
@@ -534,7 +560,7 @@ export function createBuiltInTools(config: WAgentConfig): ToolDefinition[] {
       if (sent) {
         return JSON.stringify({
           escalated: true,
-          message: 'Pertanyaan ini sudah diteruskan ke tim CS melalui Telegram. Tim kami akan segera membantu. Mohon tunggu ya! 🙏',
+          message: 'Pertanyaan ini sudah diteruskan ke owner via self-chat WhatsApp. Tim kami akan segera membantu. Mohon tunggu ya! 🙏',
         });
       }
 

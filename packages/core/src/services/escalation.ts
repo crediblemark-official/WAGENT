@@ -2,46 +2,6 @@ import { WAgentConfig, Contact, Message } from '../types.js';
 import { getLogger } from '../utils/logger.js';
 import { promptLoader } from '../agent/prompt-loader.js';
 
-// ── Telegram Bot API ───────────────────────────────────────────
-
-const TELEGRAM_API = 'https://api.telegram.org/bot';
-
-interface TelegramSendResult {
-  ok: boolean;
-  description?: string;
-}
-
-/**
- * Send a message via Telegram bot API.
- * Returns true if sent successfully.
- */
-async function sendTelegramMessage(token: string, chatId: string, text: string): Promise<boolean> {
-  try {
-    const response = await fetch(`${TELEGRAM_API}${token}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text,
-        parse_mode: 'HTML',
-        disable_web_page_preview: true,
-      }),
-    });
-
-    if (!response.ok) {
-      const err = await response.text();
-      getLogger().warn({ error: err }, 'Telegram API error');
-      return false;
-    }
-
-    const result = await response.json() as TelegramSendResult;
-    return result.ok;
-  } catch (err: any) {
-    getLogger().warn({ error: err.message }, 'Failed to send Telegram message');
-    return false;
-  }
-}
-
 // ── Escalation Service ─────────────────────────────────────────
 
 export interface EscalationEvent {
@@ -59,79 +19,77 @@ export interface EscalationEvent {
   conversationHistory?: string;
 }
 
+export type SendToSelfChat = (text: string) => Promise<boolean>;
+
 export class EscalationService {
   private logger = getLogger().child({ module: 'escalation' });
   private enabled: boolean;
-  private botToken: string;
-  private chatId: string;
   private dashboardUrl?: string;
+  private sendToSelfChat: SendToSelfChat;
 
-  constructor(private config: WAgentConfig) {
-    this.enabled = config.telegramBotToken ? true : false;
-    this.botToken = config.telegramBotToken || '';
-    this.chatId = config.telegramChatId || '';
+  constructor(
+    private config: WAgentConfig,
+    sendToSelfChat: SendToSelfChat,
+  ) {
+    this.sendToSelfChat = sendToSelfChat;
+    this.enabled = true; // Always enabled — escalations go to self-chat
     this.dashboardUrl = config.dashboardHost && config.dashboardPort
       ? `http://${config.dashboardHost}:${config.dashboardPort}`
       : undefined;
   }
 
   get isEnabled(): boolean {
-    return this.enabled && !!this.botToken && !!this.chatId;
+    return this.enabled;
   }
 
   /**
-   * Escalate a conversation to the Telegram group.
+   * Escalate a conversation to the owner via WA self-chat.
    * Returns true if escalation was sent successfully.
    */
   async escalate(event: EscalationEvent): Promise<boolean> {
-    if (!this.isEnabled) {
-      this.logger.debug('Escalation not enabled (missing TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID)');
-      return false;
-    }
-
     const contactInfo = event.contactName || event.contactId;
     const phoneNumber = event.contactId.replace('@s.whatsapp.net', '').replace('@g.us', '');
     const esc = promptLoader.getEscalationConfig();
 
-    // Build escalation message
+    // Build escalation message (WhatsApp formatting — no HTML)
     const lines: string[] = [
-      `<b>🚨 ${esc.title}</b>`,
+      `🚨 *${esc.title}*`,
       '',
-      `<b>👤 ${esc.label_customer}:</b> ${this.escapeHtml(contactInfo)}`,
-      `<b>📱 ${esc.label_phone}:</b> ${phoneNumber}`,
-      `<b>⚠️ ${esc.label_reason}:</b> ${this.formatReason(event.reason)}`,
+      `*👤 ${esc.label_customer}:* ${contactInfo}`,
+      `*📱 ${esc.label_phone}:* ${phoneNumber}`,
+      `*⚠️ ${esc.label_reason}:* ${this.formatReason(event.reason)}`,
     ];
 
     if (event.details) {
-      lines.push(`<b>📋 ${esc.label_detail}:</b> ${this.escapeHtml(event.details)}`);
+      lines.push(`*📋 ${esc.label_detail}:* ${event.details}`);
     }
 
     lines.push('');
-    lines.push(`<b>💬 ${esc.label_message}:</b>`);
-    lines.push(this.escapeHtml(event.customerMessage.substring(0, 500)));
+    lines.push(`*💬 ${esc.label_message}:*`);
+    lines.push(event.customerMessage.substring(0, 500));
 
     if (event.conversationHistory) {
       lines.push('');
-      lines.push(`<b>📜 ${esc.label_history}:</b>`);
-      lines.push(this.escapeHtml(event.conversationHistory.substring(0, 1000)));
+      lines.push(`*📜 ${esc.label_history}:*`);
+      lines.push(event.conversationHistory.substring(0, 1000));
     }
 
     // Add dashboard link if available
     if (this.dashboardUrl) {
       lines.push('');
-      lines.push(`🔗 <a href="${this.dashboardUrl}">Buka Dashboard</a>`);
+      lines.push(`🔗 Dashboard: ${this.dashboardUrl}`);
     }
 
     // Add action instructions
     lines.push('');
-    lines.push(`<i>⚠️ ${esc.action_instruction}</i>`);
+    lines.push(`_⚠️ ${esc.action_instruction}_`);
 
     const message = lines.join('\n');
 
-    const sent = await sendTelegramMessage(this.botToken, this.chatId, message);
+    const sent = await this.sendToSelfChat(message);
 
     if (sent) {
-      this.logger.info({ contactId: event.contactId, reason: event.reason }, 'Escalation sent to Telegram');
+      this.logger.info({ contactId: event.contactId, reason: event.reason }, 'Escalation sent to self-chat');
     } else {
       this.logger.warn({ contactId: event.contactId }, 'Failed to send escalation');
     }
@@ -162,13 +120,5 @@ export class EscalationService {
       case 'ai_explicit_escalation': return `${esc.reason_ai_escalation} 🙋`;
       case 'tool_failure': return `${esc.reason_tool_failure} ⚙️`;
     }
-  }
-
-  private escapeHtml(text: string): string {
-    return text
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
   }
 }

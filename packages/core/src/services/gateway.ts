@@ -130,7 +130,18 @@ export class Gateway {
   ) {
     this.eventBus = new EventBus();
     this.logger = getLogger().child({ module: 'gateway' });
-    this.escalation = new EscalationService(config);
+    this.escalation = new EscalationService(config, async (text: string) => {
+      try {
+        const userJid = this.whatsapp.userJid;
+        if (userJid) {
+          await this.whatsapp.sendMessage(userJid, text);
+          return true;
+        }
+      } catch (err: any) {
+        this.logger.error({ error: err.message }, 'Failed to send escalation to self-chat');
+      }
+      return false;
+    });
 
     // Initialize v2 components
     this.approvalQueue = new ApprovalQueue({
@@ -143,6 +154,18 @@ export class Gateway {
       approvalQueue: this.approvalQueue,
       autoSummarizeEnabled: !isTest,
       autoLearnEnabled: !isTest,
+      sendToSelfChat: async (text: string) => {
+        try {
+          const userJid = this.whatsapp.userJid;
+          if (userJid) {
+            await this.whatsapp.sendMessage(userJid, text);
+            return true;
+          }
+        } catch (err: any) {
+          this.logger.error({ error: err.message }, 'Failed to send to self-chat');
+        }
+        return false;
+      },
     });
 
     this.proactiveScheduler = new ProactiveScheduler({
@@ -185,7 +208,7 @@ export class Gateway {
     }
 
     if (this.escalation.isEnabled) {
-      this.logger.info('Telegram escalation enabled');
+      this.logger.info('Escalation enabled (notifications via self-chat)');
     }
 
     if (this.telegramBot.isEnabled) {
@@ -791,7 +814,7 @@ ${this.config.welcomeMessage ? `Gunakan sambutan seperti: "${this.config.welcome
             'tidak memiliki informasi', 'tidak dapat menjawab', 'di luar pengetahuan',
             'tidak tersedia', 'belum ada informasi'];
           if (unableKeywords.some(k => lowerResp.includes(k))) {
-            this.logger.info({ from: msg.from }, 'AI unable to answer — escalating to Telegram');
+            this.logger.info({ from: msg.from }, 'AI unable to answer — escalating to self-chat');
             this.escalation.escalate({
               contactId: msg.from,
               contactName: contact.name,
@@ -799,13 +822,13 @@ ${this.config.welcomeMessage ? `Gunakan sambutan seperti: "${this.config.welcome
               reason: 'ai_empty_response',
               details: `AI response: "${response.substring(0, 200)}"`,
             }).catch(err => {
-              this.logger.warn({ error: err.message, from: msg.from }, 'Failed to escalate to Telegram');
+              this.logger.warn({ error: err.message, from: msg.from }, 'Failed to escalate to self-chat');
             });
           }
         }
       } else if (this.canEscalate(msg.from)) {
         // No response from AI — escalate
-        this.logger.info({ from: msg.from }, 'AI returned empty response — escalating to Telegram');
+        this.logger.info({ from: msg.from }, 'AI returned empty response — escalating to self-chat');
         this.escalation.escalate({
           contactId: msg.from,
           contactName: contact.name,
@@ -813,7 +836,7 @@ ${this.config.welcomeMessage ? `Gunakan sambutan seperti: "${this.config.welcome
           reason: 'ai_empty_response',
           details: 'AI tidak mengembalikan response apapun',
         }).catch(err => {
-          this.logger.warn({ error: err.message, from: msg.from }, 'Failed to escalate empty response to Telegram');
+          this.logger.warn({ error: err.message, from: msg.from }, 'Failed to escalate empty response to self-chat');
         });
       }
     } catch (err: any) {
@@ -829,7 +852,7 @@ ${this.config.welcomeMessage ? `Gunakan sambutan seperti: "${this.config.welcome
           reason: 'ai_error',
           details: err.message,
         }).catch(err2 => {
-          this.logger.warn({ error: err2.message, from: jid }, 'Failed to escalate AI error to Telegram');
+          this.logger.warn({ error: err2.message, from: jid }, 'Failed to escalate AI error to self-chat');
         });
       }
     }

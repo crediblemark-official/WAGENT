@@ -330,6 +330,8 @@ export class Agent {
   private _autoSummarizeThreshold = 20;
   /** Tool names that require human approval before execution */
   private approvalRequiredTools: Set<string> = new Set(['send_message', 'send_image', 'create_order']);
+  /** Callback to send messages to owner via self-chat (for escalations) */
+  private _sendToSelfChat?: (text: string) => Promise<boolean>;
 
   constructor(
     private config: WAgentConfig,
@@ -349,11 +351,13 @@ export class Agent {
       autoSummarizeEnabled?: boolean;
       autoSummarizeThreshold?: number;
       autoLearnEnabled?: boolean;
+      sendToSelfChat?: (text: string) => Promise<boolean>;
     }
   ) {
     this.logger = getLogger().child({ module: 'agent' });
     this.provider = this.createProvider(config);
     this.tools = [...createBuiltInTools(config), ...extraTools];
+    this._sendToSelfChat = options?.sendToSelfChat;
 
     // Initialize v2 sub-components (with defaults)
     this.memoryManager = options?.memoryManager || new MemoryManager();
@@ -658,6 +662,7 @@ export class Agent {
       knowledgeStore: this.knowledgeStore,
       scheduler: this._scheduler,
       pendingMessages,
+      sendToSelfChat: this._sendToSelfChat,
     };
 
     let iterations = 0;

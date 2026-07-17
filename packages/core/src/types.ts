@@ -221,6 +221,7 @@ export interface ToolContext {
   knowledgeStore?: import('./rag/knowledge-store.js').KnowledgeStore;
   scheduler?: import('./services/scheduler.js').Scheduler;
   pendingMessages?: PendingMessage[];
+  sendToSelfChat?: (text: string) => Promise<boolean>;
 }
 
 export interface PendingMessage {

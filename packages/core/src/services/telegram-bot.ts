@@ -161,6 +161,14 @@ export class TelegramBot {
     });
 
     this.addCommand({
+      name: 'summary',
+      aliases: ['daily', 'ringkasan'],
+      description: 'Show daily summary of chat activity',
+      usage: '/summary [date]',
+      handler: (args) => this.handleSummary(args),
+    });
+
+    this.addCommand({
       name: 'add_contact',
       aliases: ['add', 'ac'],
       description: 'Add or update a contact profile with name and relationship',
@@ -489,6 +497,81 @@ export class TelegramBot {
     return lines.join('\n');
   }
 
+  private async handleSummary(args: string[]): Promise<string> {
+    // Parse date argument (default: today)
+    let targetDate = new Date();
+    if (args.length > 0) {
+      const dateStr = args[0];
+      // Try parsing DD/MM/YYYY or YYYY-MM-DD
+      const parsed = dateStr.includes('/')
+        ? new Date(dateStr.split('/').reverse().join('-'))
+        : new Date(dateStr);
+      if (!isNaN(parsed.getTime())) {
+        targetDate = parsed;
+      }
+    }
+
+    // Get stats for the day
+    const startOfDay = new Date(targetDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(targetDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const statsArray = this.db.getStats(1); // Get last 1 day stats
+    const todayStats = statsArray.find(s => {
+      const statDate = new Date(s.date);
+      return statDate >= startOfDay && statDate <= endOfDay;
+    }) || {
+      incomingMessages: 0,
+      outgoingMessages: 0,
+      uniqueContacts: 0,
+      totalMessages: 0,
+    };
+
+    const allChats = this.db.getAllChats();
+
+    // Get recent messages for context
+    const recentChats = allChats
+      .filter(c => c.lastMessageAt && c.lastMessageAt >= startOfDay && c.lastMessageAt <= endOfDay)
+      .slice(0, 10);
+
+    const dateStr = targetDate.toLocaleDateString('id-ID', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+
+    const lines: string[] = [
+      `<b>📊 Ringkasan Harian</b>`,
+      `<i>${dateStr}</i>`,
+      '',
+      `<b>Pesan Hari Ini:</b>`,
+      `  📥 Masuk: <code>${todayStats.incomingMessages}</code>`,
+      `  📤 Keluar: <code>${todayStats.outgoingMessages}</code>`,
+      `  👥 Total Kontak: <code>${todayStats.uniqueContacts}</code>`,
+      '',
+    ];
+
+    if (recentChats.length > 0) {
+      lines.push(`<b>Aktivitas Terakhir:</b>`);
+      for (const chat of recentChats) {
+        const lastMsg = chat.lastMessage
+          ? chat.lastMessage.substring(0, 40)
+          : '(no message)';
+        const time = chat.lastMessageAt
+          ? chat.lastMessageAt.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+          : '';
+        lines.push(`• <b>${this.escapeHtml(chat.contactName || chat.contactId)}</b>`);
+        lines.push(`  ${this.escapeHtml(lastMsg)}${time ? ` (${time})` : ''}`);
+      }
+    } else {
+      lines.push(`<i>Tidak ada aktivitas chat hari ini.</i>`);
+    }
+
+    return lines.join('\n');
+  }
+
   private async handleHelp(args: string[]): Promise<string> {
     const tg = promptLoader.getTelegramConfig();
     
@@ -534,9 +617,10 @@ export class TelegramBot {
       '  <code>/approve &lt;id&gt;</code> — Approve action',
       '  <code>/reject &lt;id&gt;</code> — Reject action',
       '',
-      `<b>${tg.help_information}</b>`,
+      `<b>Data:</b>`,
       '  <code>/contacts</code> — List contacts',
       '  <code>/logs</code> — Recent activity',
+      '  <code>/summary</code> — Daily summary ringkasan',
       '  <code>/help [cmd]</code> — Show this help',
     ];
 
