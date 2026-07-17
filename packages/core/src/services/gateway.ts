@@ -282,7 +282,7 @@ export class Gateway {
               id: msg.from,
               name: msg.metadata?.pushName as string || msg.from,
               pushName: msg.metadata?.pushName as string,
-              number: msg.from.replace('@s.whatsapp.net', '').replace('@g.us', ''),
+              number: msg.from.replace('@s.whatsapp.net', '').replace('@g.us', '').replace('@lid', ''),
               isGroup: msg.from.includes('@g.us'),
               createdAt: new Date(),
               updatedAt: new Date(),
@@ -518,7 +518,7 @@ export class Gateway {
       id: msg.from,
       name: msg.metadata?.pushName as string || msg.from,
       pushName: msg.metadata?.pushName as string,
-      number: msg.from.replace('@s.whatsapp.net', '').replace('@g.us', ''),
+      number: msg.from.replace('@s.whatsapp.net', '').replace('@g.us', '').replace('@lid', ''),
       isGroup,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -577,7 +577,10 @@ export class Gateway {
       try {
         const userJid = this.whatsapp.userJid;
         const typeName = msg.type === 'audio' ? 'Pesan Suara' : msg.type === 'video' ? 'Video' : 'Dokumen';
-        const phoneNumber = msg.from.replace('@s.whatsapp.net', '').replace('@g.us', '');
+        const phoneNumber = msg.from
+          .replace('@s.whatsapp.net', '')
+          .replace('@g.us', '')
+          .replace('@lid', '');
         const notif = `🚨 *Eskalasi: ${typeName}*\n\n` +
           `👤 Customer: ${contact.name || phoneNumber}\n` +
           `📱 Nomor: ${phoneNumber}\n` +

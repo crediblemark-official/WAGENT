@@ -48,7 +48,11 @@ export class EscalationService {
    */
   async escalate(event: EscalationEvent): Promise<boolean> {
     const contactInfo = event.contactName || event.contactId;
-    const phoneNumber = event.contactId.replace('@s.whatsapp.net', '').replace('@g.us', '');
+    // Strip JID suffixes to get phone number or LID number
+    const phoneNumber = event.contactId
+      .replace('@s.whatsapp.net', '')
+      .replace('@g.us', '')
+      .replace('@lid', '');
     const esc = promptLoader.getEscalationConfig();
 
     // Build escalation message (WhatsApp formatting — no HTML)
