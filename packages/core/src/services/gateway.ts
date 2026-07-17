@@ -68,6 +68,65 @@ function calculateTypingDelay(response: string): number {
   return Math.min(typingTime, 15_000);
 }
 
+/**
+ * Simulate human-like typing in bursts with random pauses.
+ * Humans don't type continuously — they type, pause to think, type again, etc.
+ * This function sends multiple composing/paused presence updates to simulate that.
+ *
+ * @param whatsapp - WhatsApp adapter (for sendPresenceUpdate)
+ * @param jid - Target JID
+ * @param response - The response text (determines total typing duration)
+ * @param logger - Logger instance
+ */
+async function simulateHumanTyping(
+  whatsapp: { sendPresenceUpdate?: (type: 'composing' | 'paused' | 'unavailable', toJid?: string) => Promise<void> },
+  jid: string,
+  response: string,
+  logger: { debug: (obj: any, msg: string) => void }
+): Promise<void> {
+  const totalTypingMs = calculateTypingDelay(response);
+  const charCount = response.length;
+
+  // Decide number of typing bursts: 2-5 bursts depending on response length
+  // Short responses: 2 bursts, medium: 3, long: 4-5
+  const burstCount = charCount < 50 ? 2 : charCount < 150 ? 3 : charCount < 400 ? 4 : 5;
+
+  // Distribute total typing time across bursts with some randomness
+  // Last burst gets the remainder
+  const bursts: number[] = [];
+  let remaining = totalTypingMs;
+  for (let i = 0; i < burstCount; i++) {
+    if (i === burstCount - 1) {
+      bursts.push(remaining);
+    } else {
+      // Each burst gets 15-40% of remaining time, with randomness
+      const fraction = 0.15 + Math.random() * 0.25;
+      const burstMs = Math.round(remaining * fraction);
+      bursts.push(burstMs);
+      remaining -= burstMs;
+    }
+  }
+
+  const composing = () => whatsapp.sendPresenceUpdate?.('composing', jid)?.catch(() => {});
+  const paused = () => whatsapp.sendPresenceUpdate?.('paused', jid)?.catch(() => {});
+
+  for (let i = 0; i < bursts.length; i++) {
+    // Type for this burst's duration
+    await composing();
+    await sleep(bursts[i]);
+
+    // Pause between bursts (think/rest) — skip pause after last burst
+    if (i < bursts.length - 1) {
+      await paused();
+      // Pause duration: 300ms-2s (feels like thinking mid-sentence)
+      const pauseMs = 300 + Math.round(Math.random() * 1700);
+      await sleep(pauseMs);
+    }
+  }
+
+  logger.debug({ bursts, burstCount, totalTypingMs }, 'Human typing simulation complete');
+}
+
 // ── WhatsApp Adapter Interface ──────────────────────────────────
 
 export interface WhatsAppAdapter {
@@ -686,11 +745,8 @@ ${this.config.welcomeMessage ? `Gunakan sambutan seperti: "${this.config.welcome
       }
 
       if (response) {
-        // 7. Human-like post-delay (simulate typing speed)
-        const postDelay = calculateTypingDelay(response);
-        if (postDelay > 0) {
-          await sleep(postDelay);
-        }
+        // 7. Human-like multi-burst typing simulation (type, pause, type longer, pause, random)
+        await simulateHumanTyping(this.whatsapp, jid, response, this.logger);
 
         const sentMsg = await this.whatsapp.sendMessage(msg.from, response);
         this.db.saveMessage(sentMsg, chatId);
@@ -1003,6 +1059,7 @@ Penting: Jawab dengan bahasa Indonesia yang ramah, sopan, dan to-the-point. Tany
       const aiReply = response.content || '';
       if (aiReply) {
         this.db.addConversation(userJid, 'assistant', aiReply);
+        await simulateHumanTyping(this.whatsapp, msg.from, aiReply, this.logger);
         await this.whatsapp.sendMessage(userJid, aiReply);
       } else {
         await this.whatsapp.sendMessage(userJid, 'Maaf, saya tidak mengerti. Bisa diulang?');
