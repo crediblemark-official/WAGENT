@@ -328,6 +328,17 @@ export class Gateway {
       if (msg.fromMe && msg.id) {
         const exists = this.db.messageExists(msg.id);
         if (!exists) {
+          // ── Handback Detection ──────────────────────────────
+          // If human sends a trigger word in the chat,
+          // hand control back to AI for this conversation.
+          const content = (msg.content || '').trim().toLowerCase();
+          if (['ai', 'bot', 'mulai ai', 'ai mulai'].includes(content)) {
+            this.humanActiveMap.delete(msg.from);
+            this.eventBus.emit({ type: 'human:inactive', chatId: msg.from });
+            this.logger.info({ from: msg.from }, 'Human handed back to AI — auto-reply resumed');
+            return;
+          }
+
           this.logger.info({ from: msg.from }, 'Human reply detected — AI will pause for this conversation');
           this.humanActiveMap.set(msg.from, Date.now());
           this.eventBus.emit({ type: 'human:active', chatId: msg.from });
