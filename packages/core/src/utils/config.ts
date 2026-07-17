@@ -10,6 +10,7 @@
 
 import { existsSync, readFileSync, mkdirSync, writeFileSync } from 'fs';
 import { join, dirname } from 'path';
+import { homedir } from 'os';
 import { fileURLToPath } from 'url';
 import { getLogger } from './logger.js';
 import { WAgentConfig } from '../types.js';
@@ -249,10 +250,13 @@ function buildConfig(jsonConfig: WAgentJsonConfig, resolved: ResolvedModel): WAg
     }
   }
   
+  const home = homedir();
+  const wagentDir = join(home, '.wagent');
+
   return {
     // WhatsApp
     whatsappSessionName: jsonConfig.session || 'wagent-session',
-    whatsappSessionDir: join(process.cwd(), '.sessions'),
+    whatsappSessionDir: join(wagentDir, '.sessions'),
     
     // AI Provider (auto-detected)
     aiProvider: resolved.provider as WAgentConfig['aiProvider'],
@@ -297,7 +301,7 @@ function buildConfig(jsonConfig: WAgentJsonConfig, resolved: ResolvedModel): WAg
     
     // Database
     databaseType: jsonConfig.database?.type || 'sqlite',
-    databaseUrl: jsonConfig.database?.url || './data/wagent.db',
+    databaseUrl: jsonConfig.database?.url || join(wagentDir, 'data', 'wagent.db'),
   };
 }
 

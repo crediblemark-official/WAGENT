@@ -201,7 +201,7 @@ export function FileManagerPage() {
     }
 
     try {
-      const res = await fetch(`/api/files/content?path=${encodeURIComponent(file.path)}`);
+      const res = await fetch(`/api/files/read?path=${encodeURIComponent(file.path)}`);
       if (res.ok) {
         const data = await res.json();
         setSelectedFile(data);

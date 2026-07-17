@@ -1,6 +1,7 @@
 import { Logger } from 'pino';
 import { existsSync, mkdirSync, readFileSync, writeFileSync, appendFileSync, readdirSync, unlinkSync } from 'fs';
 import { join } from 'path';
+import { homedir } from 'os';
 import { MemoryEntry, ContactProfile, AIMessage } from '../types.js';
 import { getLogger } from '../utils/logger.js';
 import { Summarizer } from './summarizer.js';
@@ -31,7 +32,7 @@ export class MemoryManager {
 
   constructor(memoryDir?: string) {
     this.logger = getLogger().child({ module: 'memory-manager' });
-    this.memoryDir = memoryDir || join(process.cwd(), 'memory');
+    this.memoryDir = memoryDir || join(homedir(), '.wagent', 'memory');
     this.ensureDir('');
     this.ensureDir('contacts');
     this.ensureDir('conversations');

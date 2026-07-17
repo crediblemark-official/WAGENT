@@ -7,6 +7,7 @@ import { FileManager } from '../rag/file-manager.js';
 import { WebScraper } from '../rag/web-scraper.js';
 import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
+import { homedir } from 'os';
 import { getLogger } from '../utils/logger.js';
 
 function updateEnvFile(vars: Record<string, string>): void {
@@ -624,7 +625,7 @@ export function createBuiltInTools(config: WAgentConfig): ToolDefinition[] {
 
   // File Manager
   const fileManager = new FileManager({
-    baseDir: config.knowledgeDir || './knowledge',
+    baseDir: config.knowledgeDir || join(homedir(), '.wagent', 'knowledge'),
   });
   tools.push({
     name: 'file_read',

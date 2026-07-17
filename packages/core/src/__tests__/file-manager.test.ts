@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { join } from 'path';
+import { homedir } from 'os';
 import { rmSync, mkdirSync, writeFileSync, existsSync } from 'fs';
 import { randomUUID } from 'crypto';
 
@@ -265,13 +266,14 @@ describe('FileManager', () => {
   describe('constructor defaults', () => {
     it('uses default config when none provided', async () => {
       const defaultFm = new FileManager();
-      mkdirSync('data', { recursive: true });
-      writeFileSync(join('data', 'test-default.txt'), 'test');
+      const dataDir = join(homedir(), '.wagent', 'data');
+      mkdirSync(dataDir, { recursive: true });
+      writeFileSync(join(dataDir, 'test-default.txt'), 'test');
       try {
         const result = await defaultFm.read('test-default.txt');
         expect(result).not.toBeNull();
       } finally {
-        rmSync(join('data'), { recursive: true, force: true });
+        rmSync(join(dataDir, 'test-default.txt'), { force: true });
       }
     });
   });

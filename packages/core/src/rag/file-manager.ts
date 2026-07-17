@@ -2,6 +2,7 @@ import { Logger } from 'pino';
 import { getLogger } from '../utils/logger.js';
 import fs from 'fs/promises';
 import path from 'path';
+import { homedir } from 'os';
 
 export interface FileManagerConfig {
   /** Base directory for sandboxed access */
@@ -33,7 +34,7 @@ export interface FileInfo {
 }
 
 const DEFAULT_CONFIG: FileManagerConfig = {
-  baseDir: './data',
+  baseDir: path.join(homedir(), '.wagent', 'data'),
   allowedDirs: ['kb-files', 'uploads', 'memory', 'knowledge'],
   maxFileSize: 10 * 1024 * 1024, // 10MB
   allowedExtensions: ['.md', '.txt', '.csv', '.json', '.jsonl', '.yaml', '.yml'],

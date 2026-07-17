@@ -63,6 +63,15 @@ fi
 rm -rf "$INSTALL_DIR"
 echo "✓ Removed $INSTALL_DIR"
 
+# ── Clean up legacy scattered data (pre-v0.2.68) ──────────────
+LEGACY_DIRS=("$HOME/data" "$HOME/.sessions" "$HOME/memory" "$HOME/knowledge")
+for d in "${LEGACY_DIRS[@]}"; do
+  if [ -d "$d" ]; then
+    rm -rf "$d"
+    echo "✓ Removed legacy directory $d"
+  fi
+done
+
 echo ""
 echo "✅ WAGENT uninstalled."
 echo ""
