@@ -983,10 +983,11 @@ export class DashboardServer implements DashboardAdapter {
       }
     } catch { /* dir doesn't exist yet, ok */ }
 
-    const seeds = [
-      {
-        name: 'produk-contoh.md',
-        content: `# Produk Contoh
+    try {
+      const seeds = [
+        {
+          name: 'produk-contoh.md',
+          content: `# Produk Contoh
 
 ## Deskripsi
 Produk ini adalah contoh file knowledge base yang bisa dihapus atau diedit melalui dashboard.
@@ -1001,10 +1002,10 @@ Produk ini adalah contoh file knowledge base yang bisa dihapus atau diedit melal
 - Pro: Rp 99.000/bulan
 - Enterprise: Hubungi sales
 `,
-      },
-      {
-        name: 'faq-pengiriman.md',
-        content: `# FAQ Pengiriman
+        },
+        {
+          name: 'faq-pengiriman.md',
+          content: `# FAQ Pengiriman
 
 ## Berapa lama pengiriman?
 Pengiriman standar 2-3 hari kerja. Express 1 hari kerja.
@@ -1021,10 +1022,10 @@ Nomor tracking akan dikirim via WhatsApp setelah barang dikirim.
 - Luar Jawa: Rp 25.000
 - International: Mulai Rp 100.000
 `,
-      },
-      {
-        name: 'kebijakan-retur.md',
-        content: `# Kebijakan Retur
+        },
+        {
+          name: 'kebijakan-retur.md',
+          content: `# Kebijakan Retur
 
 ## Syarat Retur
 1. Barang dalam kondisi belum dipakai
@@ -1043,13 +1044,13 @@ Nomor tracking akan dikirim via WhatsApp setelah barang dikirim.
 - Barang sale/clearance
 - Produk digital
 `,
-      },
-    ];
+        },
+      ];
 
-    for (const seed of seeds) {
-      writeFileSync(join(knowledgeDir, seed.name), seed.content, 'utf-8');
-    }
-    this.logger.info({ count: seeds.length, dir: knowledgeDir }, 'Seed knowledge files created');
+      for (const seed of seeds) {
+        writeFileSync(join(knowledgeDir, seed.name), seed.content, 'utf-8');
+      }
+      this.logger.info({ count: seeds.length, dir: knowledgeDir }, 'Seed knowledge files created');
     } catch (err: any) {
       this.logger.warn({ error: err.message }, 'Failed to seed knowledge files');
     }
@@ -1058,60 +1059,60 @@ Nomor tracking akan dikirim via WhatsApp setelah barang dikirim.
   private seedKnowledgeBase(): void {
     try {
       const count = this.db.getKnowledgeCount();
-    if (count > 0) return;
+      if (count > 0) return;
 
-    const now = new Date();
-    const entries = [
-      {
-        id: 'seed-1',
-        category: 'produk',
-        question: 'Apa itu WAGENT?',
-        answer: 'WAGENT adalah platform AI agent WhatsApp open-source yang memungkinkan Anda membuat chatbot AI otomatis untuk bisnis Anda.',
-        keywords: ['wagent', 'ai', 'whatsapp', 'chatbot'],
-        tags: ['produk', 'deskripsi'],
-        priority: 3,
-        createdAt: now,
-        updatedAt: now,
-      },
-      {
-        id: 'seed-2',
-        category: 'FAQ',
-        question: 'Bagaimana cara memulai使用 WAGENT?',
-        answer: 'Install WAGENT via npm atau curl, jalankan "wagent setup" untuk konfigurasi awal, lalu "wagent start" untuk menjalankan server.',
-        keywords: ['install', 'setup', 'mulai', 'cara'],
-        tags: ['panduan', 'pemula'],
-        priority: 2,
-        createdAt: now,
-        updatedAt: now,
-      },
-      {
-        id: 'seed-3',
-        category: 'kebijakan',
-        question: 'Apakah data saya aman?',
-        answer: 'Ya, semua data disimpan lokal di server Anda sendiri. Tidak ada data yang dikirim ke server eksternal kecuali API AI yang Anda pilih.',
-        keywords: ['keamanan', 'data', 'privasi'],
-        tags: ['kebijakan', 'keamanan'],
-        priority: 2,
-        createdAt: now,
-        updatedAt: now,
-      },
-      {
-        id: 'seed-4',
-        category: 'harga',
-        question: 'Berapa biaya menggunakan WAGENT?',
-        answer: 'WAGENT gratis dan open-source. Yang perlu Anda bayar hanya API key AI (OpenAI, Anthropic, dll) sesuai penggunaan Anda.',
-        keywords: ['harga', 'biaya', 'gratis', 'bayar'],
-        tags: ['harga', 'billing'],
-        priority: 1,
-        createdAt: now,
-        updatedAt: now,
-      },
-    ];
+      const now = new Date();
+      const entries = [
+        {
+          id: 'seed-1',
+          category: 'produk',
+          question: 'Apa itu WAGENT?',
+          answer: 'WAGENT adalah platform AI agent WhatsApp open-source yang memungkinkan Anda membuat chatbot AI otomatis untuk bisnis Anda.',
+          keywords: ['wagent', 'ai', 'whatsapp', 'chatbot'],
+          tags: ['produk', 'deskripsi'],
+          priority: 3,
+          createdAt: now,
+          updatedAt: now,
+        },
+        {
+          id: 'seed-2',
+          category: 'FAQ',
+          question: 'Bagaimana cara memulai menggunakan WAGENT?',
+          answer: 'Install WAGENT via npm atau curl, jalankan "wagent setup" untuk konfigurasi awal, lalu "wagent start" untuk menjalankan server.',
+          keywords: ['install', 'setup', 'mulai', 'cara'],
+          tags: ['panduan', 'pemula'],
+          priority: 2,
+          createdAt: now,
+          updatedAt: now,
+        },
+        {
+          id: 'seed-3',
+          category: 'kebijakan',
+          question: 'Apakah data saya aman?',
+          answer: 'Ya, semua data disimpan lokal di server Anda sendiri. Tidak ada data yang dikirim ke server eksternal kecuali API AI yang Anda pilih.',
+          keywords: ['keamanan', 'data', 'privasi'],
+          tags: ['kebijakan', 'keamanan'],
+          priority: 2,
+          createdAt: now,
+          updatedAt: now,
+        },
+        {
+          id: 'seed-4',
+          category: 'harga',
+          question: 'Berapa biaya menggunakan WAGENT?',
+          answer: 'WAGENT gratis dan open-source. Yang perlu Anda bayar hanya API key AI (OpenAI, Anthropic, dll) sesuai penggunaan Anda.',
+          keywords: ['harga', 'biaya', 'gratis', 'bayar'],
+          tags: ['harga', 'billing'],
+          priority: 1,
+          createdAt: now,
+          updatedAt: now,
+        },
+      ];
 
-    for (const entry of entries) {
-      this.db.createKnowledgeEntry(entry);
-    }
-    this.logger.info({ count: entries.length }, 'Seed knowledge base entries created');
+      for (const entry of entries) {
+        this.db.createKnowledgeEntry(entry);
+      }
+      this.logger.info({ count: entries.length }, 'Seed knowledge base entries created');
     } catch (err: any) {
       this.logger.warn({ error: err.message }, 'Failed to seed knowledge base');
     }

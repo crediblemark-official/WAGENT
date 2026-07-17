@@ -250,8 +250,12 @@ export class Gateway {
       // fromMe === true and the sender (remoteJid) equals the owner's JID or LID.
       // WhatsApp linked devices use LID format (xxx@lid) instead of the regular
       // phone-number JID (xxx@s.whatsapp.net), so we check both.
+      // Also compare the phone number prefix as a fallback when LID is unavailable.
+      const senderNumber = msg.from?.split('@')[0] || '';
+      const ownerNumber = userJid?.split('@')[0] || '';
       const isSelfChatMsg = !!userJid && msg.fromMe && (
-        msg.from === userJid || (!!userLid && msg.from === userLid)
+        msg.from === userJid || (!!userLid && msg.from === userLid) ||
+        (senderNumber.length > 5 && senderNumber === ownerNumber)
       );
       if (msg.fromMe && msg.id && !isSelfChatMsg) {
         const exists = this.db.messageExists(msg.id);
@@ -453,8 +457,12 @@ export class Gateway {
     const userJid = this.whatsapp.userJid;
     const userLid = this.whatsapp.userLid;
     if (!userJid) return false;
-    // Self-chat = owner sends to their own number (fromMe + sender === owner JID or LID)
-    return !!msg.fromMe && (msg.from === userJid || (!!userLid && msg.from === userLid));
+    const senderNumber = msg.from?.split('@')[0] || '';
+    const ownerNumber = userJid.split('@')[0] || '';
+    return !!msg.fromMe && (
+      msg.from === userJid || (!!userLid && msg.from === userLid) ||
+      (senderNumber.length > 5 && senderNumber === ownerNumber)
+    );
   }
 
   /**
