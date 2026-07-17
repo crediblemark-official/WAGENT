@@ -86,6 +86,8 @@ export interface WhatsAppAdapter {
   readMessages?(jid: string, messageKeys: { id: string; fromMe?: boolean }[]): Promise<void>;
   /** Bot's own JID (for @mention detection) */
   readonly userJid?: string;
+  /** Bot's own LID (linked device ID, for self-chat detection) */
+  readonly userLid?: string;
 }
 
 // ── Dashboard Adapter Interface ─────────────────────────────────
@@ -243,11 +245,14 @@ export class Gateway {
       // human's reply to DB so history is complete across restarts.
       // Skip self-chat messages (owner sending to own number)
       const userJid = this.whatsapp.userJid;
+      const userLid = this.whatsapp.userLid;
       // A self-chat message is one the owner sends to their own number:
-      // fromMe === true and the sender (remoteJid) equals the owner's JID.
-      // We key off `from` (remoteJid) rather than `to` because `to` may be
-      // empty/normalised differently across Baileys versions.
-      const isSelfChatMsg = !!userJid && msg.fromMe && msg.from === userJid;
+      // fromMe === true and the sender (remoteJid) equals the owner's JID or LID.
+      // WhatsApp linked devices use LID format (xxx@lid) instead of the regular
+      // phone-number JID (xxx@s.whatsapp.net), so we check both.
+      const isSelfChatMsg = !!userJid && msg.fromMe && (
+        msg.from === userJid || (!!userLid && msg.from === userLid)
+      );
       if (msg.fromMe && msg.id && !isSelfChatMsg) {
         const exists = this.db.messageExists(msg.id);
         if (!exists) {
@@ -446,9 +451,10 @@ export class Gateway {
    */
   private isSelfChat(msg: Message): boolean {
     const userJid = this.whatsapp.userJid;
+    const userLid = this.whatsapp.userLid;
     if (!userJid) return false;
-    // Self-chat = owner sends to their own number (fromMe + sender === owner JID)
-    return !!msg.fromMe && msg.from === userJid;
+    // Self-chat = owner sends to their own number (fromMe + sender === owner JID or LID)
+    return !!msg.fromMe && (msg.from === userJid || (!!userLid && msg.from === userLid));
   }
 
   /**

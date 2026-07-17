@@ -30,6 +30,7 @@ import { getLogger } from '@wagent/core';
 export class BaileysAdapter implements WhatsAppAdapter {
   public readonly numberId: string;
   public _userJid: string = '';
+  public _userLid: string = '';
   public lastQr: string | null = null;
   private sock: WASocket | null = null;
   private eventHandler: ((event: GatewayEvent) => void) | null = null;
@@ -85,6 +86,10 @@ export class BaileysAdapter implements WhatsAppAdapter {
 
   get userJid(): string {
     return this._userJid;
+  }
+
+  get userLid(): string {
+    return this._userLid;
   }
 
   getConnectionStatus(): ConnectionStatus {
@@ -252,6 +257,7 @@ export class BaileysAdapter implements WhatsAppAdapter {
         this.lastQr = null;
         this.reconnectCount = 0; // Reset counter on successful connection
         this._userJid = this.sock?.user?.id || '';
+        this._userLid = (this.sock?.user as any)?.lid || '';
         this.emit({ type: 'connection:update', status: 'connected' });
         this.logger.info('WhatsApp connected successfully!');
 
